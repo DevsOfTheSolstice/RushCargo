@@ -55,7 +55,7 @@ CREATE TABLE Piloto (
 );
 
 CREATE TABLE Vehiculo (
-    vin_vehiculo BIGSERIAL PRIMARY KEY,
+    vin_vehiculo VARCHAR(25) PRIMARY KEY,
     id_descripcion BIGINT NOT NULL, 
     precio DECIMAL(10,2) NOT NULL,
     color VARCHAR(50) NOT NULL,
@@ -64,9 +64,10 @@ CREATE TABLE Vehiculo (
     FOREIGN KEY (id_descripcion) REFERENCES Descripcion_Vehiculo(id_descripcion)
 );
 
+
 CREATE TABLE Carro (
     id_carro BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     traccion INT(2, 4) NOT NULL,
     puertas INT(2, 4) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
@@ -74,27 +75,27 @@ CREATE TABLE Carro (
 
 CREATE TABLE Moto (
     id_moto BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     asientos INT(1, 2) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
 );
 
 CREATE TABLE Bicicleta (
     id_bicicleta BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
 );
 
 CREATE TABLE Tolva (
     id_tolva BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     capacidad_carga INT(1000, 50000) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
 );
 
 CREATE TABLE Tractor (
     id_tractor BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     traccion INT(2, 4) NOT NULL,
     terreno VARCHAR(50) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
@@ -102,7 +103,7 @@ CREATE TABLE Tractor (
 
 CREATE TABLE Cisterna (
     id_cisterna BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     tipo_liquido VARCHAR(50) NOT NULL,
     capacidad_carga INT(1000, 50000) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
@@ -110,7 +111,7 @@ CREATE TABLE Cisterna (
 
 CREATE TABLE Camion_Plataforma (
     id_camion BIGSERIAL PRIMARY KEY,
-    vin_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     tipo_plataforma VARCHAR(50) NOT NULL,
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
 );
@@ -155,7 +156,7 @@ CREATE TABLE Factura (
     dia DATE NOT NULL,
     hora TIME NOT NULL,
     FOREIGN KEY (ci_empleado) REFERENCES Empleado(ci_empleado),
-    FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
 );
  
 CREATE TABLE Detalle (
@@ -171,6 +172,17 @@ CREATE TABLE Detalle (
     FOREIGN KEY (id_vehiculo) REFERENCES Vehiculo(vin_vehiculo),
     FOREIGN KEY (id_seguro) REFERENCES Seguro(id_seguro)
 );
+
+CREATE TABLE Propietario_Vehiculo (
+    id_cliente BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
+    dia_compra DATE NOT NULL,
+    hora_compra TIME NOT NULL,
+    propietario_actual BOOLEAN NOT NULL,
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
+);
+
 
 CREATE TABLE Repuesto_Suministrado (
     rif_taller VARCHAR(50) NOT NULL,
@@ -213,3 +225,18 @@ CREATE TABLE Participante_Carrera (
     FOREIGN KEY (id_carro) REFERENCES Carro(id_carro),
     FOREIGN KEY (id_carrera) REFERENCES Carrera(id_carrera)
 );
+
+CREATE TABLE Evento (
+    id_evento BIGSERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    descripcion VARCHAR(255) NOT NULL,
+    fecha DATE NOT NULL,
+);
+
+CREATE TABLE Exposicion_Evento (
+    id_evento BIGINT NOT NULL,
+    vin_vehiculo VARCHAR NOT NULL,
+    FOREIGN KEY (id_evento) REFERENCES Evento(id_evento),
+    FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
+);
+

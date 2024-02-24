@@ -8,3 +8,13 @@ CREATE TABLE Descripcion_Vehiculo (
     cantidad_cilindros INT, 
     litros_motor FLOAT 
 );
+
+CREATE TABLE Vehiculo (
+    vin BIGSERIAL PRIMARY KEY,
+    id_descripcion BIGINT, 
+    precio DECIMAL(10,2) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    kilometraje INT,
+    matricula VARCHAR(50) NOT NULL,
+    FOREIGN KEY (id_descripcion) REFERENCES Descripcion_Vehiculo(id)
+);

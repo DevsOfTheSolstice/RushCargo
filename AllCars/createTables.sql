@@ -77,22 +77,64 @@ CREATE TABLE Ente (
 );
 
 CREATE TABLE Clientes (
-    id BIGSERIAL PRIMARY KEY,
+    id_cliente BIGSERIAL PRIMARY KEY,
     id_ente BIGINT,
     FOREIGN KEY (id_ente) REFERENCES Ente(id)
 );
 
 CREATE TABLE Cliente_Natural (
-    ci BIGINT PRIMARY KEY,
+    ci BIGINT PRIMARY KEY NOT NULL,
     id_cliente BIGINT,
     nombre VARCHAR(50) NOT NULL,
     apellido VARCHAR(50) NOT NULL,
-    FOREIGN KEY (id_cliente) REFERENCES Clientes(id)
+    FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
 );
 
 CREATE TABLE Cliente_Juridico (
-    rif VARCHAR(15) PRIMARY KEY,
+    rif VARCHAR(15) PRIMARY KEY NOT NULL,
     id_cliente BIGINT,
     nombre VARCHAR(50) NOT NULL,
-    FOREIGN KEY (id_cliente) REFERENCES Clientes(id)
+    FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
 ); 
+
+CREATE TABLE Seguro (
+    id_seguro BIGSERIAL PRIMARY KEY,
+    nombre VARCHAR(50),
+    porcentaje DECIMAL(5, 2)
+);
+
+CREATE TABLE Empleado (
+    ci_empleado BIGINT PRIMARY KEY,
+    id_ente BIGINT,
+    nombre VARCHAR(50) NOT NULL,
+    apellido VARCHAR(50) NOT NULL,
+    cargo VARCHAR(50) NOT NULL,
+    sueldo DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (id_ente) REFERENCES Ente(id)
+);
+
+CREATE TABLE Factura(
+    id_factura BIGSERIAL PRIMARY KEY,
+    ci_empleado BIGINT NOT NULL,
+    id_cliente BIGINT NOT NULL,
+    tipo_de_factura VARCHAR(50) NOT NULL,
+    bono DECIMAL(10, 2),
+    dia DATE NOT NULL,
+    hora TIME NOT NULL,
+    FOREIGN KEY (ci_empleado) REFERENCES Empleado(ci_empleado),
+    FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
+);
+
+CREATE TABLE Detalle (
+    id_detalle BIGSERIAL PRIMARY KEY,
+    id_factura BIGINT NOT NULL,
+    id_vehiculo BIGINT NOT NULL,
+    id_seguro BIGINT NOT NULL,
+    precio_neto DECIMAL(10, 2) NOT NULL,
+    impuestos DECIMAL(10, 2) NOT NULL,
+    descuento DECIMAL(10, 2) NOT NULL,
+    precio_total DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (id_factura) REFERENCES Factura(id_factura),
+    FOREIGN KEY (id_vehiculo) REFERENCES Vehiculo(vin_vehiculo),
+    FOREIGN KEY (id_seguro) REFERENCES Seguro(id_seguro)
+);

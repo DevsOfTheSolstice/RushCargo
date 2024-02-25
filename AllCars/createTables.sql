@@ -12,7 +12,7 @@ CREATE TABLE Descripcion_Vehiculo (
 CREATE TABLE Ente (
     id_ente BIGSERIAL PRIMARY KEY,
     telefono VARCHAR(15) NOT NULL,
-    direccion VARCHAR(255) NOT NULL
+    direccion VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE Seguro (
@@ -34,7 +34,7 @@ CREATE TABLE Proveedor (
 );
 
 CREATE TABLE Repuesto (
-    numero_parte_repuesto VARCHAR(50) PRIMARY KEY,
+    numero_parte_repuesto VARCHAR(25) PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
 );
 
@@ -162,14 +162,14 @@ CREATE TABLE Factura (
 CREATE TABLE Detalle (
     id_detalle BIGSERIAL PRIMARY KEY,
     id_factura BIGINT NOT NULL,
-    id_vehiculo BIGINT NOT NULL,
+    vin_vehiculo VARCHAR(25) NOT NULL,
     id_seguro BIGINT NOT NULL,
     precio_neto DECIMAL(10, 2) NOT NULL,
     impuestos DECIMAL(10, 2) NOT NULL,
     descuento DECIMAL(10, 2) NOT NULL,
     precio_total DECIMAL(10, 2) NOT NULL,
     FOREIGN KEY (id_factura) REFERENCES Factura(id_factura),
-    FOREIGN KEY (id_vehiculo) REFERENCES Vehiculo(vin_vehiculo),
+    FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo),
     FOREIGN KEY (id_seguro) REFERENCES Seguro(id_seguro)
 );
 
@@ -187,7 +187,7 @@ CREATE TABLE Propietario_Vehiculo (
 CREATE TABLE Repuesto_Suministrado (
     rif_taller VARCHAR(50) NOT NULL,
     rif_proveedor VARCHAR(50) NOT NULL,
-    numero_parte BIGINT NOT NULL,
+    numero_parte VARCHAR(25) NOT NULL,
     cantidad INT(1, 1000) NOT NULL,
     FOREIGN KEY (rif_taller) REFERENCES Taller(rif_taller),
     FOREIGN KEY (rif_proveedor) REFERENCES Proveedor(rif_proveedor),

@@ -238,4 +238,3 @@ CREATE TABLE Exposicion_Evento (
     FOREIGN KEY (id_evento) REFERENCES Evento(id_evento),
     FOREIGN KEY (vin_vehiculo) REFERENCES Vehiculo(vin_vehiculo)
 );
-

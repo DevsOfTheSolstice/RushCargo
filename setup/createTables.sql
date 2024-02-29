@@ -32,10 +32,37 @@ CREATE TABLE Camionero (
     sueldo BIGINT NOT NULL,
     FOREIGN KEY (camion_asignado) REFERENCES Camion(vin)
 );
+CREATE TABLE Pais (
+    id BIGSERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    prefijo_telefonico VARCHAR(50) NOT NULL
+);
+--12
+CREATE TABLE Region (
+    id BIGSERIAL PRIMARY KEY,
+    id_pais BIGINT NOT NULL,
+    nombre VARCHAR(50) NOT NULL,
+    FOREIGN KEY (id_pais) REFERENCES Pais(id)
+);
+
+CREATE TABLE Ciudad (
+    id BIGSERIAL PRIMARY KEY,
+    id_region BIGINT NOT NULL,
+    nombre VARCHAR(50) NOT NULL,
+    FOREIGN KEY (id_region) REFERENCES Region(id)
+);
+--6
+CREATE TABLE Cliente (
+    id BIGSERIAL PRIMARY KEY,
+    ciudad_actual BIGSERIAL NOT NULL,
+    telefono BIGINT,
+    direccion VARCHAR(50),
+    FOREIGN KEY (ciudad_actual) REFERENCES Ciudad(id)
+);
 --4
 CREATE TABLE Motorizado (
     id BIGINT PRIMARY KEY,
-    camion_asignado BIGSERIAL,
+    moto_asignada BIGSERIAL,
     telefono BIGINT,
     direccion VARCHAR(50),
     fecha_nacimiento DATE,
@@ -69,14 +96,7 @@ CREATE TABLE Paquete (
     ancho DECIMAL(10,2) NOT NULL,
     alto DECIMAL(10,2) NOT NULL
 );
---6
-CREATE TABLE Cliente (
-    id BIGSERIAL PRIMARY KEY,
-    ciudad_actual BIGSERIAL NOT NULL,
-    telefono BIGINT,
-    direccion VARCHAR(50),
-    FOREIGN KEY (ciudad_actual) REFERENCES Ciudad(id)
-);
+
 --7
 CREATE TABLE Cliente_Natural (
     id BIGINT PRIMARY KEY,
@@ -91,46 +111,28 @@ CREATE TABLE Cliente_Juridico (
     tipo VARCHAR(50) NOT NULL,
     FOREIGN KEY (id) REFERENCES Cliente(id)
 );
+
+--14
+CREATE TABLE Sucursal (
+    id_sucursal BIGSERIAL PRIMARY KEY,
+    id_ciudad BIGINT NOT NULL,
+    direccion VARCHAR(50) NOT NULL,
+    FOREIGN KEY (id_ciudad) REFERENCES Ciudad(id)
+);
 --9
 CREATE TABLE Envios_Cliente (
     num_tracking BIGINT PRIMARY KEY,
     id_cliente_emisor BIGINT,
-    id_cliente_receptor BIGINT,
+    id_cliente_destino BIGINT,
     id_sucursal_emisor BIGINT,
     id_sucursal_destino BIGINT,
     FOREIGN KEY (num_tracking) REFERENCES Paquete(num_tracking),
     FOREIGN KEY (id_cliente_emisor) REFERENCES Cliente(id),
     FOREIGN KEY (id_cliente_destino) REFERENCES Cliente(id),
-    FOREIGN KEY (id_sucursal_emisor) REFERENCES Sucursal(id),
-    FOREIGN KEY (id_sucursal_destino) REFERENCES Sucursal(id)
+    FOREIGN KEY (id_sucursal_emisor) REFERENCES Sucursal(id_sucursal),
+    FOREIGN KEY (id_sucursal_destino) REFERENCES Sucursal(id_sucursal)
 );
---11
-CREATE TABLE Pais (
-    id BIGSERIAL PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    prefijo_telefonico VARCHAR(50) NOT NULL
-);
---12
-CREATE TABLE Region (
-    id BIGSERIAL PRIMARY KEY,
-    id_pais BIGINT NOT NULL,
-    nombre VARCHAR(50) NOT NULL,
-    FOREIGN KEY (id_pais) REFERENCES Pais(id)
-);
---13
-CREATE TABLE Ciudad (
-    id BIGSERIAL PRIMARY KEY,
-    id_region BIGINT NOT NULL,
-    nombre VARCHAR(50) NOT NULL,
-    FOREIGN KEY (id_region) REFERENCES Region(id)
-);
---14
-CREATE TABLE Sucursal (
-    id BIGSERIAL PRIMARY KEY,
-    id_ciudad BIGINT NOT NULL,
-    direccion VARCHAR(50) NOT NULL,
-    FOREIGN KEY (id_ciudad) REFERENCES Ciudad(id)
-);
+
 --15
 CREATE TABLE Telefonos_sucursal (
     id_sucursal BIGINT PRIMARY KEY,
@@ -152,7 +154,7 @@ CREATE TABLE Orden_Delivery (
     id_motorizado BIGINT,
     fecha_salida DATE,
     hora_salida TIME,
-    FOREIGN KEY (id_sucursal_salida) REFERENCES Sucursal(id)
+    FOREIGN KEY (id_sucursal_salida) REFERENCES Sucursal(id_sucursal)
 );
 --17
 CREATE TABLE Paquete_Delivery (
@@ -170,14 +172,14 @@ CREATE TABLE Orden_Traslado (
     fecha_salida DATE,
     hora_salida TIME,
     status_salida VARCHAR(50) NOT NULL,
-    status_llegada VARCHAR(50) NOT NULL,
+    status_llegada VARCHAR(50) NOT NULL
 );
 --20
 CREATE TABLE Paquete_Traslado (
     num_orden BIGINT PRIMARY KEY,
     num_tracking BIGINT,
     FOREIGN KEY (num_orden) REFERENCES Orden_Traslado(num_orden),
-    FOREIGN KEY (num_tracking) REFERENCES Paquete(num_tracking),
+    FOREIGN KEY (num_tracking) REFERENCES Paquete(num_tracking)
 );
 --21
 CREATE TABLE Recibe_Delivery (

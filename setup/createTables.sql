@@ -30,6 +30,7 @@ CREATE TABLE Camionero (
     primer_nombre VARCHAR(50) NOT NULL,
     primer_apellido VARCHAR(50) NOT NULL,
     sueldo BIGINT NOT NULL,
+    contrasena VARCHAR(80),
     FOREIGN KEY (camion_asignado) REFERENCES Camion(vin)
 );
 --4
@@ -58,6 +59,7 @@ CREATE TABLE Cliente (
     ciudad_actual BIGSERIAL NOT NULL,
     telefono BIGINT,
     direccion VARCHAR(50),
+    contrasena VARCHAR(80),
     FOREIGN KEY (ciudad_actual) REFERENCES Ciudad(id)
 );
 --8
@@ -70,6 +72,7 @@ CREATE TABLE Motorizado (
     primer_nombre VARCHAR(50) NOT NULL,
     primer_apellido VARCHAR(50) NOT NULL,
     sueldo BIGINT NOT NULL,
+    contrasena VARCHAR(80),
     FOREIGN KEY (moto_asignada) REFERENCES Moto(vin)
 );
 --9

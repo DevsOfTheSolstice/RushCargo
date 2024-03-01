@@ -1,0 +1,20 @@
+[package]
+name = "rushcargo-app"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+debug_derive = []
+default = ["debug_derive"]
+
+[dependencies]
+tokio = { version = "1.35.1", features = ["full"] }
+sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio-rustls", "rust_decimal"] }
+crossterm = "0.27.0"
+anyhow = "1.0.77"
+tui-input = "0.8.0"
+bcrypt = "0.15.0"
+rust_decimal = "1.33.1"
+lazy_static = "1.4.0"
+ratatui = "0.26.1"
+clap = { version = "4.5.1", features = ["derive"] }

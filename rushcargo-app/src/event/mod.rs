@@ -1,3 +1,6 @@
+mod login;
+mod trucker;
+
 use crossterm::event::{
     self,
     Event as CrosstermEvent,
@@ -14,7 +17,7 @@ use std::{
 use anyhow::Result;
 use crate::model::{
     app::App,
-    common::TimeoutType
+    common::{Screen, TimeoutType}
 };
 
 const SENDER_ERR: &'static str = "could not send terminal event";
@@ -32,9 +35,14 @@ pub enum InputBlacklist {
 #[derive(Debug)]
 pub enum Event {
     Quit,
+    EnterScreen(Screen),
     Resize,
     Cleanup,
     TimeoutStep(TimeoutType),
+    KeyInput(KeyEvent, InputBlacklist),
+    SwitchInput,
+
+    TryLogin,
 }
 
 #[derive(Debug)]
@@ -96,17 +104,27 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
         CrosstermEvent::Key(key_event) => {
             if key_event.kind == KeyEventKind::Release { return; }
 
-            let app_lock = app.lock().unwrap();
+            {
+                let app_lock = app.lock().unwrap();
 
-            // Events common to all screens.
-            match key_event.code {
-                KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
-                _ if app_lock.hold_popup => {
-                    sender.send(Event::Cleanup).expect(SENDER_ERR);
-                    Ok(())
-                },
-                _ => Ok(())
-            }.expect(SENDER_ERR);
+                // Events common to all screens.
+                match key_event.code {
+                    KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
+                    _ if app_lock.hold_popup => {
+                        sender.send(Event::Cleanup).expect(SENDER_ERR);
+                        Ok(())
+                    },
+                    _ => Ok(())
+                }.expect(SENDER_ERR);
+            }
+
+            let curr_screen = app.lock().unwrap().active_screen.clone();
+
+            // Screen-specific events.
+            match curr_screen {
+                Screen::Login => login::event_act(key_event, sender, app),
+                Screen::Trucker => trucker::event_act(key_event, sender, app)
+            }
         },
         CrosstermEvent::Resize(_, _) => {
             let mut app_lock = app.lock().unwrap();

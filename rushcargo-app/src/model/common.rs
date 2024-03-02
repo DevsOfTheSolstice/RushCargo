@@ -4,10 +4,18 @@ use tui_input::Input;
 #[derive(Debug, Clone)]
 pub enum Screen {
     Login,
+    Trucker,
 }
 
 pub enum Popup {
     LoginSuccessful,
+}
+
+pub enum UserType {
+    Trucker,
+    MotorcycleCourier,
+    NaturalClient,
+    LegalClient,
 }
 
 pub enum InputMode {

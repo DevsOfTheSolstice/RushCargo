@@ -1,8 +1,5 @@
 mod common;
-//mod list;
-//mod client;
-//mod admin;
-//mod common_fn;
+mod login;
 //mod cleanup;
 
 use std::sync::{Arc, Mutex};
@@ -15,10 +12,15 @@ use crate::{
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
-        Event::Quit | Event::TimeoutStep(_) =>
-            common::update(app, pool, event).await,
+        Event::Quit | Event::TimeoutStep(_) | Event::KeyInput(..) |
+        Event::SwitchInput
+        => common::update(app, pool, event).await,
 
-        Event::Resize => Ok(()),
+        Event::TryLogin
+        => login::update(app, pool, event).await,
+
+        Event::Resize
+        => Ok(()),
 
         _ => todo!()
         //_ => panic!("received event {:?} without assigned function", event)

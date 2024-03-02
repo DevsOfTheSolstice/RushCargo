@@ -55,8 +55,6 @@ async fn main() -> Result<()> {
 
     app_arc.lock().unwrap().enter_screen(&Screen::Login);
 
-    let mut _counter = 0;
-
     tui.draw(&mut app_arc)?;
 
     while !app_arc.lock().unwrap().should_quit {

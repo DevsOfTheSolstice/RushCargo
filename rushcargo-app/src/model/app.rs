@@ -4,7 +4,7 @@ use tui_input::Input;
 use crate::{
     HELP_TEXT,
     model::{
-        common::{Popup, InputFields, InputMode, Screen, TimeoutType, Timer}
+        common::{Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer}
     }
 };
 
@@ -13,6 +13,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub failed_logins: u8,
     pub timeout: HashMap<TimeoutType, Timer>,
+    pub active_user: Option<UserType>,
     pub active_screen: Screen,
     pub active_popup: Option<Popup>,
     pub hold_popup: bool,
@@ -27,6 +28,7 @@ impl std::default::Default for App {
             input_mode: InputMode::Normal,
             failed_logins: 0,
             timeout: HashMap::new(),
+            active_user: None,
             active_screen: Screen::Login,
             active_popup: None,
             hold_popup: false,
@@ -40,6 +42,12 @@ impl App {
     pub fn enter_screen(&mut self, screen: &Screen) {
         self.should_clear_screen = true;
         match screen {
+            Screen::Login => {
+                self.active_screen = Screen::Login;
+                self.input_mode = InputMode::Editing(0);
+                self.failed_logins = 0;
+                self.active_user = None;
+            }
             _ => {}
         }
     }

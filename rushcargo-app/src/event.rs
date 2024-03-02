@@ -32,7 +32,9 @@ pub enum InputBlacklist {
 #[derive(Debug)]
 pub enum Event {
     Quit,
-    TimeoutStep(TimeoutType)
+    Resize,
+    Cleanup,
+    TimeoutStep(TimeoutType),
 }
 
 #[derive(Debug)]
@@ -99,9 +101,20 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
             // Events common to all screens.
             match key_event.code {
                 KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
+                _ if app_lock.hold_popup => {
+                    sender.send(Event::Cleanup).expect(SENDER_ERR);
+                    Ok(())
+                },
                 _ => Ok(())
             }.expect(SENDER_ERR);
-        }
+        },
+        CrosstermEvent::Resize(_, _) => {
+            let mut app_lock = app.lock().unwrap();
+            if !app_lock.timeout.contains_key(&TimeoutType::Resize) {
+                app_lock.add_timeout(1, 250, TimeoutType::Resize);
+                sender.send(Event::Resize).expect(SENDER_ERR);
+            }
+        },
         _ => {}
     }
 }

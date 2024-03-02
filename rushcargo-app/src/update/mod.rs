@@ -15,8 +15,11 @@ use crate::{
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
-        Event::Quit =>
+        Event::Quit | Event::TimeoutStep(_) =>
             common::update(app, pool, event).await,
+
+        Event::Resize => Ok(()),
+
         _ => todo!()
         //_ => panic!("received event {:?} without assigned function", event)
     }

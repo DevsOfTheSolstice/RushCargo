@@ -1,4 +1,4 @@
-//mod common;
+mod common;
 //mod list;
 //mod client;
 //mod admin;
@@ -15,6 +15,8 @@ use crate::{
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
+        Event::Quit =>
+            common::update(app, pool, event).await,
         _ => todo!()
         //_ => panic!("received event {:?} without assigned function", event)
     }

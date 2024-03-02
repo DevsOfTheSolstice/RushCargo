@@ -61,8 +61,6 @@ async fn main() -> Result<()> {
 
     while !app_arc.lock().unwrap().should_quit {
         if let Ok(event) = tui.events.next() {
-            //println!("{}", _counter);
-            //_counter += 1;
             update(&mut app_arc, &pool, event).await.unwrap_or_else(|error| panic!("{}", error));
             tui.draw(&mut app_arc)?;
         }

@@ -91,6 +91,17 @@ impl EventHandler {
 
 fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mutex<App>>) {
     match event {
+        CrosstermEvent::Key(key_event) => {
+            if key_event.kind == KeyEventKind::Release { return; }
+
+            let app_lock = app.lock().unwrap();
+
+            // Events common to all screens.
+            match key_event.code {
+                KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
+                _ => Ok(())
+            }.expect(SENDER_ERR);
+        }
         _ => {}
     }
 }

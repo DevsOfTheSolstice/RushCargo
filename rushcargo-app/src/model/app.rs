@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+use ratatui::widgets::{List, ListState};
 use std::time::{Duration, Instant};
 use tui_input::Input;
 use crate::{
     HELP_TEXT,
     model::{
+        app_list::ListData,
         common::{Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer}
     }
 };
@@ -13,6 +15,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub failed_logins: u8,
     pub timeout: HashMap<TimeoutType, Timer>,
+    pub list: ListData,
     pub active_user: Option<UserType>,
     pub active_screen: Screen,
     pub active_popup: Option<Popup>,
@@ -28,6 +31,7 @@ impl std::default::Default for App {
             input_mode: InputMode::Normal,
             failed_logins: 0,
             timeout: HashMap::new(),
+            list: ListData::default(),
             active_user: None,
             active_screen: Screen::Login,
             active_popup: None,
@@ -42,6 +46,12 @@ impl App {
     pub fn enter_screen(&mut self, screen: &Screen) {
         self.should_clear_screen = true;
         match screen {
+            Screen::Title => {
+                self.active_screen = Screen::Title;
+            }
+            Screen::Settings => {
+                self.active_screen = Screen::Settings;
+            }
             Screen::Login => {
                 self.active_screen = Screen::Login;
                 self.input_mode = InputMode::Editing(0);

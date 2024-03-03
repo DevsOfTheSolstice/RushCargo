@@ -1,3 +1,5 @@
+mod title;
+mod settings;
 mod login;
 mod trucker;
 
@@ -17,6 +19,7 @@ use std::{
 use anyhow::Result;
 use crate::model::{
     app::App,
+    app_list::ListType,
     common::{Screen, TimeoutType}
 };
 
@@ -41,6 +44,10 @@ pub enum Event {
     TimeoutStep(TimeoutType),
     KeyInput(KeyEvent, InputBlacklist),
     SwitchInput,
+
+    NextListItem(ListType),
+    PrevListItem(ListType),
+    SelectAction(ListType),
 
     TryLogin,
 }
@@ -122,6 +129,8 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
 
             // Screen-specific events.
             match curr_screen {
+                Screen::Title => title::event_act(key_event, sender, app),
+                Screen::Settings => settings::event_act(key_event, sender, app),
                 Screen::Login => login::event_act(key_event, sender, app),
                 Screen::Trucker => trucker::event_act(key_event, sender, app)
             }

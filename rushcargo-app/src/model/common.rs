@@ -3,8 +3,23 @@ use tui_input::Input;
 
 #[derive(Debug, Clone)]
 pub enum Screen {
+    Title,
+    Settings,
     Login,
     Trucker,
+}
+
+impl std::fmt::Display for Screen {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",
+            match self {
+                Screen::Title => "Title",
+                Screen::Settings => "Settings",
+                Screen::Login => "Login",
+                Screen::Trucker => "Trucker"
+            }
+        )
+    }
 }
 
 pub enum Popup {

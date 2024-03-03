@@ -1,4 +1,5 @@
 mod common;
+mod list;
 mod login;
 //mod cleanup;
 
@@ -13,8 +14,11 @@ use crate::{
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
         Event::Quit | Event::TimeoutStep(_) | Event::KeyInput(..) |
-        Event::SwitchInput
+        Event::SwitchInput | Event::EnterScreen(_)
         => common::update(app, pool, event).await,
+
+        Event::PrevListItem(_) | Event::NextListItem(_) | Event::SelectAction(_)
+        => list::update(app, pool, event).await,
 
         Event::TryLogin
         => login::update(app, pool, event).await,
@@ -22,7 +26,6 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
         Event::Resize
         => Ok(()),
 
-        _ => todo!()
-        //_ => panic!("received event {:?} without assigned function", event)
+        _ => panic!("received event {:?} without assigned function", event)
     }
 }

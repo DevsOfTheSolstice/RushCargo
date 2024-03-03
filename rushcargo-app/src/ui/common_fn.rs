@@ -29,8 +29,8 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 /// The multiplier param adjusts the rect size. Should be used with `centered_rect` function.
 pub fn percent_x(f: &mut Frame, multiplier: f32) -> u16 {
     let result = ((((multiplier * 125.00) * 0.99_f32.powi(f.size().width as i32))) + 1.0) as u16;
-    if result >= 100 { return 100; }
-    else { return result; }
+    if result >= 100 { 100 }
+    else { result }
 }
 
 /// Calculates the height percentage for centering a rect with a constant height in a given frame.
@@ -38,8 +38,8 @@ pub fn percent_x(f: &mut Frame, multiplier: f32) -> u16 {
 /// The multiplier param adjusts the rect size. Should be used with `centered_rect` function.
 pub fn percent_y(f: &mut Frame, multiplier: f32) -> u16 {
     let result = ((multiplier * (130.00 * 0.95_f32.powi(f.size().height as i32))) + 3.0) as u16;
-    if result >= 100 { return 100; }
-    else { return result; }
+    if result >= 100 { 100 }
+    else { result }
 }
 
 pub fn clear_chunks(f: &mut Frame, chunks: &std::rc::Rc<[Rect]>) {

@@ -30,7 +30,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
         }
         None => {
             match key_event.code {
-                KeyCode::Esc => sender.send(Event::Quit),
+                KeyCode::Esc => sender.send(Event::EnterScreen(Screen::Title)),
                 KeyCode::Enter => sender.send(Event::TryLogin),
                 KeyCode::Tab => sender.send(Event::SwitchInput),
                 _ => sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))

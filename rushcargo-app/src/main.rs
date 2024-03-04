@@ -41,7 +41,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    crate::check_files::check_files(); 
+    crate::check_files::check_files();
 
     let args = Args::parse();
     println!("{}", args.url);

@@ -3,7 +3,7 @@ use ratatui::{
     prelude::{Alignment, Frame, Modifier},
     style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Paragraph, Clear, List}
+    widgets::{Block, BorderType, Borders, Paragraph, Clear, List, ListItem}
 };
 use std::sync::{Arc, Mutex};
 use crate::{
@@ -34,6 +34,14 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             percent_y(f, 1.0),
             f.size()));
     
+    let list_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(80),
+            Constraint::Percentage(20),
+        ])
+        .split(chunks[1]);
+    
     let title_block = Block::default();
 
     let title = Paragraph::new(Text::from(
@@ -48,5 +56,14 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         app_lock.list.actions.settings.clone()
     ).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    f.render_stateful_widget(settings, chunks[1], &mut app_lock.list.state.0);
+    f.render_stateful_widget(settings, list_chunks[0], &mut app_lock.list.state.0);
+
+    let settings_val = List::new(
+        app_lock.settings.iter().map(|val|
+            if !val {ListItem::new(Text::from("False"/*"✗"*/).alignment(Alignment::Right))}
+            else {ListItem::new(Text::from("True"/*"✓"*/).alignment(Alignment::Right))})
+            .collect::<Vec<ListItem>>()
+    );
+
+    f.render_stateful_widget(settings_val, list_chunks[1], &mut app_lock.list.state.0);
 }

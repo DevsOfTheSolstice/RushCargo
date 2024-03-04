@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use anyhow::{Result, anyhow};
 use ratatui::widgets::{List, ListState};
 use std::time::{Duration, Instant};
 use tui_input::Input;
@@ -26,14 +27,18 @@ pub struct App {
     pub should_quit: bool,
 }
 
-impl std::default::Default for App {
-    fn default() -> Self {
+impl App {
+    pub fn default() -> Self {
+        let settings = SettingsData::from_file();
+        if let Err(e) = settings {
+            panic!("Error on settings data build: {}", e);
+        }
         App {
             input: InputFields(Input::default(), Input::default()),
             input_mode: InputMode::Normal,
             failed_logins: 0,
             timeout: HashMap::new(),
-            settings: SettingsData::default(),
+            settings: settings.unwrap(),
             list: ListData::default(),
             active_user: None,
             active_screen: Screen::Login,

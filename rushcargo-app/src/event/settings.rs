@@ -21,16 +21,16 @@ use crate::{
 pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mutex<App>>) {
     match key_event.code {
         KeyCode::Esc
-        => sender.send(Event::Quit),
+        => sender.send(Event::EnterScreen(Screen::Title)),
 
         KeyCode::Up | KeyCode::Char('k')
-        => sender.send(Event::PrevListItem(ListType::Title)),
+        => sender.send(Event::PrevListItem(ListType::Settings)),
 
         KeyCode::Down | KeyCode::Char('j')
-        => sender.send(Event::NextListItem(ListType::Title)),
+        => sender.send(Event::NextListItem(ListType::Settings)),
 
         KeyCode::Enter
-        => sender.send(Event::SelectAction(ListType::Title)),
+        => sender.send(Event::SelectAction(ListType::Settings)),
 
         _ => Ok(())
     }.expect(SENDER_ERR);

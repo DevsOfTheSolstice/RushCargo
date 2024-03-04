@@ -8,7 +8,8 @@ use super::{
 
 #[derive(Debug)]
 pub enum ListType {
-    Title
+    Title,
+    Settings,
 }
 
 trait ListItem {
@@ -58,7 +59,7 @@ impl App {
     pub fn next_list_item(&mut self, list_type: ListType) {
         let (list_state, items): (_, &dyn ListItem) = match list_type {
             ListType::Title => (&mut self.list.state.0, &self.list.actions.title),
-            _ => panic!()
+            ListType::Settings => (&mut self.list.state.0, &self.list.actions.settings),
         };
 
         let i = match list_state.selected() {
@@ -77,6 +78,7 @@ impl App {
     pub fn prev_list_item(&mut self, list_type: ListType) {
         let (list_state, items): (_, &dyn ListItem) = match list_type {
             ListType::Title => (&mut self.list.state.0, &self.list.actions.title),
+            ListType::Settings => (&mut self.list.state.0, &self.list.actions.settings),
         };
 
         let i = match list_state.selected() {

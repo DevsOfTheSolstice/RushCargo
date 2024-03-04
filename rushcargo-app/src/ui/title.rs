@@ -43,7 +43,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     .alignment(Alignment::Center);
 
     f.render_widget(title, chunks[0]);
-    
+
     let actions = List::new(
         app_lock.list.actions.title.clone()
     ).highlight_style(Style::default().add_modifier(Modifier::REVERSED));

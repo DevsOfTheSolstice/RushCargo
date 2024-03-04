@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+mod check_files;
 mod model;
 mod update;
 mod event;
@@ -25,21 +26,23 @@ struct Args {
 
 const HELP_TEXT: HelpText = HelpText::default();
 
-/*lazy_static! {
-    static ref DATA_PATH: Mutex<String> = Mutex::new({
+lazy_static! {
+    static ref BIN_PATH: Mutex<String> = Mutex::new({
             let mut path = String::from(std::env::current_exe().unwrap().to_string_lossy());
-            path = path[..=path.find("BankDB-Remake").expect("could not find `BankDB-Remake` folder") + ("BankDB-Remake").len()].to_string();
+            path = path[..=path.find("rushcargo-app").expect("could not find the `rushcargo-app` folder") + ("rushcargo-app").len()].to_string();
             if cfg!(windows){
-                path.push_str("data\\");
+                path.push_str("bin\\");
             } else {
-                path.push_str("data/");
+                path.push_str("bin/");
             }
             path
         });
-}*/
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    crate::check_files::check_files(); 
+
     let args = Args::parse();
     println!("{}", args.url);
     let pool = sqlx::postgres::PgPool::connect(&args.url).await?;

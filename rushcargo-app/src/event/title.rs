@@ -20,6 +20,9 @@ use crate::{
 
 pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mutex<App>>) {
     match key_event.code {
+        KeyCode::Esc
+        => sender.send(Event::Quit),
+
         KeyCode::Up | KeyCode::Char('k')
         => sender.send(Event::PrevListItem(ListType::Title)),
 

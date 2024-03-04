@@ -36,11 +36,6 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             percent_y(f, 1.0),
             f.size()));
 
-    if app_lock.should_clear_screen {
-        clear_chunks(f, &chunks);
-        app_lock.should_clear_screen = false;
-    }
-
     let title_block = Block::default();
 
     let title = Paragraph::new(Text::from(

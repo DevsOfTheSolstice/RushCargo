@@ -25,7 +25,7 @@ pub struct ListStates(pub ListState, pub ListState);
 
 pub struct ListActions {
     pub title: Vec<&'static str>,
-    pub test: Vec<Screen>,
+    pub settings: Vec<&'static str>,
 }
 
 pub struct ListData {
@@ -46,11 +46,8 @@ impl std::default::Default for ListData {
                     "Settings",
                     "Quit",
                 ],
-                test: vec![
-                    Screen::Title,
-                    Screen::Settings,
-                    Screen::Login,
-                    Screen::Trucker,
+                settings: vec![
+                    "Display animation: ",
                 ]
             }
         }

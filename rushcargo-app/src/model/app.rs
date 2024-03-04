@@ -6,7 +6,8 @@ use crate::{
     HELP_TEXT,
     model::{
         app_list::ListData,
-        common::{Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer}
+        common::{Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer},
+        settings::SettingsData,
     }
 };
 
@@ -15,6 +16,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub failed_logins: u8,
     pub timeout: HashMap<TimeoutType, Timer>,
+    pub settings: SettingsData,
     pub list: ListData,
     pub active_user: Option<UserType>,
     pub active_screen: Screen,
@@ -31,6 +33,7 @@ impl std::default::Default for App {
             input_mode: InputMode::Normal,
             failed_logins: 0,
             timeout: HashMap::new(),
+            settings: SettingsData::default(),
             list: ListData::default(),
             active_user: None,
             active_screen: Screen::Login,

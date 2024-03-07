@@ -38,9 +38,17 @@ lazy_static! {
             path
         });
 }
-
+use std::io::Write;
 #[tokio::main]
 async fn main() -> Result<()> {
+    /*x{let mut title_file = std::fs::File::create(BIN_PATH.lock().unwrap().clone() + "title.bin")?;
+    title_file.write_all(&bincode::serialize("    ____             __    ______                     
+   / __ \\__  _______/ /_  / ____/___ __________ _____ 
+  / /_/ / / / / ___/ __ \\/ /   / __ `/ ___/ __ `/ __ \\
+ / _, _/ /_/ (__  ) / / / /___/ /_/ / /  / /_/ / /_/ /
+/_/ |_|\\__,_/____/_/ /_/\\____/\\__,_/_/   \\__, /\\____/ 
+                                        /____/        ").unwrap())?;
+    }*/
     crate::check_files::check_files();
 
     let args = Args::parse();

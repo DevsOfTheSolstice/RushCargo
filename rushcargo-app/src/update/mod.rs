@@ -13,7 +13,7 @@ use crate::{
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
-        Event::Quit | Event::TimeoutStep(_) | Event::KeyInput(..) |
+        Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::EnterScreen(_)
         => common::update(app, pool, event).await,
 

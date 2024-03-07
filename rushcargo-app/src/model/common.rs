@@ -44,6 +44,7 @@ pub struct InputFields(pub Input, pub Input);
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
 pub enum TimeoutType {
     Resize,
+    CubeTick,
     Login,
 }
 

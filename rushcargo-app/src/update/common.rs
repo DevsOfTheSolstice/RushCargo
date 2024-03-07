@@ -18,7 +18,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             app.lock().unwrap().should_quit = true;
             Ok(())
         },
-        Event::TimeoutStep(timeout_type) => {
+        Event::TimeoutTick(timeout_type) => {
             app.lock().unwrap().update_timeout_counter(timeout_type);
             Ok(())
         }

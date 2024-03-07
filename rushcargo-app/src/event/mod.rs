@@ -41,7 +41,7 @@ pub enum Event {
     EnterScreen(Screen),
     Resize,
     Cleanup,
-    TimeoutStep(TimeoutType),
+    TimeoutTick(TimeoutType),
     KeyInput(KeyEvent, InputBlacklist),
     SwitchInput,
 
@@ -83,7 +83,7 @@ impl EventHandler {
                         last_tick = Instant::now();
                         for (timeout_type, timer) in &app_arc.lock().unwrap().timeout {
                             if timer.last_update.elapsed() > timer.tick_rate {
-                                sender.send(Event::TimeoutStep(*timeout_type)).expect(SENDER_ERR);
+                                sender.send(Event::TimeoutTick(*timeout_type)).expect(SENDER_ERR);
                             }
                         }
                     }

@@ -98,13 +98,20 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             }
             let cube = &app_lock.title.as_ref().unwrap().cube;
             let edges = [(0,1), (1,2), (2,3), (3,0), (4,5), (5,6), (6,7), (7,4), (0,4), (1,5), (3,7), (2,6)];
-            for t in (0..10).map(|x| x as f64 * 0.1) {
-                for edge in edges.iter() {
-                    let dot = calc_line_point(t, &cube.rot_dot[edge.0], &cube.rot_dot[edge.1]);
+            //let temp = get_vec(RotDot::default(), RotDot::default());
+            //let mut edges_vecs: [Box<dyn Fn(f64) -> RotDot>; 12] = [Box::new(temp); 12];
+
+            let mut counter = 0;
+            for edge in edges.iter() {
+                //edges_vecs[counter] = Box::new(get_vec(cube.rot_dot[edge.0], cube.rot_dot[edge.1]));
+                let vec = get_vec(cube.rot_dot[edge.0], cube.rot_dot[edge.1]);
+                for i in (0..10).map(|x| x as f64 * 0.1) {
+                    let dot = vec(i);
                     ctx.print(dot.x * 10.0, dot.y * 10.0 , ".");
                 }
+                counter += 1;
             }
-            
+        
             ctx.print(0.0, -0.0, "0");
         })
         .x_bounds([-(width / 2.0), width / 2.0])
@@ -114,14 +121,16 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     f.render_widget(canvas, f.size());
 }
 
-fn calc_line_point(t: f64, dot0: &RotDot, dot1: &RotDot) -> RotDot {
+fn get_vec(dot0: RotDot, dot1: RotDot) -> impl Fn(f64) -> RotDot {
     let ref_vec_x = dot1.x - dot0.x;
     let ref_vec_y = dot1.y - dot0.y;
     let ref_vec_z = dot1.z - dot0.z;
-    RotDot {
-        char: '*',
-        x: dot0.x + t * ref_vec_x,
-        y: dot0.y + t * ref_vec_y,
-        z: dot0.z + t * ref_vec_z,
+    move |t| {
+        RotDot {
+            char: '*',
+            x: dot0.x + t * ref_vec_x,
+            y: dot0.y + t * ref_vec_y,
+            z: dot0.z + t * ref_vec_z,
+        }
     }
 }

@@ -18,6 +18,7 @@ impl Dot {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct RotDot {
     pub char: char,
     pub x: f64,
@@ -26,7 +27,7 @@ pub struct RotDot {
 }
 
 impl RotDot {
-    fn default() -> Self {
+    pub fn default() -> Self {
         RotDot {
             char: '*',
             x: 0.0,
@@ -34,7 +35,7 @@ impl RotDot {
             z: 0.0,
         }
     }
-    fn new(char: char, x: f64, y: f64, z: f64) -> Self {
+    pub fn new(char: char, x: f64, y: f64, z: f64) -> Self {
         RotDot {
             char,
             x,

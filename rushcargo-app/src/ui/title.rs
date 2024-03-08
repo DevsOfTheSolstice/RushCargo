@@ -22,7 +22,7 @@ use crate::{
     model::{
         common::{Popup, Screen, InputMode, TimeoutType},
         app::App,
-        title::RotDot,
+        title::{Dot, RenderDot},
     },
     ui::common_fn::{
         centered_rect,
@@ -87,32 +87,74 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let width = f.size().width as f64;
     let height = f.size().height as f64;
 
+    let mid_width = f.size().width / 2;
+    let mid_height= f.size().height / 2;
+
     let canvas = Canvas::default()
         .marker(Marker::Dot)
         .paint(|ctx| {
+            let mut buffer: Vec<Vec<RenderDot>> = vec![vec![RenderDot::default(); width as usize]; height as usize];
             for dot in app_lock.title.as_ref().unwrap().cube.rot_dot.iter() {
                 let xp = dot.x * 1.0 / (12.0 - dot.z);
                 let yp = dot.y * 1.0 / (12.0 - dot.z);
                 //ctx.print(xp, yp, "*");
-                ctx.print(dot.x * 10.0, dot.y * 10.0, "0");
+                //ctx.print(dot.x * 10.0, dot.y * 10.0, "0");
             }
             let cube = &app_lock.title.as_ref().unwrap().cube;
             let edges = [(0,1), (1,2), (2,3), (3,0), (4,5), (5,6), (6,7), (7,4), (0,4), (1,5), (3,7), (2,6)];
-            //let temp = get_vec(RotDot::default(), RotDot::default());
-            //let mut edges_vecs: [Box<dyn Fn(f64) -> RotDot>; 12] = [Box::new(temp); 12];
+            let mut edges_vecs: Vec<Box<dyn Fn(f64, char) -> Dot>> = Vec::new();
 
-            let mut counter = 0;
+            //let mut counter = 0;
             for edge in edges.iter() {
-                //edges_vecs[counter] = Box::new(get_vec(cube.rot_dot[edge.0], cube.rot_dot[edge.1]));
                 let vec = get_vec(cube.rot_dot[edge.0], cube.rot_dot[edge.1]);
+                edges_vecs.push(Box::new(vec));
                 for i in (0..10).map(|x| x as f64 * 0.1) {
-                    let dot = vec(i);
-                    ctx.print(dot.x * 10.0, dot.y * 10.0 , ".");
+                    //let dot = vec(i, '*');
+                    //ctx.print(dot.x * 10.0, dot.y * 10.0 , dot.char.to_string());
                 }
-                counter += 1;
             }
-        
-            ctx.print(0.0, -0.0, "0");
+
+            fn add_to_buffer(vec: impl Fn(f64, char) -> Dot, buffer: &mut Vec<Vec<RenderDot>>, mid_height: u16, mid_width: u16, char: char) {
+                for j in (0..20).map(|x| x as f64 * 0.05) {
+                    let dot = vec(j, char);
+                    let buffer_pos = &mut buffer[(mid_height as f64 + (dot.y * 10.0)) as usize][(mid_width as f64 + (dot.x * 10.0)) as usize];
+                    if !(buffer_pos.zval <= dot.z - 0.05) {
+                        buffer_pos.char = dot.char;
+                        buffer_pos.zval = dot.z;
+                    }
+                }
+            }
+
+            let edges_joins_normal = [(8,10,'#'), (9,11,'$'), (8,9,'~'), (10,11,';')];
+            let edges_joins_inverted = [(1,3,'.'), (4,6,'-')];
+
+            for edge_join in edges_joins_normal.iter() {
+                let vec0 = &edges_vecs[edge_join.0];
+                let vec1 = &edges_vecs[edge_join.1];
+                for i in (0..20).map(|x| x as f64 * 0.05) {
+                    let vec2 = get_vec(vec0(i, '*'), vec1(i, '*'));
+                    add_to_buffer(vec2, &mut buffer, mid_height, mid_width, edge_join.2);
+                }
+            }
+            
+            for edge_join in edges_joins_inverted.iter() {
+                let vec0 = &edges_vecs[edge_join.0];
+                let vec1 = &edges_vecs[edge_join.1];
+                for i in (0..20).map(|x| x as f64 * 0.05) {
+                    let vec2 = get_vec(vec0(i, '*'), vec1(1.0 - i, '*'));
+                    add_to_buffer(vec2, &mut buffer, mid_height, mid_width, edge_join.2);
+                }
+            }
+
+            for i in 0..height as usize {
+                for j in 0..width as usize {
+                    if buffer[i][j].zval != f64::MAX {
+                        ctx.print(j as f64 - mid_width as f64, i as f64 - mid_height as f64, buffer[i][j].char.to_string());
+                    }
+                }
+            } 
+
+            //ctx.print(0.0, -0.0, "0");
         })
         .x_bounds([-(width / 2.0), width / 2.0])
         .y_bounds([-(height / 2.0), height / 2.0])
@@ -121,13 +163,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     f.render_widget(canvas, f.size());
 }
 
-fn get_vec(dot0: RotDot, dot1: RotDot) -> impl Fn(f64) -> RotDot {
+fn get_vec(dot0: Dot, dot1: Dot) -> impl Fn(f64, char) -> Dot {
     let ref_vec_x = dot1.x - dot0.x;
     let ref_vec_y = dot1.y - dot0.y;
     let ref_vec_z = dot1.z - dot0.z;
-    move |t| {
-        RotDot {
-            char: '*',
+    move |t, char: char| {
+        Dot {
+            char,
             x: dot0.x + t * ref_vec_x,
             y: dot0.y + t * ref_vec_y,
             z: dot0.z + t * ref_vec_z,

@@ -93,41 +93,43 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let canvas = Canvas::default()
         .marker(Marker::Dot)
         .paint(|ctx| {
+            // Render space buffer. A 2D Vec with height equal to the space's height, and width equal to the space's width.
             let mut buffer: Vec<Vec<RenderDot>> = vec![vec![RenderDot::default(); width as usize]; height as usize];
-            for dot in app_lock.title.as_ref().unwrap().cube.rot_dot.iter() {
-                let xp = dot.x * 1.0 / (12.0 - dot.z);
-                let yp = dot.y * 1.0 / (12.0 - dot.z);
-                //ctx.print(xp, yp, "*");
-                //ctx.print(dot.x * 10.0, dot.y * 10.0, "0");
-            }
+
             let cube = &app_lock.title.as_ref().unwrap().cube;
+
+            // Cube's pair of vertices that must be joined in order to make the 12 edges.
             let edges = [(0,1), (1,2), (2,3), (3,0), (4,5), (5,6), (6,7), (7,4), (0,4), (1,5), (3,7), (2,6)];
+            // Vectors that join each pair of vertices that make the edges.
             let mut edges_vecs: Vec<Box<dyn Fn(f64, char) -> Dot>> = Vec::new();
 
-            //let mut counter = 0;
+            // Populate the edges_vecs Vec.
             for edge in edges.iter() {
                 let vec = get_vec(cube.rot_dot[edge.0], cube.rot_dot[edge.1]);
                 edges_vecs.push(Box::new(vec));
-                for i in (0..10).map(|x| x as f64 * 0.1) {
-                    //let dot = vec(i, '*');
-                    //ctx.print(dot.x * 10.0, dot.y * 10.0 , dot.char.to_string());
-                }
             }
 
+            /// Takes the render space buffer, and puts a vector's points into it (with 0 <= t <= 1).
+            /// This function also performs a check on the buffer's Z values,
+            /// and converts the vector's points coordinates in a cartesian system to the buffer's
+            /// system with only positive x and y.
             fn add_to_buffer(vec: impl Fn(f64, char) -> Dot, buffer: &mut Vec<Vec<RenderDot>>, mid_height: u16, mid_width: u16, char: char) {
                 for j in (0..20).map(|x| x as f64 * 0.05) {
                     let dot = vec(j, char);
-                    let buffer_pos = &mut buffer[(mid_height as f64 + (dot.y * 10.0)) as usize][(mid_width as f64 + (dot.x * 10.0)) as usize];
-                    if !(buffer_pos.zval <= dot.z - 0.05) {
+                    let buffer_pos = &mut buffer[(mid_height as f64 + (dot.y/* * 10.0*/)) as usize][(mid_width as f64 + (dot.x /* * 10.0*/)) as usize];
+                    if !(buffer_pos.zval <= dot.z - 0.5) {
                         buffer_pos.char = dot.char;
                         buffer_pos.zval = dot.z;
                     }
                 }
             }
 
+            // These variables contain the index of edges whose points must be joined in order to form a plane.
+            // The points in the normal ones are a t:r join, while the ones on the inverted are a t:(1-r) join.
             let edges_joins_normal = [(8,10,'#'), (9,11,'$'), (8,9,'~'), (10,11,';')];
             let edges_joins_inverted = [(1,3,'.'), (4,6,'-')];
 
+            // Create planes based on the normal joins.
             for edge_join in edges_joins_normal.iter() {
                 let vec0 = &edges_vecs[edge_join.0];
                 let vec1 = &edges_vecs[edge_join.1];
@@ -137,6 +139,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 }
             }
             
+            // Create planes based on the inverted joins.
             for edge_join in edges_joins_inverted.iter() {
                 let vec0 = &edges_vecs[edge_join.0];
                 let vec1 = &edges_vecs[edge_join.1];
@@ -146,6 +149,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 }
             }
 
+            // Print the buffer's contents.
             for i in 0..height as usize {
                 for j in 0..width as usize {
                     if buffer[i][j].zval != f64::MAX {
@@ -153,8 +157,6 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     }
                 }
             } 
-
-            //ctx.print(0.0, -0.0, "0");
         })
         .x_bounds([-(width / 2.0), width / 2.0])
         .y_bounds([-(height / 2.0), height / 2.0])

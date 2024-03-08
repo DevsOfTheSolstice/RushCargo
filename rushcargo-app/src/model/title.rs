@@ -1,6 +1,9 @@
-use crate::BIN_PATH;
 use std::fs;
 use anyhow::Result;
+use crate::{
+    BIN_PATH,
+    model::app::App,
+};
 
 #[derive(Copy, Clone)]
 pub struct Dot {
@@ -83,9 +86,9 @@ impl TitleData {
         let file_contents = fs::read_to_string(
             BIN_PATH.lock().unwrap().clone() + "title.bin")?;
             let text = bincode::deserialize(&file_contents[..].as_bytes())?;
-        let height = 0.50;
-        let width = 0.70;
-        let depth = 0.40;
+        let height = 5.0;
+        let width = 7.0;
+        let depth = 4.0;
         Ok(TitleData {
             text,
             cube: CubeData {
@@ -100,5 +103,58 @@ impl TitleData {
                      Dot::default(), Dot::default(), Dot::default(), Dot::default()],
             }
         })
+    }
+}
+
+impl App {
+    pub fn update_cube(&mut self) {
+        if let Some(title) = self.title.as_mut() {
+            let mut counter = 0;
+            for dot in title.cube.dot.iter() {
+                let mut x = dot.x as f64;
+                let mut y = dot.y as f64;
+                let mut z = dot.z as f64;
+            
+                let x1 = &mut title.cube.rot_dot[counter].x;
+                let y1 = &mut title.cube.rot_dot[counter].y;
+                let z1 = &mut title.cube.rot_dot[counter].z;
+
+                (x, y, z) = Self::rotate_x(title.cube.A, x as f64, y as f64, z as f64);
+                (x, y, z) = Self::rotate_y(title.cube.B, x as f64, y as f64, z as f64);
+                (x, y, z) = Self::rotate_z(title.cube.C, x as f64, y as f64, z as f64);
+
+                (*x1, *y1, *z1) = (x, y, z);
+
+                counter += 1;
+            }
+
+            title.cube.A += 0.1;
+            title.cube.B += 0.1;
+            //title.cube.C += 0.1;
+        }
+    }
+    
+    fn rotate_x(ang: f64, i: f64, j: f64, k: f64) -> (f64, f64, f64) {
+        (
+            i,
+            j * ang.cos() + k * ang.sin(),
+            k * ang.cos() - j * ang.sin()
+        )
+    }
+    
+    fn rotate_y(ang: f64, i: f64, j: f64, k: f64) -> (f64, f64, f64) {
+        (
+            i * ang.cos() - k * ang.sin(),
+            j,
+            i * ang.sin() + k.cos()
+        )
+    }
+
+    fn rotate_z(ang: f64, i: f64, j: f64, k: f64) -> (f64, f64, f64) {
+        (
+            i * ang.cos() + j * ang.sin(),
+            j * ang.cos() - i * ang.sin(),
+            k
+        )
     }
 }

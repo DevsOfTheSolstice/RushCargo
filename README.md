@@ -2,6 +2,7 @@ This repository contains the source code and documentation for Rush Cargo Applic
 
 ## Table of Contents
 - [About Rush Cargo](#about-rush-cargo)
+- [Documents](#documents)
   - [Development Team](#development-team)
 - [Requirements](#requirements)
   - [Week 1](#week-1)
@@ -17,11 +18,14 @@ Aside from this, Rush Cargo also has some interesting easter eggs:
 
 2. Cargo: This word is also a reference to the Rust ecosystem, this time to the Rust package manager.
 
+## Documents
+- Roadmap <a href="https://docs.google.com/document/d/1MupYuTTxXraIwLAzVZR1WUXree8AxoY6v4uSUJRZCWk/edit?usp=sharing">(Spanish Version)</a>.
+
 ### Development Team
-- Ramón Álvarez <a href="https://github.com/ralvarezdev">(ralvarezdev)</a>. Database Modeler and Programmer
-- Rebecca Bracho <a href="https://github.com/Beckarby">(Beckarby)</a>. Database Modeler
-- Jesús Meléndez <a href="https://github.com/JeJaMel">(JeJaMel)</a>. Database Administrator
-- Javier Pérez <a href="https://github.com/Kaucrow">(Kaucrow)</a>. Programmer
+- Ramón Álvarez <a href="https://github.com/ralvarezdev">(ralvarezdev)</a>. Database Modeler and Programmer.
+- Rebecca Bracho <a href="https://github.com/Beckarby">(Beckarby)</a>. Database Modeler.
+- Jesús Meléndez <a href="https://github.com/JeJaMel">(JeJaMel)</a>. Database Administrator.
+- Javier Pérez <a href="https://github.com/Kaucrow">(Kaucrow)</a>. Programmer.
 
 ## Requirements
 

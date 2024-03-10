@@ -1,6 +1,6 @@
 --1
 CREATE TABLE Country (
-    id BIGSERIAL PRIMARY KEY,
+    country_id BIGSERIAL PRIMARY KEY,
     country_name VARCHAR(50) NOT NULL,
     phone_prefix VARCHAR(50) NOT NULL
 );
@@ -8,83 +8,120 @@ CREATE TABLE Country (
 --2
 CREATE TABLE Region (
     region_id BIGSERIAL PRIMARY KEY,
-    country_id BIGINT NOT NULL,
+    country_id BIGSERIAL,
     region_name VARCHAR(50) NOT NULL,
-    aerial_office_principal INT NOT NULL,
-    maritime_office_principal INT NOT NULL,
-    FOREIGN KEY (country_id) REFERENCES Country(id)
+    main_air_freight_forwarder BIGINT,
+    main_ocean_freight_forwarder BIGINT,
+    FOREIGN KEY (country_id) REFERENCES Country(country_id)
 );
 
 --3
-CREATE TABLE Warehouse (
-    id_warehouse INT PRIMARY KEY
+CREATE TABLE City (
+    city_id BIGSERIAL PRIMARY KEY,
+    region_id BIGSERIAL,
+    city_name VARCHAR(50) NOT NULL,
+    main_warehouse BIGSERIAL,
+    FOREIGN KEY (region_id) REFERENCES Region(region_id)
 );
 
 --4
-CREATE TABLE City (
-    id BIGSERIAL PRIMARY KEY,
-    region_id BIGINT NOT NULL,
-    city_name VARCHAR(50) NOT NULL,
-    id_principal_warehouse INT NOT NULL,
-    FOREIGN KEY (region_id) REFERENCES Region(region_id),
-    FOREIGN KEY (id_principal_warehouse) REFERENCES Warehouse(id_warehouse)
+CREATE TABLE Legal_Identification (
+    id VARCHAR(255) PRIMARY KEY,
+    country_id BIGSERIAL,
+    document VARCHAR(255) NOT NULL,
+    due_date DATE NOT NULL,
+    expedition_date DATE NOT NULL,
+    FOREIGN KEY (country_id) REFERENCES Country(country_id)
 );
 
 --5
-CREATE TABLE Building (
-    id_building BIGSERIAL PRIMARY KEY,
-    city_id BIGINT NOT NULL,
-    building_name VARCHAR(50) NOT NULL,
-    FOREIGN KEY (city_id) REFERENCES City(id)
+CREATE TABLE Vigent_Identification (
+    id VARCHAR(255) PRIMARY KEY,
+    vigent BOOLEAN NOT NULL,
+    FOREIGN KEY (id) REFERENCES Legal_Identification(id)
 );
 
 --6
-CREATE TABLE Legal_Identification (
-    identification_id VARCHAR(255) PRIMARY KEY,
-    country_id INT NOT NULL,
-    identification VARCHAR(255) NOT NULL,
-    due_date DATE NOT NULL,
-    expedition_date DATE NOT NULL,
-    FOREIGN KEY (country_id) REFERENCES Country(id)
+CREATE TABLE Identity_Document (
+    id VARCHAR(255) PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES Legal_Identification(id)
 );
 
 --7
-CREATE TABLE Identity_Document (
-    identification_id VARCHAR(255) PRIMARY KEY,
-    FOREIGN KEY (identification_id) REFERENCES Legal_Identification(identification_id)
+CREATE TABLE Employer_Identity (
+    id VARCHAR(255) PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES Legal_Identification(id)
 );
 
 --8
-CREATE TABLE Root_User (
-    username VARCHAR(255) PRIMARY KEY,
-    warehouse_id INT NOT NULL,
-    identification_document VARCHAR NOT NULL,
-    user_password VARCHAR(255) NOT NULL,
-    phone VARCHAR(20),
-    gps_address VARCHAR(255),
-    FOREIGN KEY (identification_document) REFERENCES Identity_Document(identification_id),
-    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(id_warehouse)
+CREATE TABLE Building (
+    building_id BIGSERIAL PRIMARY KEY,
+    city_id BIGSERIAL,
+    building_name VARCHAR(50) NOT NULL,
+    FOREIGN KEY (city_id) REFERENCES City(city_id)
 );
 
 --9
-CREATE TABLE Admin_user (
-    username VARCHAR(255) PRIMARY KEY,
-    FOREIGN KEY (username) REFERENCES Root_User(username)
+CREATE TABLE Warehouse (
+    warehouse_id BIGSERIAL PRIMARY KEY,
+    FOREIGN KEY (warehouse_id) REFERENCES Building(building_id)
 );
 
 --10
-CREATE TABLE Users (
-    username VARCHAR(255) PRIMARY KEY,
-    admin_verification VARCHAR(255) NOT NULL,
-    admin_suspension VARCHAR(255) NOT NULL,
-    user_password VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    gps_address VARCHAR(255) NOT NULL,
-    FOREIGN KEY (admin_verification) REFERENCES Admin_user(username),
-    FOREIGN KEY (admin_suspension) REFERENCES Admin_user(username)
+CREATE TABLE Warehouse_Connection (
+    warehouse1_id BIGSERIAL,
+    warehouse2_id BIGSERIAL,
+    radial_distance DECIMAL(4,2) NOT NULL,
+    rute_distance DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (warehouse1_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (warehouse2_id) REFERENCES Warehouse(warehouse_id)
 );
 
 --11
+CREATE TABLE Branch (
+    branch_id BIGSERIAL PRIMARY KEY,
+    warehouse_id BIGSERIAL,
+    radial_distance DECIMAL(4,2) NOT NULL,
+    rute_distance DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (branch_id) REFERENCES Building(building_id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id)
+);
+
+--12
+CREATE TABLE Allied_Company (
+    company_id INT PRIMARY KEY,
+    employer_identity VARCHAR(255) NOT NULL,
+    email VARCHAR(50) NOT NULL,
+    phone VARCHAR(20),
+    gps_address VARCHAR(255),
+    FOREIGN KEY (employer_identity) REFERENCES Employer_Identity(id)
+);
+
+--13
+CREATE TABLE Air_Freight_Forwader (
+    building_id BIGSERIAL PRIMARY KEY,
+    warehouse_id BIGSERIAL,
+    company_id BIGSERIAL,
+    radial_distance DECIMAL(4,2) NOT NULL,
+    rute_distance DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (building_id) REFERENCES Building(building_id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (company_id) REFERENCES Allied_Company(company_id)
+);
+
+--14
+CREATE TABLE Ocean_Freight_Forwarder (
+    building_id BIGSERIAL PRIMARY KEY,
+    warehouse_id BIGSERIAL,
+    company_id BIGSERIAL,
+    radial_distance DECIMAL(4,2) NOT NULL,
+    rute_distance DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (building_id) REFERENCES Building(building_id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (company_id) REFERENCES Allied_Company(company_id)
+);
+
+--15
 CREATE TABLE Motorcycle (
     vin_vehicle VARCHAR(17) PRIMARY KEY,
     brand VARCHAR(255) NOT NULL,
@@ -95,7 +132,7 @@ CREATE TABLE Motorcycle (
     length_capacity DECIMAL(4, 2) NOT NULL
 );
 
---12
+--16
 CREATE TABLE Truck (
     vin_vehicle VARCHAR(17) PRIMARY KEY,
     brand VARCHAR(255) NOT NULL,
@@ -106,42 +143,92 @@ CREATE TABLE Truck (
     length_capacity DECIMAL(4, 2) NOT NULL
 );
 
---13
-CREATE TABLE Conection_Warehouse_Warehouse (
-    id_warehouse_transmitter INT NOT NULL,
-    id_warehouse_receiver INT NOT NULL,
-    radial_distance DECIMAL(4,2) NOT NULL,
-    rute_distance DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (id_warehouse_transmitter) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (id_warehouse_receiver) REFERENCES Warehouse(id_warehouse)
+--17
+CREATE TABLE Root_User (
+    username VARCHAR(255) PRIMARY KEY,
+    warehouse_id BIGSERIAL,
+    identity_document VARCHAR(255) NOT NULL,
+    user_password VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(20),
+    gps_address VARCHAR(255),
+    FOREIGN KEY (identity_document) REFERENCES Identity_Document(id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id)
 );
 
---14
-CREATE TABLE branch (
-    id_branch INT PRIMARY KEY,
-    conection_warehouse INT NOT NULL,
-    radial_distance DECIMAL(4,2) NOT NULL,
-    rute_distance DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (id_branch) REFERENCES Building(id_building),
-    FOREIGN KEY (conection_warehouse) REFERENCES Warehouse(id_warehouse)
+--18
+CREATE TABLE User_Admin (
+    username VARCHAR(255) PRIMARY KEY,
+    FOREIGN KEY (username) REFERENCES Root_User(username)
 );
 
---15 
+--19
+CREATE TABLE Package_Admin (
+    username VARCHAR(255) PRIMARY KEY,
+    FOREIGN KEY (username) REFERENCES Root_User(username)
+);
+
+--20   
+CREATE TABLE Cashier_Admin (
+    username VARCHAR(255) PRIMARY KEY,
+    FOREIGN KEY (username) REFERENCES Root_User(username)
+);
+
+--21
+CREATE TABLE Users (
+    username VARCHAR(255) PRIMARY KEY,
+    admin_verification VARCHAR(255),
+    admin_suspension VARCHAR(255),
+    user_password VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    gps_address VARCHAR(255) NOT NULL,
+    FOREIGN KEY (admin_verification) REFERENCES User_Admin(username),
+    FOREIGN KEY (admin_suspension) REFERENCES User_Admin(username)
+);
+
+--22
+CREATE TABLE Driver (
+    username VARCHAR(255) PRIMARY KEY,
+    identification_document VARCHAR(255) NOT NULL,
+    born_date DATE NOT NULL,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    salary DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (username) REFERENCES Users(username),
+    FOREIGN KEY (identification_document) REFERENCES Identity_Document(id)
+);
+
+--23
+CREATE TABLE Motocyclist (
+    username VARCHAR(255) PRIMARY KEY,
+    motorcycle VARCHAR(17),
+    FOREIGN KEY (username) REFERENCES Driver(username),
+    FOREIGN KEY (motorcycle) REFERENCES Motorcycle(vin_vehicle)
+);
+
+--24
+CREATE TABLE Truck_Driver (
+    username VARCHAR(255) PRIMARY KEY,
+    truck VARCHAR(17),
+    FOREIGN KEY (username) REFERENCES Driver(username),
+    FOREIGN KEY (truck) REFERENCES Truck(vin_vehicle)
+);
+
+--25 
 CREATE TABLE Client (
     username VARCHAR(255) PRIMARY KEY,
-    affiliated_branch INT NOT NULL,
+    branch BIGSERIAL,
     FOREIGN KEY (username) REFERENCES Users(username),
-    FOREIGN KEY (affiliated_branch) REFERENCES Branch(id_branch)
+    FOREIGN KEY (branch) REFERENCES Branch(branch_id)
 );
 
---16
+--26
 CREATE TABLE Client_Debt (
     username VARCHAR(255) PRIMARY KEY,
     debt DECIMAL(4,2) NOT NULL,
     FOREIGN KEY (username) REFERENCES Client(username)
 );
 
---17
+--27
 CREATE TABLE Natural_Client (
     username VARCHAR(255) PRIMARY KEY,
     identification_document VARCHAR(255) NOT NULL,
@@ -149,106 +236,103 @@ CREATE TABLE Natural_Client (
     client_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     FOREIGN KEY (username) REFERENCES Client(username),
-    FOREIGN KEY (identification_document) REFERENCES Identity_Document(identification_id)
+    FOREIGN KEY (identification_document) REFERENCES Identity_Document(id)
 );
 
---18
-CREATE TABLE Shipping_guide (
-    shipping_number INT PRIMARY KEY,
-    client_user_transmitter VARCHAR(255) NOT NULL,
-    client_user_receiver VARCHAR(255) NOT NULL,
+--28
+CREATE TABLE Legal_Client (
+    username VARCHAR(255) PRIMARY KEY,
+    employer_identity VARCHAR(255) NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    company_type VARCHAR(255) NOT NULL,
+    FOREIGN KEY (username) REFERENCES Client(username),
+    FOREIGN KEY (employer_identity) REFERENCES Employer_Identity(id)
+);
+
+--29
+CREATE TABLE Shipping_Guide (
+    shipping_number BIGSERIAL PRIMARY KEY,
+    client_user_from VARCHAR(255) NOT NULL,
+    client_user_to VARCHAR(255) NOT NULL,
     delivery_included BOOLEAN NOT NULL,
     shipping_date DATE NOT NULL,
     shipping_hour TIME NOT NULL,
-    FOREIGN KEY (client_user_transmitter) REFERENCES Client(username),
-    FOREIGN KEY (client_user_receiver) REFERENCES Client(username)
+    FOREIGN KEY (client_user_from) REFERENCES Client(username),
+    FOREIGN KEY (client_user_to) REFERENCES Client(username)
 );
 
---19
-CREATE TABLE Pay (
-    id_pay BIGSERIAL PRIMARY KEY,
-    client_user VARCHAR(255) NOT NULL,
-    reference_number VARCHAR(255) NOT NULL,
+--30
+CREATE TABLE Guide_Price (
+    shipping_number BIGSERIAL PRIMARY KEY,
+    price DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
+);
+
+--31
+CREATE TABLE Guide_Unpaid (
+    shipping_number BIGSERIAL PRIMARY KEY,
+    unpaid DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
+);
+
+--32
+CREATE TABLE Land_Guide (
+    shipping_number BIGSERIAL PRIMARY KEY,
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
+);
+
+--33
+CREATE TABLE Air_Guide (
+    shipping_number BIGSERIAL PRIMARY KEY,
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
+);
+
+--34
+CREATE TABLE Ocean_Guide (
+    shipping_number BIGSERIAL PRIMARY KEY,
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
+);
+
+--35
+CREATE TABLE Payment (
+    id BIGSERIAL PRIMARY KEY,
+    client VARCHAR(255) NOT NULL,
+    reference VARCHAR(255) NOT NULL,
     platform VARCHAR(255) NOT NULL,
     pay_type VARCHAR(255) NOT NULL,
     pay_date DATE NOT NULL,
     pay_hour TIME NOT NULL,
-    pay_value DECIMAL(4,2) NOT NULL,
-    amount_to_pay DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (client_user) REFERENCES Client(username)
+    amount DECIMAL(4,2) NOT NULL,
+    FOREIGN KEY (client) REFERENCES Client(username)
 );
 
---20
-CREATE TABLE guide_pay (
-    id_pay BIGSERIAL PRIMARY KEY,
-    shipping_number INT NOT NULL,
+--36
+CREATE TABLE Guide_Payments (
+    pay_id BIGSERIAL PRIMARY KEY,
+    shipping_number BIGSERIAL,
     amount_paid DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (id_pay) REFERENCES Pay(id_pay),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number)
+    FOREIGN KEY (pay_id) REFERENCES Payment(id),
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
 );
 
---21
-CREATE TABLE Shipping_Cost (
-    shipping_number INT PRIMARY KEY,
-    cost DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number)
-);
-
---22
-CREATE TABLE Pending_Payment (
-    shipping_number INT PRIMARY KEY,
-    Pending DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number)
-);
-
---23
-CREATE TABLE Land_Guide (
-    shipping_number_land INT PRIMARY KEY,
-    FOREIGN KEY (shipping_number_land) REFERENCES Shipping_guide(shipping_number)
-);
-
---24
-CREATE TABLE Air_Guide (
-    shipping_number_air INT PRIMARY KEY,
-    FOREIGN KEY (shipping_number_air) REFERENCES Shipping_guide(shipping_number)
-);
-
---25
-CREATE TABLE Maritime_Guide (
-    shipping_number_maritime INT PRIMARY KEY,
-    FOREIGN KEY (shipping_number_maritime) REFERENCES Shipping_guide(shipping_number)
-);
-
---26
-CREATE TABLE Admin_Package (
-    username VARCHAR(255) PRIMARY KEY,
-    FOREIGN KEY (username) REFERENCES Root_User(username)
-);
-
---27   
-CREATE TABLE Admin_Cashier (
-    username VARCHAR(255) PRIMARY KEY,
-    FOREIGN KEY (username) REFERENCES Root_User(username)
-);
-
---28
+--37
 CREATE TABLE Locker (
-    id_locker BIGSERIAL PRIMARY KEY,
-    client_user VARCHAR(255) NOT NULL,
-    country_id INT NOT NULL,
-    warehouse_id INT NOT NULL,
-    FOREIGN KEY (client_user) REFERENCES Client(username),
-    FOREIGN KEY (country_id) REFERENCES Country(id),
-    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(id_warehouse)
+    locker_id BIGSERIAL PRIMARY KEY,
+    client VARCHAR(255) NOT NULL,
+    country_id BIGSERIAL,
+    warehouse_id BIGSERIAL,
+    FOREIGN KEY (client) REFERENCES Client(username),
+    FOREIGN KEY (country_id) REFERENCES Country(country_id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id)
 );
 
---29
+--38
 CREATE TABLE Package (
-    tracking_number INT PRIMARY KEY,
+    tracking_number BIGSERIAL PRIMARY KEY,
     admin_verification VARCHAR(255) NOT NULL,
-    ubication_id INT NOT NULL,
-    shipping_number INT NOT NULL,
-    id_locker INT NOT NULL,
+    building_id BIGSERIAL,
+    shipping_number BIGSERIAL,
+    locker_id BIGSERIAL,
     content VARCHAR(255) NOT NULL,
     package_value DECIMAL(4,2) NOT NULL,   
     package_weight DECIMAL(4,2) NOT NULL,         
@@ -258,234 +342,149 @@ CREATE TABLE Package (
     register_date DATE NOT NULL,
     register_hour TIME NOT NULL,
     delivered BOOLEAN NOT NULL,
-    FOREIGN KEY (admin_verification) REFERENCES Admin_Package(username),
-    FOREIGN KEY (ubication_id) REFERENCES Building(id_building),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number),
-    FOREIGN KEY (id_locker) REFERENCES Locker(id_locker)
-);
-
---30
-CREATE TABLE No_Comercial_Package (
-    tracking_number INT PRIMARY KEY,
-    user_natural_client VARCHAR(255) NOT NULL,
-    FOREIGN KEY (tracking_number) REFERENCES Package(tracking_number),
-    FOREIGN KEY (user_natural_client) REFERENCES Natural_Client(username)
-);
-
---31
-CREATE TABLE EIN (
-    ein VARCHAR(255) PRIMARY KEY,
-    FOREIGN KEY (ein) REFERENCES Legal_Identification(identification_id)
-);
-
---32
-CREATE TABLE Legal_Client (
-    username VARCHAR(255) PRIMARY KEY,
-    ein VARCHAR(255) NOT NULL,
-    company_name VARCHAR(255) NOT NULL,
-    company_type VARCHAR(255) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Client(username),
-    FOREIGN KEY (ein) REFERENCES EIN(ein)
-);
-
---33
-CREATE TABLE Comercial_Package (
-    tracking_number INT PRIMARY KEY,
-    user_legal_client VARCHAR(255) NOT NULL,
-    FOREIGN KEY (tracking_number) REFERENCES Package(tracking_number),
-    FOREIGN KEY (user_legal_client) REFERENCES Legal_Client(username)
-);
-
---34
-CREATE TABLE Vigent_Identification (
-    id_legal_identification VARCHAR(255) PRIMARY KEY,
-    vigent BOOLEAN NOT NULL,
-    FOREIGN KEY (id_legal_identification) REFERENCES Legal_Identification(identification_id)
-);
-
---35
-CREATE TABLE Allied_Companies (
-    id_company INT PRIMARY KEY,
-    id_ein VARCHAR(255) NOT NULL,
-    email VARCHAR(50) NOT NULL,
-    phone VARCHAR(20),
-    gps_address VARCHAR(255),
-    FOREIGN KEY (id_ein) REFERENCES EIN(ein)
-);
-
---36
-CREATE TABLE Aerial_Shipping_Office (
-    id_building INT PRIMARY KEY,
-    conection_warehouse INT NOT NULL,
-    allied_company INT NOT NULL,
-    radial_distance DECIMAL(4,2) NOT NULL,
-    rute_distance DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (id_building) REFERENCES Building(id_building),
-    FOREIGN KEY (conection_warehouse) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (allied_company) REFERENCES Allied_Companies(id_company)
-);
-
---37
-CREATE TABLE Maritime_Shipping_Office (
-    id_building INT PRIMARY KEY,
-    conection_warehouse INT NOT NULL,
-    allied_company INT NOT NULL,
-    radial_distance DECIMAL(4,2) NOT NULL,
-    rute_distance DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (id_building) REFERENCES Building(id_building),
-    FOREIGN KEY (conection_warehouse) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (allied_company) REFERENCES Allied_Companies(id_company)
-);
-
---38
-CREATE TABLE Driver (
-    username VARCHAR(255) PRIMARY KEY,
-    identification_document VARCHAR(255) NOT NULL,
-    born_date DATE NOT NULL,
-    first_name VARCHAR(255) NOT NULL,
-    last_name VARCHAR(255) NOT NULL,
-    salary DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Users(username),
-    FOREIGN KEY (identification_document) REFERENCES Identity_Document(identification_id)
+    FOREIGN KEY (admin_verification) REFERENCES Package_Admin(username),
+    FOREIGN KEY (building_id) REFERENCES Building(building_id),
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number),
+    FOREIGN KEY (locker_id) REFERENCES Locker(locker_id)
 );
 
 --39
-CREATE TABLE Motocyclist (
-    username VARCHAR(255) PRIMARY KEY,
-    assigned_motorcycle VARCHAR(17) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Driver(username),
-    FOREIGN KEY (assigned_motorcycle) REFERENCES Motorcycle(vin_vehicle)
+CREATE TABLE No_Comercial_Package (
+    tracking_number BIGSERIAL PRIMARY KEY,
+    client VARCHAR(255) NOT NULL,
+    FOREIGN KEY (tracking_number) REFERENCES Package(tracking_number),
+    FOREIGN KEY (client) REFERENCES Natural_Client(username)
 );
 
 --40
-CREATE TABLE Truck_Driver (
-    username VARCHAR(255) PRIMARY KEY,
-    assigned_truck VARCHAR(17) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Driver(username),
-    FOREIGN KEY (assigned_truck) REFERENCES Truck(vin_vehicle)
+CREATE TABLE Comercial_Package (
+    tracking_number BIGSERIAL PRIMARY KEY,
+    client VARCHAR(255) NOT NULL,
+    FOREIGN KEY (tracking_number) REFERENCES Package(tracking_number),
+    FOREIGN KEY (client) REFERENCES Legal_Client(username)
 );
 
 --41 
 CREATE TABLE Orders (
-    order_number INT PRIMARY KEY,
-    previus_order INT NOT NULL,
+    order_number BIGSERIAL PRIMARY KEY,
+    previous_order BIGINT,
     generated_date DATE NOT NULL,
     generated_hour TIME NOT NULL,
-    FOREIGN KEY (previus_order) REFERENCES Orders(order_number)
+    FOREIGN KEY (previous_order) REFERENCES Orders(order_number)
 );
 
 --42
-CREATE TABLE Manual_order (
-    order_number INT PRIMARY KEY,
+CREATE TABLE Manual_Orders (
+    order_number BIGSERIAL PRIMARY KEY,
     admin_verification VARCHAR(255) NOT NULL,
     FOREIGN KEY (order_number) REFERENCES Orders(order_number),
-    FOREIGN KEY (admin_verification) REFERENCES Admin_Cashier(username)
+    FOREIGN KEY (admin_verification) REFERENCES Cashier_Admin(username)
 );
 
 --43
-CREATE TABLE Automatic_order (
-    order_number INT PRIMARY KEY,
-    admin_verification VARCHAR(255) NOT NULL,
-    completed_date DATE NOT NULL,
-    completed_hour TIME NOT NULL,
+CREATE TABLE Automatic_Orders (
+    order_number BIGSERIAL PRIMARY KEY,
+    admin_verification VARCHAR(255),
+    completed_date DATE,
+    completed_hour TIME,
     FOREIGN KEY (order_number) REFERENCES Orders(order_number),
-    FOREIGN KEY (admin_verification) REFERENCES Admin_Package(username)
+    FOREIGN KEY (admin_verification) REFERENCES Package_Admin(username)
 );
 
 --44
-CREATE TABLE Order_pay_confirmation (
-    order_number INT PRIMARY KEY,
-    id_pay INT NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Manual_order(order_number),
-    FOREIGN KEY (id_pay) REFERENCES Pay(id_pay)
+CREATE TABLE Order_Pay_Confirmation (
+    order_number BIGSERIAL PRIMARY KEY,
+    pay_id BIGSERIAL,
+    FOREIGN KEY (order_number) REFERENCES Manual_Orders(order_number),
+    FOREIGN KEY (pay_id) REFERENCES Payment(id)
 );
 
 --45
-CREATE TABLE Withdrawal_order (
-    order_number INT PRIMARY KEY,
-    client_user VARCHAR(255) NOT NULL,
-    shipping_number INT NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Manual_order(order_number),
-    FOREIGN KEY (client_user) REFERENCES Client(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number)
+CREATE TABLE Withdrawal_Order (
+    order_number BIGSERIAL PRIMARY KEY,
+    client VARCHAR(255) NOT NULL,
+    shipping_number BIGSERIAL,
+    FOREIGN KEY (order_number) REFERENCES Manual_Orders(order_number),
+    FOREIGN KEY (client) REFERENCES Client(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
 );
 
 --46
-CREATE TABLE Delivery_order (
-    order_number INT PRIMARY KEY,
-    motocyclist_user VARCHAR(255) NOT NULL,
-    client_user VARCHAR(255) NOT NULL,
-    shipping_number INT NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_order(order_number),
-    FOREIGN KEY (motocyclist_user) REFERENCES Motocyclist(username),
-    FOREIGN KEY (client_user) REFERENCES Client(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number)
+CREATE TABLE Delivery_Order (
+    order_number BIGSERIAL PRIMARY KEY,
+    motocyclist VARCHAR(255) NOT NULL,
+    client VARCHAR(255) NOT NULL,
+    shipping_number BIGSERIAL,
+    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
+    FOREIGN KEY (motocyclist) REFERENCES Motocyclist(username),
+    FOREIGN KEY (client) REFERENCES Client(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
 );
 
 --47
 CREATE TABLE Warehouse_Transfer_Order (
-    order_number INT PRIMARY KEY,
-    truck_driver_user VARCHAR(255) NOT NULL,
-    id_warehouse_transmitter INT NOT NULL,
-    id_warehouse_receiver INT NOT NULL,
-    shipping_number INT NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_order(order_number),
-    FOREIGN KEY (truck_driver_user) REFERENCES Truck_Driver(username),
-    FOREIGN KEY (id_warehouse_transmitter) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (id_warehouse_receiver) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number)
+    order_number BIGSERIAL PRIMARY KEY,
+    truck_driver VARCHAR(255) NOT NULL,
+    warehouse_id_from BIGSERIAL,
+    warehouse_id_to BIGSERIAL,
+    shipping_number BIGSERIAL,
+    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
+    FOREIGN KEY (truck_driver) REFERENCES Truck_Driver(username),
+    FOREIGN KEY (warehouse_id_from) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (warehouse_id_to) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number)
 );
 
 --48
 CREATE TABLE Branch_Transfer_Order (
-    order_number INT PRIMARY KEY,
-    truck_driver_user VARCHAR(255) NOT NULL,
-    shipping_number INT NOT NULL,
-    warehouse_id INT NOT NULL,
-    branch_id INT NOT NULL,
+    order_number BIGSERIAL PRIMARY KEY,
+    truck_driver VARCHAR(255) NOT NULL,
+    shipping_number BIGSERIAL,
+    warehouse_id BIGSERIAL,
+    branch_id BIGSERIAL,
     withdrawal BOOLEAN NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_order(order_number),
-    FOREIGN KEY (truck_driver_user) REFERENCES Truck_Driver(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_guide(shipping_number),
-    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (branch_id) REFERENCES Branch(id_branch)
+    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
+    FOREIGN KEY (truck_driver) REFERENCES Truck_Driver(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guide(shipping_number),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (branch_id) REFERENCES Branch(branch_id)
 );
 
 --49
 CREATE TABLE Air_Cargo_Order (
-    order_number INT PRIMARY KEY,
-    truck_driver_user VARCHAR(255) NOT NULL,
-    aerial_ship_number INT NOT NULL,
-    warehouse_id INT NOT NULL,
-    id_aerial_shipping_office INT NOT NULL,
+    order_number BIGSERIAL PRIMARY KEY,
+    truck_driver VARCHAR(255) NOT NULL,
+    shipping_number BIGSERIAL,
+    warehouse_id BIGSERIAL,
+    air_freight_forwarder BIGSERIAL,
     withdrawal BOOLEAN NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_order(order_number),
-    FOREIGN KEY (truck_driver_user) REFERENCES Truck_Driver(username),
-    FOREIGN KEY (aerial_ship_number) REFERENCES Air_Guide(shipping_number_air),
-    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (id_aerial_shipping_office) REFERENCES Aerial_Shipping_Office(id_building)
+    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
+    FOREIGN KEY (truck_driver) REFERENCES Truck_Driver(username),
+    FOREIGN KEY (shipping_number) REFERENCES Air_Guide(shipping_number),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (air_freight_forwarder) REFERENCES Air_Freight_Forwader(building_id)
 );
 
 --50
-CREATE TABLE Maritime_Cargo_Order (
-    order_number INT PRIMARY KEY,
-    truck_driver_user VARCHAR(255) NOT NULL,
-    maritime_ship_number INT NOT NULL,
-    warehouse_id INT NOT NULL,
-    id_maritime_shipping_office INT NOT NULL,
+CREATE TABLE Ocean_Cargo_Order (
+    order_number BIGSERIAL PRIMARY KEY,
+    truck_driver VARCHAR(255) NOT NULL,
+    shipping_number BIGSERIAL,
+    warehouse_id BIGSERIAL,
+    ocean_freight_forwarder BIGSERIAL,
     withdrawal BOOLEAN NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_order(order_number),
-    FOREIGN KEY (truck_driver_user) REFERENCES Truck_Driver(username),
-    FOREIGN KEY (maritime_ship_number) REFERENCES Maritime_Guide(shipping_number_maritime),
-    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(id_warehouse),
-    FOREIGN KEY (id_maritime_shipping_office) REFERENCES Maritime_Shipping_Office(id_building)
+    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
+    FOREIGN KEY (truck_driver) REFERENCES Truck_Driver(username),
+    FOREIGN KEY (shipping_number) REFERENCES Ocean_Guide(shipping_number),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (ocean_freight_forwarder) REFERENCES Ocean_Freight_Forwarder(building_id)
 );
 
-ALTER TABLE Warehouse
-ADD FOREIGN KEY (id_warehouse) REFERENCES Building(id_building);
+ALTER TABLE Region
+ADD FOREIGN KEY (main_air_freight_forwarder) REFERENCES Air_Freight_Forwader(building_id);
 
 ALTER TABLE Region
-ADD FOREIGN KEY (aerial_office_principal) REFERENCES Aerial_Shipping_Office(id_building);
+ADD FOREIGN KEY (main_ocean_freight_forwarder) REFERENCES Ocean_Freight_Forwarder(building_id);
 
-ALTER TABLE Region
-ADD FOREIGN KEY (maritime_office_principal) REFERENCES Maritime_Shipping_Office(id_building);
+ALTER TABLE City
+ADD FOREIGN KEY (main_warehouse) REFERENCES Warehouse(warehouse_id);

@@ -5,10 +5,6 @@ CREATE TABLE Country (
     phone_prefix VARCHAR(50) UNIQUE NOT NULL
 );
 
-ALTER TABLE Country
-ADD CONSTRAINT uq_country_name UNIQUE(country_name)
-ADD CONSTRAINT uq_phone_prefix UNIQUE(phone_prefix);
-
 --2
 CREATE TABLE Region (
     region_id BIGSERIAL PRIMARY KEY,

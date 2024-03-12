@@ -1,28 +1,9 @@
 from psycopg2 import connect, sql, extras
 from io import StringIO
 
-from lib.model.constants import *
-from lib.model.exceptions import *
-
-# Input Validator
-def checkInput(input: str, isAlpha: bool = True, isDigit: bool = True, isSpecial: bool = False) -> bool:
-    # Nothing to Check
-    if isAlpha and isDigit and isSpecial:
-      return True
-    
-    for i in input:
-        # Check if the Given Character is an Alphabetical Character
-        if isAlpha and i.isalpha():
-            continue
-        
-        # Check if the Given Character is a Digit
-        if isDigit and i.isdigit():
-            continue
-        
-        if not isSpecial: 
-          return False
-            
-    return True        
+from .classes import *
+from .constants import *
+from .exceptions import *
 
 # Default Database Class
 class Database:
@@ -73,7 +54,7 @@ class Database:
         return self.conn.cursor()
     
 # Country Table Class
-class Country:
+class CountryTable:
     # Private Fields
     __tableName = "country"
     __items = None
@@ -112,8 +93,10 @@ class Country:
         except Exception as err:
             print(err)
 
+        # TO DEVELOP: Check Regions that Depended on this Country
+
     # Insert Country to Table
-    def insert(self, name: str, phonePrefix: int): 
+    def insert(self, c: Country): 
         # Get Query
         query = sql.SQL(
                 "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES (%s, %s)"
@@ -124,25 +107,28 @@ class Country:
 
         # Execute Query
         try:
-            self.c.execute(query, [name, phonePrefix])
+            self.c.execute(query, [c.name, c.phonePrefix])
             print(f"Country Successfully Inserted to {self.__tableName} Table\n")
         except Exception as err:
             print(err)
         
     # Insert Multiple Countries to Table
-    def insertMany(self, countries: list):
+    def insertMany(self, countries: list[Country]):
         # Get Query
         query = sql.SQL(
-                "INSERT INTO {tableName} ({id}, {name}, {phone_prefix}) VALUES %s"
+                "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES %s"
             ).format(
                 tableName = sql.Identifier(self.__tableName),
-                id = sql.Identifier(COUNTRY_ID),
                 name = sql.Identifier(COUNTRY_NAME),
                 phone_prefix = sql.Identifier(COUNTRY_PHONE_PREFIX))
 
+        countriesTuple = []
+        for c in countries:
+            countriesTuple.append([c.name, c.phonePrefix])
+
         # Execute Query
         try:
-            extras.execute_values(self.c, query.as_string(self.c), countries, page_size=100)
+            extras.execute_values(self.c, query.as_string(self.c), countriesTuple, page_size=100)
             print(f"Countries Successfully Inserted to {self.__tableName}\n")
         except Exception as err:
             print(err)
@@ -175,9 +161,10 @@ class Country:
 
         # Get Query
         query = sql.SQL(
-                    "SELECT * FROM {tableName} ORDER BY (%s)"
+                    "SELECT * FROM {tableName} ORDER BY {order}"
                 ).format(
-                    tableName = sql.Identifier(self.__tableName))
+                    tableName = sql.Identifier(self.__tableName),
+                    order = sql.Identifier(orderBy))
         
         # Execute Query
         try:
@@ -193,9 +180,32 @@ class Country:
         except Exception as err:
             print(err)
             raise err
+        
+    # Filter Items from Country Table 
+    def get(self, field: str, value):
+        # Check Field Parameter
+        if not self.__checkField(field):
+            raise FieldError(field, self.__tableName)
 
-    # Print All Items from Main Table
-    def printAll(self, orderBy: str = COUNTRY_ID, desc: bool = False):
+         # Get Query
+        query = sql.SQL(
+                    "SELECT * FROM {tableName} WHERE {field} = (%s)"
+                ).format(
+                    tableName = sql.Identifier(self.__tableName),
+                    field = sql.Identifier(field))
+        
+        # Execute Query
+        try:
+            self.c.execute(query, value)
+        except Exception as err:
+            print(err)
+
+        # Print Items
+        self.__print()            
+
+
+    # Get All Items from Country Table
+    def getAll(self, orderBy: str = COUNTRY_ID, desc: bool = False):
         # Check orderBy
         if not self.__checkField(orderBy, True):
            raise FieldError(orderBy, self.__tableName) 
@@ -205,17 +215,22 @@ class Country:
             self.__fetch(orderBy, desc)
         except Exception as err:
             raise err
-            
+        
+        # Print Items
+        self.__print()            
+
+    # Print Items
+    def __print(self):
         msg = StringIO()
 
         # Print Header
-        msg.write("ID".ljust(COUNTRY_NCHAR, ' ') + 
-                "Name".ljust(COUNTRY_NCHAR, ' ') + 
-                "Phone Prefix".ljust(COUNTRY_NCHAR, ' ') + 
+        msg.write("ID".ljust(ID_NCHAR, ' ') + 
+                "Name".ljust(COUNTRY_NAME_NCHAR, ' ') + 
+                "Phone Prefix".ljust(PHONE_PREFIX_NCHAR, ' ') + 
                 '\n')
 
         # Add Separator
-        msg.write('-' * COUNTRY_NCHAR * 4)
+        msg.write('-' * (ID_NCHAR + COUNTRY_NAME_NCHAR + PHONE_PREFIX_NCHAR))
 
         # Check Items
         if self.__items is None:
@@ -226,12 +241,23 @@ class Country:
         for item in self.__items:
             msg.write('\n')
 
+            n = 0
+            nChar = 0
+
             # Append String to In-Memory Buffer with Left Alignment
             for value in item:
+                if n == 0:
+                    nChar = ID_NCHAR
+                elif n == 1:
+                    nChar = COUNTRY_NAME_NCHAR
+                else:
+                    nChar = PHONE_PREFIX_NCHAR
+                n+=1
+            
                 try:
-                    msg.write(value.ljust(COUNTRY_NCHAR, ' '))
+                    msg.write(value.ljust(nChar, ' '))
                 except:
-                    msg.write(str(value).ljust(COUNTRY_NCHAR, ' '))
+                    msg.write(str(value).ljust(nChar, ' '))
         msg.write('\n')
 
         print(msg.getvalue())

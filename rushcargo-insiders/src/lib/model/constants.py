@@ -1,5 +1,9 @@
-# Number of Characters per Column
-COUNTRY_NCHAR = 20
+# Number of Characters to Print per Column for Common Table Attributes
+ID_NCHAR = 7
+
+# ... for Country Table Attributes
+PHONE_PREFIX_NCHAR = 15
+COUNTRY_NAME_NCHAR = 20
 
 # Country Table Columns
 COUNTRY_ID = "country_id"

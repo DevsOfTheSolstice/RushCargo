@@ -1,24 +1,28 @@
 from dotenv import load_dotenv
 from pathlib import Path
 import os
+import sys
 
+from lib.model.database import *
+from lib.model.classes import *
 from lib.model.constants import *
 from lib.model.exceptions import *
-from lib.model.database import *
+from lib.io.validator import *
 
 # Get Path to 'src' Directory
 src = Path(__file__).parent
+print(sys.path)
 
 # Get Path to 'rushcargo-insiders' Directory
 main = src.parent
 
 # Get Path to the .env File for Local Environment Variables
-dotenv_path =  main /"venv/.env"
-# print(dotenv_path)
+dotenvPath =  main /"venv/.env"
+# print(dotenvPath)
 
 def main():
   # Load .env File
-  load_dotenv(dotenv_path)
+  load_dotenv(dotenvPath)
 
   # Get Database-related Environment Variables
   host = os.getenv('HOST')
@@ -31,9 +35,9 @@ def main():
   db = Database(dbname, user, password, host, port)
   
   # Initialize Country Object
-  country = Country(db)
-  # country.insert("Colombia", 57)
-  # country.printAll()
+  country = CountryTable(db)
+  #country.insert(Country("United States", 1))
+  country.getAll(COUNTRY_PHONE_PREFIX)
 
 
 if __name__ == "__main__":

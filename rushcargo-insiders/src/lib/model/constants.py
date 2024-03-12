@@ -1,3 +1,20 @@
+from rich import box
+from rich.theme import Theme
+
+# Theme Styles
+THEME = Theme({
+  "title":"italic pale_turquoise1",
+  "header":"pale_turquoise1",
+  "border":"pale_turquoise1",
+  "caption":"dim italic grey93",
+  "text": "grey93",
+  "textAlt":"dim grey93",
+  "warning":"deep_pink4",
+  "success":"light_green"})
+
+# Default Box Style
+BOX_STYLE = box.ROUNDED
+
 # Number of Characters to Print per Column for Common Table Attributes
 ID_NCHAR = 7
 
@@ -10,7 +27,7 @@ COUNTRY_ID = "country_id"
 COUNTRY_NAME = "country_name"
 COUNTRY_PHONE_PREFIX = "phone_prefix"
 
-# Region Table Columns
+# Region ...
 REGION_ID = "region_id"
 REGION_FK_COUNTRY = "country_id"
 REGION_FK_MAIN_AIR_FORWARDER = "main_air_freight_forwarder"

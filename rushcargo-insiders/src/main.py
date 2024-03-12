@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from pathlib import Path
 import os
-import sys
 
 from lib.model.database import *
 from lib.model.classes import *
@@ -11,7 +10,6 @@ from lib.io.validator import *
 
 # Get Path to 'src' Directory
 src = Path(__file__).parent
-print(sys.path)
 
 # Get Path to 'rushcargo-insiders' Directory
 main = src.parent

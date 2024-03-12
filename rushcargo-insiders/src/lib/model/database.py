@@ -1,9 +1,13 @@
 from psycopg2 import connect, sql, extras
-from io import StringIO
+from rich.console import Console
+from rich.table import Table
 
 from .classes import *
 from .constants import *
 from .exceptions import *
+
+# Set Custom Theme
+console = Console(theme=THEME)
 
 # Default Database Class
 class Database:
@@ -89,9 +93,10 @@ class CountryTable:
         
         try:
             self.c.execute(query, [value])
-            print(f"Deleted Coincidences which had: '{value}' in '{field}' Column\n")
+            console.print(f"Deleted Coincidences which had: '{value}' in '{field}' Column\n", style="success")
         except Exception as err:
-            print(err)
+            console.print(err, style="warning")
+            return
 
         # TO DEVELOP: Check Regions that Depended on this Country
 
@@ -108,9 +113,9 @@ class CountryTable:
         # Execute Query
         try:
             self.c.execute(query, [c.name, c.phonePrefix])
-            print(f"Country Successfully Inserted to {self.__tableName} Table\n")
+            console.print(f"Country Successfully Inserted to {self.__tableName} Table\n", style="success")
         except Exception as err:
-            print(err)
+            console.print(err, style="warning")
         
     # Insert Multiple Countries to Table
     def insertMany(self, countries: list[Country]):
@@ -129,9 +134,9 @@ class CountryTable:
         # Execute Query
         try:
             extras.execute_values(self.c, query.as_string(self.c), countriesTuple, page_size=100)
-            print(f"Countries Successfully Inserted to {self.__tableName}\n")
+            console.print(f"Countries Successfully Inserted to {self.__tableName}\n", style="success")
         except Exception as err:
-            print(err)
+            console.print(err, style="warning")
 
     # Update Country by Row ID
     def update(self, id: int, field: str, value):
@@ -150,9 +155,9 @@ class CountryTable:
         # Execute Query
         try:
             self.c.execute(query, [value, id])
-            print(f"Country {id} Successfully Updated to {self.__tableName}\n")
+            console.print(f"Country {id} Successfully Updated to {self.__tableName}\n", style="success")
         except Exception as err:
-            print(err)
+            console.print(err, style="warning")
 
     # Sort By Table
     def __orderBy(self, orderBy: str, desc: bool):
@@ -170,7 +175,7 @@ class CountryTable:
         try:
             self.c.execute(query, [orderBy])
         except Exception as err:
-            print(err)
+            raise(err)
         
     # Return All Countries
     def __fetch(self, orderBy: str, desc: bool):
@@ -178,7 +183,6 @@ class CountryTable:
             self.__orderBy(orderBy, desc)
             self.__items = self.c.fetchall()
         except Exception as err:
-            print(err)
             raise err
         
     # Filter Items from Country Table 
@@ -198,7 +202,8 @@ class CountryTable:
         try:
             self.c.execute(query, value)
         except Exception as err:
-            print(err)
+            console.print(err, style="warning")
+            return
 
         # Print Items
         self.__print()            
@@ -214,50 +219,47 @@ class CountryTable:
         try:
             self.__fetch(orderBy, desc)
         except Exception as err:
-            raise err
+            console.print(err, style="warning")
+            return
         
         # Print Items
         self.__print()            
 
     # Print Items
     def __print(self):
-        msg = StringIO()
+        # Number of Items
+        nItems = len(self.__items)
 
-        # Print Header
-        msg.write("ID".ljust(ID_NCHAR, ' ') + 
-                "Name".ljust(COUNTRY_NAME_NCHAR, ' ') + 
-                "Phone Prefix".ljust(PHONE_PREFIX_NCHAR, ' ') + 
-                '\n')
+        # Initialize Rich Table
+        table = Table(title="Country Table Query",
+                      title_style="title",
+                      header_style="header",
+                      caption=f"{nItems} Results Fetched",
+                      caption_style="caption",
+                      border_style="border",
+                      box=BOX_STYLE,
+                      row_styles=["text", "textAlt"])
 
-        # Add Separator
-        msg.write('-' * (ID_NCHAR + COUNTRY_NAME_NCHAR + PHONE_PREFIX_NCHAR))
-
+        # Add Table Columns
+        table.add_column("ID", 
+                         justify="left",
+                         max_width=ID_NCHAR)
+        
+        table.add_column("Name", 
+                         justify="left",
+                         max_width=COUNTRY_NAME_NCHAR)
+        
+        table.add_column("Phone Prefix", 
+                         justify="left",
+                         max_width=PHONE_PREFIX_NCHAR)
+        
         # Check Items
         if self.__items is None:
-            print("Error: No Items Fetched")
+            console.print("Error: No Items Fetched", style="warning")
             return
 
         # Loop Over Items
         for item in self.__items:
-            msg.write('\n')
+            table.add_row(str(item[0]), item[1], str(item[2]))
 
-            n = 0
-            nChar = 0
-
-            # Append String to In-Memory Buffer with Left Alignment
-            for value in item:
-                if n == 0:
-                    nChar = ID_NCHAR
-                elif n == 1:
-                    nChar = COUNTRY_NAME_NCHAR
-                else:
-                    nChar = PHONE_PREFIX_NCHAR
-                n+=1
-            
-                try:
-                    msg.write(value.ljust(nChar, ' '))
-                except:
-                    msg.write(str(value).ljust(nChar, ' '))
-        msg.write('\n')
-
-        print(msg.getvalue())
+        console.print(table)

@@ -1,13 +1,30 @@
-from dotenv import load_dotenv
 from rich.prompt import Prompt, IntPrompt, Confirm
-from pathlib import Path
 import os
+import logging
+from rich.logging import RichHandler
 
 from ..model.database import *
 from ..model.classes import *
 from ..model.constants import *
 from ..model.exceptions import *
 from ..io.validator import *
+
+
+# Get Rich Logger
+logging.basicConfig(
+    level="NOTSET",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True)],
+)
+log = logging.getLogger("rich")
+
+# Initialize Database Connection
+db = initdb()
+
+# Initialize Table Classes
+countryTable = CountryTable(db)
+# regionTable = RegionTable(db)
 
 
 # Clear Function
@@ -21,33 +38,8 @@ def clear():
         os.system("clear")
 
 
-# Initialize Database Connection
-def initdb():
-    # Get Path to 'src' Directory
-    src = Path(__file__).parent.parent.parent
-
-    # Get Path to 'rushcargo-insiders' Directory
-    main = src.parent
-
-    # Get Path to the .env File for Local Environment Variables
-    dotenvPath = main / "venv/.env"
-
-    # Load .env File
-    load_dotenv(dotenvPath)
-
-    # Get Database-related Environment Variables
-    host = os.getenv("HOST")
-    port = os.getenv("PORT")
-    dbname = os.getenv("DBNAME")
-    user = os.getenv("USER")
-    password = os.getenv("PASSWORD")
-
-    # Initialize Database Object
-    return Database(dbname, user, password, host, port)
-
-
 # Get All Table Handler
-def getAllHandler(table: str, dbTable):
+def allHandler(table: str):
     sortBy = desc = None
 
     if table == COUNTRY_TABLENAME:
@@ -59,11 +51,11 @@ def getAllHandler(table: str, dbTable):
         desc = Confirm.ask("Do you want to Sort it in Descending Order?")
 
         # Print Table
-        dbTable.getAll(sortBy, desc)
+        countryTable.all(sortBy, desc)
 
 
 # Get Table Handler
-def getHandler(table: str, dbTable):
+def getHandler(table: str):
     fieldMsg = "\nWhich Field do you want to Compare?"
     valueMsg = "Which Value do you want to Compare that Field with?"
 
@@ -87,11 +79,12 @@ def getHandler(table: str, dbTable):
                 raise ValueError(table, field, value)
 
         # Print Table Coincidences
-        dbTable.get(field, value)
+        countryTable.get(field, value)
 
 
 # Modify Row from Table Handler
-def modHandler(table: str, dbTable):
+def modHandler(table: str):
+    confirmMsg = "Is this the Row you want to Modify?"
     fieldMsg = "Which Field do you want to Modify?"
     valueMsg = "Which New Value do you want to Assign it?"
 
@@ -100,6 +93,11 @@ def modHandler(table: str, dbTable):
     if table == COUNTRY_TABLENAME:
         # Ask for Country ID to Modify
         countryID = IntPrompt.ask("\nEnter Country ID to Modify")
+
+        # Ask for Confirmation
+        countryTable.get(COUNTRY_ID, countryID)
+        if not Confirm.ask(confirmMsg):
+            return
 
         # Ask for Field to Modify
         field = Prompt.ask(fieldMsg, choices=[COUNTRY_NAME, COUNTRY_PHONE_PREFIX])
@@ -116,11 +114,11 @@ def modHandler(table: str, dbTable):
                 raise ValueError(table, field, value)
 
         # Modify Country
-        dbTable.modify(countryID, field, value)
+        countryTable.modify(countryID, field, value)
 
 
 # Add Row to Table Handler
-def addHandler(table: str, dbTable):
+def addHandler(table: str):
     if table == COUNTRY_TABLENAME:
         # Asks for Country Fields
         countryName = Prompt.ask("\nEnter Country Name")
@@ -131,47 +129,50 @@ def addHandler(table: str, dbTable):
             raise ValueError(table, COUNTRY_NAME, countryName)
 
         # Insert Country
-        dbTable.add(Country(countryName, phonePrefix))
+        countryTable.add(Country(countryName, phonePrefix))
 
 
 # Remove Row from Table Handler
-def rmHandler(table: str, dbTable):
+def rmHandler(table: str):
+    confirmMsg = "Is this the Row you want to Remove?"
+
     if table == COUNTRY_TABLENAME:
         # Ask for Country ID to Modify
         countryID = IntPrompt.ask("\nEnter Country ID to Remove")
 
         # Ask for Confirmation
+        countryTable.get(COUNTRY_ID, countryID)
+        if not Confirm.ask(confirmMsg):
+            return
+
+        # Ask for Confirmation
         if Confirm.ask("\nAre you Sure to Remove this Country?"):
-            dbTable.remove(countryID)
+            countryTable.remove(countryID)
 
 
 # Main Event Handler
 def eventHandler(action: str, table: str):
-    # Initialize Database Connection
-    db = initdb()
-
-    # Initialize Table Classes
-    countryTable = CountryTable(db)
 
     while True:
         try:
             # Print All Rows from Given Table
-            if action == GET_ALL:
-                getAllHandler(table, countryTable)
+            if action == ALL:
+                allHandler(table)
 
             elif action == GET:
-                getHandler(table, countryTable)
+                getHandler(table)
 
             elif action == MOD:
-                modHandler(table, countryTable)
+                modHandler(table)
 
             elif action == ADD:
-                addHandler(table, countryTable)
+                addHandler(table)
 
             elif action == RM:
-                rmHandler(table, countryTable)
-        except:
-            print(111)
+                rmHandler(table)
+
+        except Exception as err:
+            log.exception(err)
 
         # Ask if the User wants to Exit the Program
         exit = Confirm.ask("\nDo you want to End the Current Session?")

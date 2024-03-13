@@ -21,9 +21,14 @@ BOX_STYLE = box.ROUNDED
 # Number of Characters to Print per Column for Common Table Attributes
 ID_NCHAR = 7
 
+# ... for Location-related Tables
+LOCATION_NAME_NCHAR = 20
+
+# ... for Office-related Attributes
+OFFICE_NCHAR = 20
+
 # ... for Country Table Attributes
 PHONE_PREFIX_NCHAR = 15
-COUNTRY_NAME_NCHAR = 20
 
 # Country Table Columns
 COUNTRY_TABLENAME = "country"
@@ -32,21 +37,22 @@ COUNTRY_NAME = "country_name"
 COUNTRY_PHONE_PREFIX = "phone_prefix"
 
 # Region ...
+REGION_TABLENAME = "region"
 REGION_ID = "region_id"
 REGION_FK_COUNTRY = "country_id"
+REGION_NAME = "region_name"
 REGION_FK_MAIN_AIR_FORWARDER = "main_air_freight_forwarder"
 REGION_FK_MAIN_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
-REGION_NAME = "region_name"
 
 # Action-related Commands
 ADD = "add"
 RM = "rm"
 MOD = "mod"
 GET = "get"
-GET_ALL = "getAll"
+ALL = "all"
 
 # Table-related Available Action Commands
-ACTION_CMDS = [ADD, RM, MOD, GET, GET_ALL]
+ACTION_CMDS = [ADD, RM, MOD, GET, ALL]
 
 # Available Tables that can be Interacted with
-TABLE_CMDS = [COUNTRY_TABLENAME]
+TABLE_CMDS = [COUNTRY_TABLENAME, REGION_TABLENAME]

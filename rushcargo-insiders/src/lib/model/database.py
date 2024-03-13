@@ -1,6 +1,10 @@
 from psycopg2 import connect, sql, extras
 from rich.console import Console
 from rich.table import Table
+from pathlib import Path
+import os
+from dotenv import load_dotenv
+
 
 from .classes import *
 from .constants import *
@@ -66,41 +70,140 @@ class Database:
         return self.conn.cursor()
 
 
-# Country Table Class
-class CountryTable:
+# Initialize Database Connection
+def initdb():
+    # Get Path to 'src' Directory
+    src = Path(__file__).parent.parent.parent
+
+    # Get Path to 'rushcargo-insiders' Directory
+    main = src.parent
+
+    # Get Path to the .env File for Local Environment Variables
+    dotenvPath = main / "venv/.env"
+
+    # Load .env File
+    load_dotenv(dotenvPath)
+
+    # Get Database-related Environment Variables
+    host = os.getenv("HOST")
+    port = os.getenv("PORT")
+    dbname = os.getenv("DBNAME")
+    user = os.getenv("USER")
+    password = os.getenv("PASSWORD")
+
+    # Initialize Database Object
+    return Database(dbname, user, password, host, port)
+
+
+# Basic Table Class
+class BasicTable:
     # Private Fields
-    __tableName = COUNTRY_TABLENAME
-    __items = None
+    _tableName = None
+    _items = None
 
     # Public Fields
     c = None
 
-    # Remove Country from Table
-    def remove(self, cid: int):
+    # Constructor
+    def __init__(self, tableName: str, database: Database):
+        # Assign Table Name
+        self._tableName = tableName
 
-        query = sql.SQL("DELETE FROM {tablename} WHERE {id} = (%s)").format(
-            tablename=sql.Identifier(self.__tableName), id=sql.Identifier(COUNTRY_ID)
+        # Get Cursor
+        self.c = database.getCursor()
+
+    # Order By Table
+    def _orderBy(self, orderBy: str, desc: bool):
+        query = None
+
+        # Get Query
+        if not desc:
+            query = sql.SQL("SELECT * FROM {tableName} ORDER BY {order}").format(
+                tableName=sql.Identifier(self._tableName),
+                order=sql.Identifier(orderBy),
+            )
+        else:
+            query = sql.SQL("SELECT * FROM {tableName} ORDER BY {order} DESC").format(
+                tableName=sql.Identifier(self._tableName),
+                order=sql.Identifier(orderBy),
+            )
+
+        # Execute Query
+        try:
+            self.c.execute(query)
+        except Exception as err:
+            raise (err)
+
+    # Modify Row from Table
+    def modify(self, idField: str, idValue: int, field: str, value):
+        # Get Query
+        query = sql.SQL(
+            "UPDATE {tableName} SET {field} = (%s) WHERE {id} = (%s)"
+        ).format(
+            tableName=sql.Identifier(self._tableName),
+            field=sql.Identifier(field),
+            id=sql.Identifier(idField),
         )
 
+        # Execute Query
         try:
-            self.c.execute(query, [cid])
+            self.c.execute(query, [value, idValue])
             console.print(
-                f"Country with '{COUNTRY_ID}' '{cid}' Successfully Removed from {self.__tableName} Table",
+                f"Data '{value}' Successfully Assigned to '{field}' at '{idField}' '{idValue}' in {self._tableName} Table",
                 style="success",
             )
         except Exception as err:
-            console.print(err, style="warning")
-            return
+            raise err
 
-        # TO DEVELOP: Check Regions that Depended on this Country
+    # Filter Items from Table
+    def get(self, field: str, value):
+        # Get Query
+        query = sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
+            tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
+        )
 
+        # Execute Query
+        try:
+            self.c.execute(query, [value])
+            self._items = self.c.fetchall()
+        except Exception as err:
+            raise err
+
+    # Get All Items from Table
+    def all(self, orderBy: str, desc: bool):
+        # Fetch Items
+        try:
+            self._orderBy(orderBy, desc)
+            self._items = self.c.fetchall()
+        except Exception as err:
+            raise err
+
+    # Remove Row from Table
+    def remove(self, idField: str, idValue: int):
+        # Get Query
+        query = sql.SQL("DELETE FROM {tablename} WHERE {id} = (%s)").format(
+            tablename=sql.Identifier(self._tableName), id=sql.Identifier(idField)
+        )
+
+        try:
+            self.c.execute(query, [idValue])
+            console.print(
+                f"Row with '{idField}' '{idValue}' Successfully Removed from {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+
+# Country Table Class
+class CountryTable(BasicTable):
     # Insert Country to Table
     def add(self, c: Country):
         # Get Query
         query = sql.SQL(
             "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES (%s, %s)"
         ).format(
-            tableName=sql.Identifier(self.__tableName),
+            tableName=sql.Identifier(self._tableName),
             name=sql.Identifier(COUNTRY_NAME),
             phone_prefix=sql.Identifier(COUNTRY_PHONE_PREFIX),
         )
@@ -109,11 +212,11 @@ class CountryTable:
         try:
             self.c.execute(query, [c.name, c.phonePrefix])
             console.print(
-                f"{c.name} Successfully Inserted to {self.__tableName} Table",
+                f"{c.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
             )
         except Exception as err:
-            console.print(err, style="warning")
+            raise err
 
     # Insert Multiple Countries to Table
     def addMany(self, countries: list[Country]):
@@ -121,7 +224,7 @@ class CountryTable:
         query = sql.SQL(
             "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES %s"
         ).format(
-            tableName=sql.Identifier(self.__tableName),
+            tableName=sql.Identifier(self._tableName),
             name=sql.Identifier(COUNTRY_NAME),
             phone_prefix=sql.Identifier(COUNTRY_PHONE_PREFIX),
         )
@@ -140,95 +243,45 @@ class CountryTable:
                 self.c, query.as_string(self.c), countriesTuple, page_size=100
             )
             console.print(
-                f"{' '.join(countriesName)} Successfully Inserted to {self.__tableName} Table",
+                f"{' '.join(countriesName)} Successfully Inserted to {self._tableName} Table",
                 style="success",
             )
         except Exception as err:
-            console.print(err, style="warning")
+            raise err
 
-    # Modify Country by Country ID
-    def modify(self, cid: int, field: str, value):
-        # Get Query
-        query = sql.SQL(
-            "UPDATE {tableName} SET {field} = (%s) WHERE {id} = (%s)"
-        ).format(
-            tableName=sql.Identifier(self.__tableName),
-            field=sql.Identifier(field),
-            id=sql.Identifier(COUNTRY_ID),
-        )
-
-        # Execute Query
-        try:
-            self.c.execute(query, [value, cid])
-            console.print(
-                f"Data '{value}' Successfully Assigned to '{field}' at '{COUNTRY_ID}' '{cid}' in {self.__tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            console.print(err, style="warning")
-
-    # Filter Items from Country Table
+    # Filter Items from  Country Table
     def get(self, field: str, value):
-        # Get Query
-        query = sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
-            tableName=sql.Identifier(self.__tableName), field=sql.Identifier(field)
-        )
-
-        # Execute Query
-        try:
-            self.c.execute(query, [value])
-            self.__items = self.c.fetchall()
-        except Exception as err:
-            console.print(err, style="warning")
-            return
+        BasicTable.get(self, field, value)
 
         # Print Items
         self.__print()
 
     # Get All Items from Country Table
-    def getAll(self, orderBy: str = COUNTRY_ID, desc: bool = False):
-        # Fetch Items
-        try:
-            self.__orderBy(orderBy, desc)
-            self.__items = self.c.fetchall()
-        except Exception as err:
-            console.print(err, style="warning")
-            return
+    def all(self, orderBy: str, desc: bool):
+        BasicTable.all(self, orderBy, desc)
 
         # Print Items
         self.__print()
 
+    # Modify Row from Country Table
+    def modify(self, cid: int, field: str, value):
+        BasicTable.modify(self, COUNTRY_ID, cid, field, value)
+
+    # Remove Row from Country Table
+    def remove(self, cid: int):
+        BasicTable.remove(self, COUNTRY_ID, cid)
+
+        # TO DEVELOP: Check Regions that Depended on this Country
+
     # Constructor
     def __init__(self, database: Database):
-        # Get Cursor
-        self.c = database.getCursor()
-
-    # Sort By Table
-    def __orderBy(self, orderBy: str, desc: bool):
-        query = None
-
-        # Get Query
-        if not desc:
-            query = sql.SQL("SELECT * FROM {tableName} ORDER BY {order}").format(
-                tableName=sql.Identifier(self.__tableName),
-                order=sql.Identifier(orderBy),
-            )
-        else:
-            query = sql.SQL("SELECT * FROM {tableName} ORDER BY {order} DESC").format(
-                tableName=sql.Identifier(self.__tableName),
-                order=sql.Identifier(orderBy),
-            )
-
-        # Execute Query
-        try:
-            self.c.execute(query)
-        except Exception as err:
-            raise (err)
+        # Initialize Basic Table Class
+        super().__init__(COUNTRY_TABLENAME, database)
 
     # Print Items
     def __print(self):
         # Number of Items
-        nItems = len(self.__items)
+        nItems = len(self._items)
 
         # Initialize Rich Table
         table = Table(
@@ -244,18 +297,16 @@ class CountryTable:
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
-
-        table.add_column("Name", justify="left", max_width=COUNTRY_NAME_NCHAR)
-
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
         table.add_column("Phone Prefix", justify="left", max_width=PHONE_PREFIX_NCHAR)
 
         # Check Items
-        if self.__items is None:
+        if self._items is None:
             console.print("Error: No Items Fetched", style="warning")
             return
 
         # Loop Over Items
-        for item in self.__items:
+        for item in self._items:
             table.add_row(str(item[0]), item[1], str(item[2]))
 
         # Print New Line

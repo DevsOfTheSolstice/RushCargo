@@ -14,6 +14,26 @@ from .exceptions import *
 console = Console(theme=THEME)
 
 
+# Get Table with Default values
+def getTable(tableName: str, nItems: int):
+    # Initialize Rich Table
+    return Table(
+        title=f"{tableName} Table Query",
+        title_style="title",
+        header_style="header",
+        caption=f"{nItems} Results Fetched",
+        caption_style="caption",
+        border_style="border",
+        box=BOX_STYLE,
+        row_styles=["text", "textAlt"],
+    )
+
+
+# Message Print when there's Nothing Fetched from Query
+def noCoincidenceFetched():
+    console.print("No Results Fetched", style="warning")
+
+
 # Default Database Class
 class Database:
     # Protected Fields
@@ -135,7 +155,7 @@ class BasicTable:
             raise (err)
 
     # Modify Row from Table
-    def modify(self, idField: str, idValue: int, field: str, value):
+    def _modify(self, idField: str, idValue: int, field: str, value):
         # Get Query
         query = sql.SQL(
             "UPDATE {tableName} SET {field} = (%s) WHERE {id} = (%s)"
@@ -156,7 +176,11 @@ class BasicTable:
             raise err
 
     # Filter Items from Table
-    def get(self, field: str, value):
+    def _get(self, field: str, value) -> bool:
+        """
+        Returns True if One or More Items were Fetched. Otherwise, False
+        """
+
         # Get Query
         query = sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
             tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
@@ -169,8 +193,10 @@ class BasicTable:
         except Exception as err:
             raise err
 
+        return len(self._items > 0)
+
     # Get All Items from Table
-    def all(self, orderBy: str, desc: bool):
+    def _all(self, orderBy: str, desc: bool):
         # Fetch Items
         try:
             self._orderBy(orderBy, desc)
@@ -179,7 +205,7 @@ class BasicTable:
             raise err
 
     # Remove Row from Table
-    def remove(self, idField: str, idValue: int):
+    def _remove(self, idField: str, idValue: int):
         # Get Query
         query = sql.SQL("DELETE FROM {tablename} WHERE {id} = (%s)").format(
             tablename=sql.Identifier(self._tableName), id=sql.Identifier(idField)
@@ -197,16 +223,58 @@ class BasicTable:
 
 # Country Table Class
 class CountryTable(BasicTable):
-    # Insert Country to Table
-    def add(self, c: Country):
-        # Get Query
-        query = sql.SQL(
-            "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES (%s, %s)"
+    # Constructor
+    def __init__(self, database: Database):
+        # Initialize Basic Table Class
+        super().__init__(COUNTRY_TABLENAME, database)
+
+    # Print Items
+    def __print(self):
+        # Number of Items
+        nItems = len(self._items)
+
+        # Check Items
+        if self._items is None:
+            console.print("Error: No Items Fetched", style="warning")
+            return
+
+        # No Results
+        elif nItems == 0:
+            noCoincidenceFetched()
+            return
+
+        # Initialize Rich Table
+        table = getTable("Country", nItems)
+
+        # Add Table Columns
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Phone Prefix", justify="left", max_width=PHONE_PREFIX_NCHAR)
+
+        # Loop Over Items
+        for item in self._items:
+            table.add_row(str(item[0]), item[1], str(item[2]))
+
+        # Print New Line
+        console.print("\n")
+
+        # Print Table
+        console.print(table)
+
+    # Get Insert Query
+    def __getInsertQuery(self):
+        return sql.SQL(
+            "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES %s"
         ).format(
             tableName=sql.Identifier(self._tableName),
             name=sql.Identifier(COUNTRY_NAME),
             phone_prefix=sql.Identifier(COUNTRY_PHONE_PREFIX),
         )
+
+    # Insert Country to Table
+    def add(self, c: Country):
+        # Get Query
+        query = self.__getInsertQuery()
 
         # Execute Query
         try:
@@ -221,13 +289,7 @@ class CountryTable(BasicTable):
     # Insert Multiple Countries to Table
     def addMany(self, countries: list[Country]):
         # Get Query
-        query = sql.SQL(
-            "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES %s"
-        ).format(
-            tableName=sql.Identifier(self._tableName),
-            name=sql.Identifier(COUNTRY_NAME),
-            phone_prefix=sql.Identifier(COUNTRY_PHONE_PREFIX),
-        )
+        query = self.__getInsertQuery()
 
         countriesTuple = []
         countriesName = []
@@ -249,65 +311,154 @@ class CountryTable(BasicTable):
         except Exception as err:
             raise err
 
-    # Filter Items from  Country Table
-    def get(self, field: str, value):
-        BasicTable.get(self, field, value)
+    # Filter Items from Country Table
+    def get(self, field: str, value) -> int:
+        if not BasicTable._get(self, field, value):
+            return False
 
         # Print Items
         self.__print()
+        return True
 
     # Get All Items from Country Table
     def all(self, orderBy: str, desc: bool):
-        BasicTable.all(self, orderBy, desc)
+        BasicTable._all(self, orderBy, desc)
 
         # Print Items
         self.__print()
 
     # Modify Row from Country Table
     def modify(self, cid: int, field: str, value):
-        BasicTable.modify(self, COUNTRY_ID, cid, field, value)
+        BasicTable._modify(self, COUNTRY_ID, cid, field, value)
 
     # Remove Row from Country Table
     def remove(self, cid: int):
-        BasicTable.remove(self, COUNTRY_ID, cid)
+        BasicTable._remove(self, COUNTRY_ID, cid)
 
         # TO DEVELOP: Check Regions that Depended on this Country
+
+
+# Region Table Class
+class RegionTable(BasicTable):
+    # Get Insert Query
+    def __getInsertQuery(self):
+        return sql.SQL(
+            "INSERT INTO {tableName} ({countryId}, {airForwarder}, {oceanForwarder}, {name}) VALUES %s"
+        ).format(
+            tableName=sql.Identifier(self._tableName),
+            countryId=sql.Identifier(COUNTRY_ID),
+            airForwarder=sql.Identifier(REGION_FK_AIR_FORWARDER),
+            oceanForwarder=sql.Identifier(REGION_FK_OCEAN_FORWARDER),
+            name=sql.Identifier(REGION_NAME),
+        )
+
+    # Insert Region to Table
+    def add(self, r: Region):
+        # Get Query
+        query = self.__getInsertQuery()
+
+        # Execute Query
+        try:
+            self.c.execute(
+                query, [r.countryId, r.airForwarderId, r.oceanForwarderId, r.name]
+            )
+            console.print(
+                f"{r.name} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Insert Multiple Regions to Table
+    def addMany(self, regions: list[Region]):
+        # Get Query
+        query = self.__getInsertQuery()
+
+        regionsTuple = []
+        regionsName = []
+
+        # Create  Touples List from Regions List, and Regions Name List
+        for r in regions:
+            regionsTuple.append(
+                [r.countryId, r.airForwarderId, r.oceanForwarderId, r.name]
+            )
+            regionsName.append(r.name)
+
+        # Execute Query
+        try:
+            extras.execute_values(
+                self.c, query.as_string(self.c), regionsTuple, page_size=100
+            )
+            console.print(
+                f"{' '.join(regionsName)} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Filter Items from Region Table
+    def get(self, field: str, value):
+        if not BasicTable.get(self, field, value):
+            return False
+
+        # Print Items
+        self.__print()
+        return True
+
+    # Get All Items from Region Table
+    def all(self, orderBy: str, desc: bool):
+        BasicTable.all(self, orderBy, desc)
+
+        # Print Items
+        self.__print()
+
+    # Modify Row from Region Table
+    def modify(self, rid: int, field: str, value):
+        BasicTable.modify(self, REGION_ID, rid, field, value)
+
+    # Remove Row from Region Table
+    def remove(self, rid: int):
+        BasicTable.remove(self, REGION_ID, rid)
+
+        # TO DEVELOP: Check Cities that Depended on this Region
 
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
-        super().__init__(COUNTRY_TABLENAME, database)
+        super().__init__(REGION_TABLENAME, database)
 
     # Print Items
     def __print(self):
         # Number of Items
         nItems = len(self._items)
 
-        # Initialize Rich Table
-        table = Table(
-            title="Country Table Query",
-            title_style="title",
-            header_style="header",
-            caption=f"{nItems} Results Fetched",
-            caption_style="caption",
-            border_style="border",
-            box=BOX_STYLE,
-            row_styles=["text", "textAlt"],
-        )
-
-        # Add Table Columns
-        table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
-        table.add_column("Phone Prefix", justify="left", max_width=PHONE_PREFIX_NCHAR)
-
         # Check Items
         if self._items is None:
             console.print("Error: No Items Fetched", style="warning")
             return
 
+        # No Results
+        elif nItems == 0:
+            noCoincidenceFetched()
+            return
+
+        # Initialize Rich Table
+        table = getTable("Region", nItems)
+
+        # Add Table Columns
+        table.add_column("Country ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Air Forwarder ID", justify="left", max_width=FORWARDER_NCHAR)
+        table.add_column(
+            "Ocean Forwarder ID", justify="left", max_width=FORWARDER_NCHAR
+        )
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+
         # Loop Over Items
         for item in self._items:
-            table.add_row(str(item[0]), item[1], str(item[2]))
+            table.add_row(
+                str(item[0]), str(item[1]), str(item[2], str(item[3]), item[4])
+            )
 
         # Print New Line
         console.print("\n")

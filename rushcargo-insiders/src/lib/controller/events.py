@@ -94,8 +94,11 @@ def modHandler(table: str):
         # Ask for Country ID to Modify
         countryID = IntPrompt.ask("\nEnter Country ID to Modify")
 
+        # Print Fetched Results
+        if not countryTable.get(COUNTRY_ID, countryID):
+            noCoincidenceFetched()
+
         # Ask for Confirmation
-        countryTable.get(COUNTRY_ID, countryID)
         if not Confirm.ask(confirmMsg):
             return
 
@@ -140,8 +143,11 @@ def rmHandler(table: str):
         # Ask for Country ID to Modify
         countryID = IntPrompt.ask("\nEnter Country ID to Remove")
 
+        # Print Fetched Results
+        if not countryTable.get(COUNTRY_ID, countryID):
+            noCoincidenceFetched()
+
         # Ask for Confirmation
-        countryTable.get(COUNTRY_ID, countryID)
         if not Confirm.ask(confirmMsg):
             return
 
@@ -152,37 +158,39 @@ def rmHandler(table: str):
 
 # Main Event Handler
 def eventHandler(action: str, table: str):
+    try:
+        while True:
+            try:
+                # Print All Rows from Given Table
+                if action == ALL:
+                    allHandler(table)
 
-    while True:
-        try:
-            # Print All Rows from Given Table
-            if action == ALL:
-                allHandler(table)
+                elif action == GET:
+                    getHandler(table)
 
-            elif action == GET:
-                getHandler(table)
+                elif action == MOD:
+                    modHandler(table)
 
-            elif action == MOD:
-                modHandler(table)
+                elif action == ADD:
+                    addHandler(table)
 
-            elif action == ADD:
-                addHandler(table)
+                elif action == RM:
+                    rmHandler(table)
 
-            elif action == RM:
-                rmHandler(table)
+            except Exception as err:
+                log.exception(err)
 
-        except Exception as err:
-            log.exception(err)
+            # Ask if the User wants to Exit the Program
+            exit = Confirm.ask("\nDo you want to End the Current Session?")
 
-        # Ask if the User wants to Exit the Program
-        exit = Confirm.ask("\nDo you want to End the Current Session?")
+            if exit:
+                break
 
-        if exit:
-            break
+            # Clear Screen
+            clear()
 
-        # Clear Screen
-        clear()
-
-        # Ask Next Action
-        action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
-        table = Prompt.ask("At which table?", choices=TABLE_CMDS)
+            # Ask Next Action
+            action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
+            table = Prompt.ask("At which table?", choices=TABLE_CMDS)
+    except KeyboardInterrupt:
+        console.print("\nExiting...", style="warning")

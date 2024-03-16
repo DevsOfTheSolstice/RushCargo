@@ -480,6 +480,16 @@ CREATE TABLE Ocean_Cargo_Order (
     FOREIGN KEY (ocean_freight_forwarder) REFERENCES Ocean_Freight_Forwarder(building_id)
 );
 
+--51
+CREATE TABLE City_area ( 
+    area_id BIGSERIAL PRIMARY KEY, 
+    city_id BIGSERIAL, 
+    area_name VARCHAR(255) NOT NULL, 
+    area_description VARCHAR(255), 
+    FOREIGN KEY (city_id) REFERENCES City(city_id) 
+);
+
+--modifications
 ALTER TABLE Region
 ADD FOREIGN KEY (main_air_freight_forwarder) REFERENCES Air_Freight_Forwader(building_id);
 

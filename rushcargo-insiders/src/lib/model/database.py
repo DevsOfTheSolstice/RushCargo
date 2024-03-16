@@ -264,7 +264,7 @@ class CountryTable(BasicTable):
     # Get Insert Query
     def __getInsertQuery(self):
         return sql.SQL(
-            "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES %s"
+            "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES (%s, %s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
             name=sql.Identifier(COUNTRY_NAME),
@@ -335,15 +335,13 @@ class CountryTable(BasicTable):
     def remove(self, cid: int):
         BasicTable._remove(self, COUNTRY_ID, cid)
 
-        # TO DEVELOP: Check Regions that Depended on this Country
-
 
 # Region Table Class
 class RegionTable(BasicTable):
     # Get Insert Query
     def __getInsertQuery(self):
         return sql.SQL(
-            "INSERT INTO {tableName} ({countryId}, {airForwarder}, {oceanForwarder}, {name}) VALUES %s"
+            "INSERT INTO {tableName} ({countryId}, {airForwarder}, {oceanForwarder}, {name}) VALUES (%s, %s, %s, %s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
             countryId=sql.Identifier(COUNTRY_ID),
@@ -419,8 +417,6 @@ class RegionTable(BasicTable):
     # Remove Row from Region Table
     def remove(self, rid: int):
         BasicTable.remove(self, REGION_ID, rid)
-
-        # TO DEVELOP: Check Cities that Depended on this Region
 
     # Constructor
     def __init__(self, database: Database):

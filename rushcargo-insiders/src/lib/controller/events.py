@@ -19,178 +19,206 @@ logging.basicConfig(
 )
 log = logging.getLogger("rich")
 
-# Initialize Database Connection
-db = initdb()
 
-# Initialize Table Classes
-countryTable = CountryTable(db)
-# regionTable = RegionTable(db)
+# Event Handler Class
+class EventHandler:
+    # Database Connection
+    _db = None
 
+    # Table Classes
+    _countryTable = None
+    _regionTable = None
 
-# Clear Function
-def clear():
-    # For Windows
-    if os.name == "nt":
-        os.system("cls")
+    # All Handler Messages
+    __allSortByMsg = "\nHow do you want to Sort it?"
+    __allDescMsg = "Do you want to Sort it in Descending Order?"
 
-    # For Posix
-    else:
-        os.system("clear")
+    # Get Handler Messages
+    __getFieldMsg = "\nWhich Field do you want to Compare?"
+    __getValueMsg = "Which Value do you want to Compare that Field with?"
 
+    # Modify Handler Messages
+    __modConfirmMsg = "Is this the Row you want to Modify?"
+    __modFieldMsg = "Which Field do you want to Modify?"
+    __modValueMsg = "Which New Value do you want to Assign it?"
 
-# Get All Table Handler
-def allHandler(table: str):
-    sortBy = desc = None
+    # Remove Handler Messages
+    __rmConfirmMsg = "Is this the Row you want to Remove?"
 
-    if table == COUNTRY_TABLENAME:
-        # Asks for Sort Order
-        sortBy = Prompt.ask(
-            "\nHow do you want to Sort it?",
-            choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
-        )
-        desc = Confirm.ask("Do you want to Sort it in Descending Order?")
+    # Constructor
+    def __init__(self):
+        # Initialize Database Connection
+        self._db = initdb()
 
-        # Print Table
-        countryTable.all(sortBy, desc)
+        # Initialize Table Classes
+        self.__initTables()
 
+    # Initialize Table Classes
+    def __initTables(self):
+        # Initialize Table Classes
+        self._countryTable = CountryTable(self._db)
+        self._regionTable = RegionTable(self._db)
 
-# Get Table Handler
-def getHandler(table: str):
-    fieldMsg = "\nWhich Field do you want to Compare?"
-    valueMsg = "Which Value do you want to Compare that Field with?"
+    # Get All Table Handler
+    def _allHandler(self, table: str):
+        sortBy = desc = None
 
-    field = value = None
+        if table == COUNTRY_TABLENAME:
+            # Asks for Sort Order
+            sortBy = Prompt.ask(
+                self.__allSortByMsg,
+                choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
+            )
+            desc = Confirm.ask(self.__allDescMsg)
 
-    if table == COUNTRY_TABLENAME:
-        # Asks for Sort Order
-        field = Prompt.ask(
-            fieldMsg, choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX]
-        )
+            # Print Table
+            self._countryTable.all(sortBy, desc)
 
-        # Prompt to Ask the Value to be Compared
-        if field == COUNTRY_ID or field == COUNTRY_PHONE_PREFIX:
-            value = str(IntPrompt.ask(valueMsg))
+        elif table == REGION_TABLENAME:
+            # Asks for Sort Order
+            # Asks for Sort Order
+            sortBy = Prompt.ask(
+                self.__allSortByMsg,
+                choices=[
+                    REGION_FK_COUNTRY,
+                    REGION_FK_AIR_FORWARDER,
+                    REGION_FK_OCEAN_FORWARDER,
+                    REGION_ID,
+                    REGION_NAME,
+                ],
+            )
+            desc = Confirm.ask(self.__allDescMsg)
 
-        elif field == COUNTRY_NAME:
-            value = Prompt.ask(valueMsg)
+            # Print Table
+            self._countryTable.all(sortBy, desc)
 
-            # Check Value
-            if not checkTableField(table, field, value):
-                raise ValueError(table, field, value)
+    # Get Table Handler
+    def _getHandler(self, table: str):
+        field = value = None
 
-        # Print Table Coincidences
-        countryTable.get(field, value)
+        if table == COUNTRY_TABLENAME:
+            # Asks for Sort Order
+            field = Prompt.ask(
+                self.__getFieldMsg,
+                choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
+            )
 
+            # Prompt to Ask the Value to be Compared
+            if field == COUNTRY_ID or field == COUNTRY_PHONE_PREFIX:
+                value = str(IntPrompt.ask(self.__getValueMsg))
 
-# Modify Row from Table Handler
-def modHandler(table: str):
-    confirmMsg = "Is this the Row you want to Modify?"
-    fieldMsg = "Which Field do you want to Modify?"
-    valueMsg = "Which New Value do you want to Assign it?"
+            elif field == COUNTRY_NAME:
+                value = Prompt.ask(self.__getValueMsg)
 
-    countryID = field = value = None
+                # Check Value
+                if not checkTableField(table, field, value):
+                    raise ValueError(table, field, value)
 
-    if table == COUNTRY_TABLENAME:
-        # Ask for Country ID to Modify
-        countryID = IntPrompt.ask("\nEnter Country ID to Modify")
+            # Print Table Coincidences
+            self._countryTable.get(field, value)
 
-        # Print Fetched Results
-        if not countryTable.get(COUNTRY_ID, countryID):
-            noCoincidenceFetched()
+    # Modify Row from Table Handler
+    def _modHandler(self, table: str):
+        countryID = field = value = None
 
-        # Ask for Confirmation
-        if not Confirm.ask(confirmMsg):
-            return
+        if table == COUNTRY_TABLENAME:
+            # Ask for Country ID to Modify
+            countryID = IntPrompt.ask("\nEnter Country ID to Modify")
 
-        # Ask for Field to Modify
-        field = Prompt.ask(fieldMsg, choices=[COUNTRY_NAME, COUNTRY_PHONE_PREFIX])
+            # Print Fetched Results
+            if not self._countryTable.get(COUNTRY_ID, countryID):
+                noCoincidenceFetched()
 
-        # Prompt to Ask the New Value
-        if COUNTRY_PHONE_PREFIX:
-            value = str(IntPrompt.ask(valueMsg))
+            # Ask for Confirmation
+            if not Confirm.ask(self.__modConfirmMsg):
+                return
 
-        elif field == COUNTRY_NAME:
-            value = Prompt.ask(valueMsg)
+            # Ask for Field to Modify
+            field = Prompt.ask(
+                self.__modFieldMsg, choices=[COUNTRY_NAME, COUNTRY_PHONE_PREFIX]
+            )
 
-            # Check Value
-            if not checkTableField(table, field, value):
-                raise ValueError(table, field, value)
+            # Prompt to Ask the New Value
+            if COUNTRY_PHONE_PREFIX:
+                value = str(IntPrompt.ask(self.__modValueMsg))
 
-        # Modify Country
-        countryTable.modify(countryID, field, value)
+            elif field == COUNTRY_NAME:
+                value = Prompt.ask(self.__modValueMsg)
 
+                # Check Value
+                if not checkTableField(table, field, value):
+                    raise ValueError(table, field, value)
 
-# Add Row to Table Handler
-def addHandler(table: str):
-    if table == COUNTRY_TABLENAME:
-        # Asks for Country Fields
-        countryName = Prompt.ask("\nEnter Country Name")
-        phonePrefix = IntPrompt.ask("Enter Phone Prefix")
+            # Modify Country
+            self._countryTable.modify(countryID, field, value)
 
-        # Check Country Name
-        if not checkTableField(table, COUNTRY_NAME, countryName):
-            raise ValueError(table, COUNTRY_NAME, countryName)
+    # Add Row to Table Handler
+    def addHandler(self, table: str):
+        if table == COUNTRY_TABLENAME:
+            # Asks for Country Fields
+            countryName = Prompt.ask("\nEnter Country Name")
+            phonePrefix = IntPrompt.ask("Enter Phone Prefix")
 
-        # Insert Country
-        countryTable.add(Country(countryName, phonePrefix))
+            # Check Country Name
+            if not checkTableField(table, COUNTRY_NAME, countryName):
+                raise ValueError(table, COUNTRY_NAME, countryName)
 
+            # Insert Country
+            self._countryTable.add(Country(countryName, phonePrefix))
 
-# Remove Row from Table Handler
-def rmHandler(table: str):
-    confirmMsg = "Is this the Row you want to Remove?"
+    # Remove Row from Table Handler
+    def _rmHandler(self, table: str):
+        if table == COUNTRY_TABLENAME:
+            # Ask for Country ID to Modify
+            countryID = IntPrompt.ask("\nEnter Country ID to Remove")
 
-    if table == COUNTRY_TABLENAME:
-        # Ask for Country ID to Modify
-        countryID = IntPrompt.ask("\nEnter Country ID to Remove")
+            # Print Fetched Results
+            if not self._countryTable.get(COUNTRY_ID, countryID):
+                noCoincidenceFetched()
 
-        # Print Fetched Results
-        if not countryTable.get(COUNTRY_ID, countryID):
-            noCoincidenceFetched()
+            # Ask for Confirmation
+            if not Confirm.ask(self.__rmConfirmMsg):
+                return
 
-        # Ask for Confirmation
-        if not Confirm.ask(confirmMsg):
-            return
+            # Ask for Confirmation
+            if Confirm.ask("\nAre you Sure to Remove this Country?"):
+                self._countryTable.remove(countryID)
 
-        # Ask for Confirmation
-        if Confirm.ask("\nAre you Sure to Remove this Country?"):
-            countryTable.remove(countryID)
+    # Main Event Handler
+    def mainHandler(self, action: str, table: str):
+        try:
+            while True:
+                try:
+                    # Print All Rows from Given Table
+                    if action == ALL:
+                        self._allHandler(table)
 
+                    elif action == GET:
+                        self._getHandler(table)
 
-# Main Event Handler
-def eventHandler(action: str, table: str):
-    try:
-        while True:
-            try:
-                # Print All Rows from Given Table
-                if action == ALL:
-                    allHandler(table)
+                    elif action == MOD:
+                        self._modHandler(table)
 
-                elif action == GET:
-                    getHandler(table)
+                    elif action == ADD:
+                        self._addHandler(table)
 
-                elif action == MOD:
-                    modHandler(table)
+                    elif action == RM:
+                        self._rmHandler(table)
 
-                elif action == ADD:
-                    addHandler(table)
+                except Exception as err:
+                    log.exception(err)
 
-                elif action == RM:
-                    rmHandler(table)
+                # Ask if the User wants to Exit the Program
+                exit = Confirm.ask("\nDo you want to End the Current Session?")
 
-            except Exception as err:
-                log.exception(err)
+                if exit:
+                    break
 
-            # Ask if the User wants to Exit the Program
-            exit = Confirm.ask("\nDo you want to End the Current Session?")
+                # Clear Screen
+                clear()
 
-            if exit:
-                break
-
-            # Clear Screen
-            clear()
-
-            # Ask Next Action
-            action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
-            table = Prompt.ask("At which table?", choices=TABLE_CMDS)
-    except KeyboardInterrupt:
-        console.print("\nExiting...", style="warning")
+                # Ask Next Action
+                action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
+                table = Prompt.ask("At which table?", choices=TABLE_CMDS)
+        except KeyboardInterrupt:
+            console.print("\nExiting...", style="warning")

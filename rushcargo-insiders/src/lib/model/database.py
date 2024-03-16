@@ -193,7 +193,7 @@ class BasicTable:
         except Exception as err:
             raise err
 
-        return len(self._items > 0)
+        return len(self._items) > 0
 
     # Get All Items from Table
     def _all(self, orderBy: str, desc: bool):
@@ -253,7 +253,11 @@ class CountryTable(BasicTable):
 
         # Loop Over Items
         for item in self._items:
-            table.add_row(str(item[0]), item[1], str(item[2]))
+            id = str(item[0])
+            name = item[1]
+            phonePrefix = str(item[2])
+
+            table.add_row(id, name, phonePrefix)
 
         # Print New Line
         console.print("\n")
@@ -452,9 +456,13 @@ class RegionTable(BasicTable):
 
         # Loop Over Items
         for item in self._items:
-            table.add_row(
-                str(item[0]), str(item[1]), str(item[2], str(item[3]), item[4])
-            )
+            cid = str(item[0])
+            airForwarder = str(item[1])
+            oceanForwarder = str(item[2])
+            rid = str(item[3])
+            name = item[4]
+
+            table.add_row(str(cid, airForwarder, oceanForwarder, rid, name))
 
         # Print New Line
         console.print("\n")

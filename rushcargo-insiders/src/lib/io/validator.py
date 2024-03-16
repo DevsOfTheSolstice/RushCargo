@@ -1,4 +1,16 @@
 from ..model.constants import *
+import os
+
+
+# Clear Function
+def clear():
+    # For Windows
+    if os.name == "nt":
+        os.system("cls")
+
+    # For Posix
+    else:
+        os.system("clear")
 
 
 # String Input Validator

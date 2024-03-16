@@ -34,7 +34,11 @@ def main():
     action = args.action
     table = args.table
 
-    eventHandler(action, table)
+    # Initialize Event Handler
+    e = EventHandler()
+
+    # Call Main Event Handler
+    e.mainHandler(action, table)
 
 
 if __name__ == "__main__":

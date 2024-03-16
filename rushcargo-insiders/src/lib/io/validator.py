@@ -15,7 +15,11 @@ def clear():
 
 # String Input Validator
 def checkString(
-    input: str, isAlpha: bool = True, isDigit: bool = True, isSpecial: bool = False
+    input: str,
+    isAlpha: bool = True,
+    isDigit: bool = True,
+    isWhitespace: bool = False,
+    isSpecial: bool = False,
 ) -> bool:
     # Nothing to Check
     if isAlpha and isDigit and isSpecial:
@@ -30,6 +34,10 @@ def checkString(
         if isDigit and i.isdigit():
             continue
 
+        # Check if the Given Character is a Whitespace
+        if isWhitespace and i == " ":
+            continue
+
         if isSpecial:
             continue
 
@@ -40,12 +48,17 @@ def checkString(
 
 # String Input Validator that Only Accepts Digits
 def onlyDigits(input: str) -> bool:
-    return checkString(input, False, True, False)
+    return checkString(input, False, True, False, False)
 
 
 # String Input Validator that Only Accepts Alphabetic Characters
 def onlyAlpha(input: str) -> bool:
-    return checkString(input, True, False, False)
+    return checkString(input, True, False, False, False)
+
+
+# String Input Validator that Only Accepts Alphabetic Characters or Whitespaces
+def onlyAlphaWithWhitespaces(input: str) -> bool:
+    return checkString(input, True, False, True, False)
 
 
 # Check Table Field
@@ -58,7 +71,7 @@ def checkTableField(table: str, field: str, value) -> bool:
     if table == COUNTRY_TABLENAME:
         # Check if Country Name only Contains Characters
         if field == COUNTRY_NAME:
-            return onlyAlpha(value)
+            return onlyAlphaWithWhitespaces(value)
 
         # Check Value Given for Numeric Data Types
         else:
@@ -68,7 +81,7 @@ def checkTableField(table: str, field: str, value) -> bool:
     elif table == REGION_TABLENAME:
         # Check if Region Name only Contains Characters
         if field == REGION_NAME:
-            return onlyAlpha(value)
+            return onlyAlphaWithWhitespaces(value)
 
         # Check Value Given for Numeric Data Types
         else:
@@ -78,7 +91,7 @@ def checkTableField(table: str, field: str, value) -> bool:
     elif table == CITY_TABLENAME:
         # Check if City Name only Contains Characters
         if field == CITY_NAME:
-            return onlyAlpha(value)
+            return onlyAlphaWithWhitespaces(value)
 
         # Check Value Given for Numeric Data Types
         else:

@@ -61,6 +61,39 @@ class EventHandler:
         self._regionTable = RegionTable(self._db)
         self._cityTable = CityTable(self._db)
 
+    # Get Country Id based on its Name
+    def __getCountryId(self) -> int:
+        countryName = Prompt.ask("\nEnter Country Name")
+
+        # Check Country Name
+        if not checkTableField(COUNTRY_TABLENAME, COUNTRY_NAME, countryName):
+            raise ValueError(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+
+        # Get Country based on the Name Provided
+        c = self._countryTable.find(COUNTRY_NAME, countryName)
+
+        if c == None:
+            raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+
+        return c.countryId
+
+    # Get Region Id based on its Name and the Country Id where it's Located
+    def __getRegionId(self) -> int:
+        countryId = self.__getCountryId()
+        regionName = Prompt.ask("Enter Region Name")
+
+        # Check Country Name
+        if not checkTableField(REGION_TABLENAME, REGION_NAME, regionName):
+            raise ValueError(REGION_TABLENAME, REGION_NAME, regionName)
+
+        # Get Region based on the Name Provided and the Country Id
+        r = self._regionTable.find(countryId, regionName)
+
+        if r == None:
+            raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
+
+        return r.regionId
+
     # Get All Table Handler
     def _allHandler(self, table: str):
         sortBy = None
@@ -284,25 +317,12 @@ class EventHandler:
 
         elif table == REGION_TABLENAME:
             # Asks for Region Fields
-            countryName = Prompt.ask("\nEnter Country Name where the Region is Located")
+            countryId = self.__getCountryId()
             regionName = Prompt.ask("Enter Region Name")
-
-            # Check Country Name
-            if not checkTableField(COUNTRY_TABLENAME, COUNTRY_NAME, countryName):
-                raise ValueError(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
             # Check Region Name
             if not checkTableField(table, REGION_NAME, regionName):
                 raise ValueError(table, REGION_NAME, regionName)
-
-            # Get Country based on the Name Provided
-            country = self._countryTable.find(COUNTRY_NAME, countryName)
-
-            if country == None:
-                raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
-
-            # Get Country ID
-            countryId = country.countryId
 
             regionFields = [REGION_FK_COUNTRY, REGION_NAME]
             regionValues = [countryId, regionName]
@@ -317,36 +337,12 @@ class EventHandler:
 
         elif table == CITY_TABLENAME:
             # Asks for City Fields
-            countryName = Prompt.ask("\nEnter Country Name where the City is Located")
-            regionName = Prompt.ask("Enter Region Name where the City is Located")
+            regionId = self.__getRegionId()
             cityName = Prompt.ask("Enter City Name")
-
-            # Check Country Name
-            if not checkTableField(COUNTRY_TABLENAME, COUNTRY_NAME, countryName):
-                raise ValueError(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
-
-            # Check Region Name
-            if not checkTableField(REGION_TABLENAME, REGION_NAME, regionName):
-                raise ValueError(REGION_TABLENAME, REGION_NAME, regionName)
 
             # Check City Name
             if not checkTableField(table, CITY_NAME, cityName):
                 raise ValueError(table, CITY_NAME, cityName)
-
-            # Get Country based on the Name Provided
-            c = self._countryTable.find(COUNTRY_NAME, countryName)
-
-            if c == None:
-                raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
-
-            # Get Region based on the Name Provided and the Country Id
-            r = self._regionTable.find(c.countryId, regionName)
-
-            if r == None:
-                raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
-
-            # Get Region ID
-            regionId = r.regionId
 
             cityFields = [CITY_FK_REGION, CITY_NAME]
             cityValues = [regionId, cityName]

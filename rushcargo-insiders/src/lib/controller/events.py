@@ -4,6 +4,8 @@ import logging
 from rich.logging import RichHandler
 
 from ..model.database import *
+from ..model.database_locations import *
+
 from ..model.classes import *
 from ..model.constants import *
 from ..model.exceptions import *
@@ -29,6 +31,7 @@ class EventHandler:
     _countryTable = None
     _regionTable = None
     _cityTable = None
+    _cityAreaTable = None
 
     # All Handler Messages
     __allSortByMsg = "How do you want to Sort it?"
@@ -60,14 +63,14 @@ class EventHandler:
         self._countryTable = CountryTable(self._db)
         self._regionTable = RegionTable(self._db)
         self._cityTable = CityTable(self._db)
+        self._cityAreaTable = CityAreaTable(self._db)
 
     # Get Country Id based on its Name
     def __getCountryId(self) -> int:
         countryName = Prompt.ask("\nEnter Country Name")
 
         # Check Country Name
-        if not checkTableField(COUNTRY_TABLENAME, COUNTRY_NAME, countryName):
-            raise ValueError(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+        isValueValid(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
         # Get Country based on the Name Provided
         c = self._countryTable.find(COUNTRY_NAME, countryName)
@@ -82,9 +85,8 @@ class EventHandler:
         countryId = self.__getCountryId()
         regionName = Prompt.ask("Enter Region Name")
 
-        # Check Country Name
-        if not checkTableField(REGION_TABLENAME, REGION_NAME, regionName):
-            raise ValueError(REGION_TABLENAME, REGION_NAME, regionName)
+        # Check Region Name
+        isValueValid(REGION_TABLENAME, REGION_NAME, regionName)
 
         # Get Region based on the Name Provided and the Country Id
         r = self._regionTable.find(countryId, regionName)
@@ -93,6 +95,22 @@ class EventHandler:
             raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
 
         return r.regionId
+
+    # Get City Id based on its Name and the Region Id where it's Located
+    def __getCityId(self) -> int:
+        regionId = self.__getRegionId()
+        cityName = Prompt.ask("Enter City Name")
+
+        # Check City Name
+        isValueValid(CITY_TABLENAME, CITY_NAME, cityName)
+
+        # Get City based on the Name Provided and the Region Id
+        c = self._cityTable.find(regionId, cityName)
+
+        if c == None:
+            raise RowNotFound(CITY_TABLENAME, CITY_NAME, cityName)
+
+        return c.cityId
 
     # Get All Table Handler
     def _allHandler(self, table: str):
@@ -137,6 +155,16 @@ class EventHandler:
             # Print Table
             self._cityTable.all(sortBy, desc)
 
+        elif table == CITY_AREA_TABLENAME:
+            # Asks for Sort Order
+            sortBy = Prompt.ask(
+                self.__allSortByMsg,
+                choices=[CITY_AREA_ID, CITY_AREA_FK_CITY, CITY_AREA_NAME],
+            )
+
+            # Print Table
+            self._cityAreaTable.all(sortBy, desc)
+
     # Get Table Handler
     def _getHandler(self, table: str):
         field = value = None
@@ -153,8 +181,7 @@ class EventHandler:
                 value = Prompt.ask(self.__getValueMsg)
 
                 # Check Value
-                if not checkTableField(table, field, value):
-                    raise ValueError(table, field, value)
+                isValueValid(table, field, value)
 
             else:
                 value = str(IntPrompt.ask(self.__getValueMsg))
@@ -180,8 +207,7 @@ class EventHandler:
                 value = Prompt.ask(self.__getValueMsg)
 
                 # Check Value
-                if not checkTableField(table, field, value):
-                    raise ValueError(table, field, value)
+                isValueValid(table, field, value)
 
             else:
                 value = str(IntPrompt.ask(self.__getValueMsg))
@@ -201,8 +227,27 @@ class EventHandler:
                 value = Prompt.ask(self.__getValueMsg)
 
                 # Check Value
-                if not checkTableField(table, field, value):
-                    raise ValueError(table, field, value)
+                isValueValid(table, field, value)
+
+            else:
+                value = str(IntPrompt.ask(self.__getValueMsg))
+
+            # Print Table Coincidences
+            self._cityAreaTable.get(field, value)
+
+        elif table == CITY_AREA_TABLENAME:
+            # Asks for Field to Compare
+            field = Prompt.ask(
+                self.__getFieldMsg,
+                choices=[CITY_AREA_ID, CITY_AREA_FK_CITY, CITY_AREA_NAME],
+            )
+
+            # Prompt to Ask the Value to be Compared
+            if field == CITY_AREA_NAME:
+                value = Prompt.ask(self.__getValueMsg)
+
+                # Check Value
+                isValueValid(table, field, value)
 
             else:
                 value = str(IntPrompt.ask(self.__getValueMsg))
@@ -222,6 +267,7 @@ class EventHandler:
             # Print Fetched Results
             if not self._countryTable.get(COUNTRY_ID, countryId):
                 noCoincidenceFetched()
+                return
 
             # Ask for Confirmation
             if not Confirm.ask(self.__modConfirmMsg):
@@ -244,6 +290,7 @@ class EventHandler:
             # Print Fetched Results
             if not self._regionTable.get(REGION_ID, regionId):
                 noCoincidenceFetched()
+                return
 
             # Ask for Confirmation
             if not Confirm.ask(self.__modConfirmMsg):
@@ -271,6 +318,7 @@ class EventHandler:
             # Print Fetched Results
             if not self._cityTable.get(CITY_ID, cityId):
                 noCoincidenceFetched()
+                return
 
             # Ask for Confirmation
             if not Confirm.ask(self.__modConfirmMsg):
@@ -291,6 +339,32 @@ class EventHandler:
             # Modify City
             self._cityTable.modify(cityId, field, value)
 
+        elif table == CITY_AREA_TABLENAME:
+            # Ask for City Area ID to Modify
+            areaId = IntPrompt.ask("\nEnter City Area ID to Modify")
+
+            # Print Fetched Results
+            if not self._cityTable.get(CITY_AREA_ID, areaId):
+                noCoincidenceFetched()
+                return
+
+            # Ask for Confirmation
+            if not Confirm.ask(self.__modConfirmMsg):
+                return
+
+            # Ask for Field to Modify
+            field = Prompt.ask(
+                self.__modFieldMsg,
+                choices=[CITY_AREA_DESCRIPTION],
+            )
+
+            # Prompt to Ask the New Value
+            if field == CITY_AREA_DESCRIPTION:
+                value = Prompt.ask(self.__modValueMsg)
+
+            # Modify City Area
+            self._cityAreaTable.modify(areaId, field, value)
+
     # Add Row to Table Handler
     def _addHandler(self, table: str):
         if table == COUNTRY_TABLENAME:
@@ -299,8 +373,7 @@ class EventHandler:
             phonePrefix = IntPrompt.ask("Enter Phone Prefix")
 
             # Check Country Name
-            if not checkTableField(table, COUNTRY_NAME, countryName):
-                raise ValueError(table, COUNTRY_NAME, countryName)
+            isValueValid(table, COUNTRY_NAME, countryName)
 
             # Check if Country Name has already been Inserted
             if self._countryTable.get(COUNTRY_NAME, countryName):
@@ -321,8 +394,7 @@ class EventHandler:
             regionName = Prompt.ask("Enter Region Name")
 
             # Check Region Name
-            if not checkTableField(table, REGION_NAME, regionName):
-                raise ValueError(table, REGION_NAME, regionName)
+            isValueValid(table, REGION_NAME, regionName)
 
             regionFields = [REGION_FK_COUNTRY, REGION_NAME]
             regionValues = [countryId, regionName]
@@ -341,8 +413,7 @@ class EventHandler:
             cityName = Prompt.ask("Enter City Name")
 
             # Check City Name
-            if not checkTableField(table, CITY_NAME, cityName):
-                raise ValueError(table, CITY_NAME, cityName)
+            isValueValid(table, CITY_NAME, cityName)
 
             cityFields = [CITY_FK_REGION, CITY_NAME]
             cityValues = [regionId, cityName]
@@ -354,6 +425,27 @@ class EventHandler:
 
             # Insert City
             self._cityTable.add(City(cityName, regionId))
+
+        elif table == CITY_AREA_TABLENAME:
+            # Asks for City Area Fields
+            cityId = self.__getCityId()
+            areaName = Prompt.ask("Enter City Area Name")
+            areaDescription = Prompt.ask("Enter City Area Description")
+
+            # Check City Area Name and Description
+            isValueValid(table, CITY_AREA_NAME, areaName)
+            isValueValid(table, CITY_AREA_DESCRIPTION, areaDescription)
+
+            areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
+            areaValues = [cityId, areaName]
+
+            # Check if City Area Name has already been Inserted for the Given City
+            if self._cityAreaTable.getMult(areaFields, areaValues):
+                uniqueInsertedMult(CITY_AREA_TABLENAME, areaFields, areaValues)
+                return
+
+            # Insert City Area
+            self._cityAreaTable.add(CityArea(areaName, areaDescription, cityId))
 
     # Remove Row from Table Handler
     def _rmHandler(self, table: str):
@@ -401,6 +493,21 @@ class EventHandler:
                 return
 
             self._cityTable.remove(cityId)
+
+        elif table == CITY_AREA_TABLENAME:
+            # Ask for City Area ID to Remove
+            areaId = IntPrompt.ask("\nEnter City Area ID to Remove")
+
+            # Print Fetched Results
+            if not self._cityAreaTable.get(CITY_AREA_ID, areaId):
+                noCoincidenceFetched()
+                return
+
+            # Ask for Confirmation
+            if not Confirm.ask(self.__rmConfirmMsg):
+                return
+
+            self._cityAreaTable.remove(areaId)
 
     # Main Event Handler
     def mainHandler(self, action: str, table: str):

@@ -61,15 +61,15 @@ def onlyAlphaWithWhitespaces(input: str) -> bool:
     return checkString(input, True, False, True, False)
 
 
-# Check Table Field
-def checkTableField(table: str, field: str, value) -> bool:
+# Check Table Value for the Given Field
+def checkTableValue(table: str, field: str, value) -> bool:
     """
     Returns True for Valid Values. Otherwise, False
     """
 
     # Check Field for Country Table
     if table == COUNTRY_TABLENAME:
-        # Check if Country Name only Contains Characters
+        # Check if Country Name only Contains Characters or Whitespaces
         if field == COUNTRY_NAME:
             return onlyAlphaWithWhitespaces(value)
 
@@ -79,7 +79,7 @@ def checkTableField(table: str, field: str, value) -> bool:
 
     # Check Field for Region Table
     elif table == REGION_TABLENAME:
-        # Check if Region Name only Contains Characters
+        # Check if Region Name only Contains Characters or Whitespaces
         if field == REGION_NAME:
             return onlyAlphaWithWhitespaces(value)
 
@@ -89,7 +89,7 @@ def checkTableField(table: str, field: str, value) -> bool:
 
     # Check Field for City Table
     elif table == CITY_TABLENAME:
-        # Check if City Name only Contains Characters
+        # Check if City Name only Contains Characters or Whitespaces
         if field == CITY_NAME:
             return onlyAlphaWithWhitespaces(value)
 
@@ -97,4 +97,18 @@ def checkTableField(table: str, field: str, value) -> bool:
         else:
             return onlyDigits(value)
 
+    elif table == CITY_AREA_TABLENAME:
+        # Check if City Name only Contains Characters or Whitespaces
+        if field == CITY_AREA_NAME or field == CITY_AREA_DESCRIPTION:
+            return onlyAlphaWithWhitespaces(value)
+
+        # Check Value Given for Numeric Data Types
+        else:
+            return onlyDigits(value)
+
     return False
+
+
+def isValueValid(table: str, field: str, value):
+    if not checkTableValue(table, field, value):
+        raise ValueError(table, field, value)

@@ -10,3 +10,7 @@ ADD CONSTRAINT uq_country_region UNIQUE (country_id, region_name);
 -- Make Unique City Name per Region
 ALTER TABLE City
 ADD CONSTRAINT uq_region_city UNIQUE (region_id, city_name);
+
+-- Make Unique City Area Name per City
+ALTER TABLE City_Area
+ADD CONSTRAINT uq_city_area UNIQUE (city_id, area_name);

@@ -20,6 +20,7 @@ BOX_STYLE = box.ROUNDED
 
 # Number of Characters to Print per Column for Common Table Attributes
 ID_NCHAR = 10
+DESCRIPTION_NCHAR = 30
 
 # ... for Location-related Tables
 LOCATION_NAME_NCHAR = 20
@@ -54,6 +55,13 @@ CITY_NAME = "city_name"
 CITY_FK_REGION = "region_id"
 CITY_FK_WAREHOUSE = "main_warehouse"
 
+# City Area ...
+CITY_AREA_TABLENAME = "city_area"
+CITY_AREA_ID = "area_id"
+CITY_AREA_NAME = "area_name"
+CITY_AREA_DESCRIPTION = "area_description"
+CITY_AREA_FK_CITY = "city_id"
+
 # Action-related Commands
 ADD = "add"
 RM = "rm"
@@ -66,4 +74,4 @@ EXIT = "exit"
 ACTION_CMDS = [ADD, RM, MOD, GET, ALL, EXIT]
 
 # Available Tables that can be Interacted with
-TABLE_CMDS = [COUNTRY_TABLENAME, REGION_TABLENAME, CITY_TABLENAME]
+TABLE_CMDS = [COUNTRY_TABLENAME, REGION_TABLENAME, CITY_TABLENAME, CITY_AREA_TABLENAME]

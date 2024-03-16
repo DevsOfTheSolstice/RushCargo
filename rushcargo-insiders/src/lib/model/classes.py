@@ -92,4 +92,38 @@ class City:
         name = item[2]
         warehouse = item[3]
 
-        return cls( name, regionId,cityId, warehouse)
+        return cls(name, regionId, cityId, warehouse)
+
+
+# City Area Class
+class CityArea:
+    # Public Fields
+    areaName: str = None
+    areaDescription: str = None
+    cityId: int = None
+    areaId: int = None
+
+    # Constructor
+    def __init__(
+        self,
+        areaName: str,
+        areaDescription: str,
+        cityId: int,
+        areaId: int = None,
+    ):
+        self.areaName = areaName
+        self.areaDescription = areaDescription
+        self.cityId = cityId
+        self.areaId = areaId
+
+    @classmethod
+    def fromItemFetched(cls, item: tuple):
+        """
+        Initialize City Area from Query Item Fetched
+        """
+        areaId = item[0]
+        cityId = item[1]
+        areaName = item[2]
+        areaDescription = item[3]
+
+        return cls(areaName, areaDescription, cityId, areaId)

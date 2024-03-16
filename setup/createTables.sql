@@ -8,7 +8,7 @@ CREATE TABLE Country (
 --2
 CREATE TABLE Region (
     region_id BIGSERIAL PRIMARY KEY,
-    country_id BIGSERIAL,
+    country_id BIGINT,
     region_name VARCHAR(50) NOT NULL,
     main_air_freight_forwarder BIGINT,
     main_ocean_freight_forwarder BIGINT,
@@ -18,9 +18,9 @@ CREATE TABLE Region (
 --3
 CREATE TABLE City (
     city_id BIGSERIAL PRIMARY KEY,
-    region_id BIGSERIAL,
+    region_id BIGINT,
     city_name VARCHAR(50) NOT NULL,
-    main_warehouse BIGSERIAL,
+    main_warehouse BIGINT,
     FOREIGN KEY (region_id) REFERENCES Region(region_id)
 );
 

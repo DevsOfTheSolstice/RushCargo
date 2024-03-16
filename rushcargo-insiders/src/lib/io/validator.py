@@ -59,7 +59,7 @@ def checkTableField(table: str, field: str, value) -> bool:
         # Check if Country Name only Contains Characters
         if field == COUNTRY_NAME:
             return onlyAlpha(value)
-    
+
         # Check Value Given for Numeric Data Types
         else:
             return onlyDigits(value)
@@ -69,8 +69,19 @@ def checkTableField(table: str, field: str, value) -> bool:
         # Check if Region Name only Contains Characters
         if field == REGION_NAME:
             return onlyAlpha(value)
-        
+
         # Check Value Given for Numeric Data Types
         else:
             return onlyDigits(value)
 
+    # Check Field for City Table
+    elif table == CITY_TABLENAME:
+        # Check if City Name only Contains Characters
+        if field == CITY_NAME:
+            return onlyAlpha(value)
+
+        # Check Value Given for Numeric Data Types
+        else:
+            return onlyDigits(value)
+
+    return False

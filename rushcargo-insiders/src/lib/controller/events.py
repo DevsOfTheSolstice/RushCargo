@@ -28,10 +28,11 @@ class EventHandler:
     # Table Classes
     _countryTable = None
     _regionTable = None
+    _cityTable = None
 
     # All Handler Messages
-    __allSortByMsg = "\nHow do you want to Sort it?"
-    __allDescMsg = "Do you want to Sort it in Descending Order?"
+    __allSortByMsg = "How do you want to Sort it?"
+    __allDescMsg = "\nDo you want to Sort it in Descending Order?"
 
     # Get Handler Messages
     __getFieldMsg = "\nWhich Field do you want to Compare?"
@@ -58,10 +59,14 @@ class EventHandler:
         # Initialize Table Classes
         self._countryTable = CountryTable(self._db)
         self._regionTable = RegionTable(self._db)
+        self._cityTable = CityTable(self._db)
 
     # Get All Table Handler
     def _allHandler(self, table: str):
-        sortBy = desc = None
+        sortBy = None
+
+        # Asks if the User wants to Print it in Descending Order
+        desc = Confirm.ask(self.__allDescMsg)
 
         if table == COUNTRY_TABLENAME:
             # Asks for Sort Order
@@ -69,7 +74,6 @@ class EventHandler:
                 self.__allSortByMsg,
                 choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
             )
-            desc = Confirm.ask(self.__allDescMsg)
 
             # Print Table
             self._countryTable.all(sortBy, desc)
@@ -86,10 +90,19 @@ class EventHandler:
                     REGION_FK_OCEAN_FORWARDER,
                 ],
             )
-            desc = Confirm.ask(self.__allDescMsg)
 
             # Print Table
             self._regionTable.all(sortBy, desc)
+
+        elif table == CITY_TABLENAME:
+            # Asks for Sort Order
+            sortBy = Prompt.ask(
+                self.__allSortByMsg,
+                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
+            )
+
+            # Print Table
+            self._cityTable.all(sortBy, desc)
 
     # Get Table Handler
     def _getHandler(self, table: str):
@@ -143,6 +156,27 @@ class EventHandler:
             # Print Table Coincidences
             self._regionTable.get(field, value)
 
+        elif table == CITY_TABLENAME:
+            # Asks for Field to Compare
+            field = Prompt.ask(
+                self.__getFieldMsg,
+                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
+            )
+
+            # Prompt to Ask the Value to be Compared
+            if field == CITY_NAME:
+                value = Prompt.ask(self.__getValueMsg)
+
+                # Check Value
+                if not checkTableField(table, field, value):
+                    raise ValueError(table, field, value)
+
+            else:
+                value = str(IntPrompt.ask(self.__getValueMsg))
+
+            # Print Table Coincidences
+            self._cityTable.get(field, value)
+
     # Modify Row from Table Handler
     def _modHandler(self, table: str):
         field = value = None
@@ -194,8 +228,35 @@ class EventHandler:
 
             # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
 
-            # Modify Country
-            self._countryTable.modify(regionId, field, value)
+            # Modify Region
+            self._regionTable.modify(regionId, field, value)
+
+        elif table == CITY_TABLENAME:
+            # Ask for City ID to Modify
+            cityId = IntPrompt.ask("\nEnter City ID to Modify")
+
+            # Print Fetched Results
+            if not self._cityTable.get(CITY_ID, cityId):
+                noCoincidenceFetched()
+
+            # Ask for Confirmation
+            if not Confirm.ask(self.__modConfirmMsg):
+                return
+
+            # Ask for Field to Modify
+            field = Prompt.ask(
+                self.__modFieldMsg,
+                choices=[CITY_FK_WAREHOUSE],
+            )
+
+            # Prompt to Ask the New Value
+            if field == CITY_FK_WAREHOUSE:
+                value = str(IntPrompt.ask(self.__modValueMsg))
+
+            # TO DEVELOP: CHECK AND CONFIRM WAREHOUSE
+
+            # Modify City
+            self._cityTable.modify(cityId, field, value)
 
     # Add Row to Table Handler
     def _addHandler(self, table: str):
@@ -234,12 +295,13 @@ class EventHandler:
             if not checkTableField(table, REGION_NAME, regionName):
                 raise ValueError(table, REGION_NAME, regionName)
 
-            # Get Country ID
+            # Get Country based on the Name Provided
             country = self._countryTable.find(COUNTRY_NAME, countryName)
 
             if country == None:
                 raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
+            # Get Country ID
             countryId = country.countryId
 
             regionFields = [REGION_FK_COUNTRY, REGION_NAME]
@@ -252,6 +314,50 @@ class EventHandler:
 
             # Insert Region
             self._regionTable.add(Region(regionName, countryId))
+
+        elif table == CITY_TABLENAME:
+            # Asks for City Fields
+            countryName = Prompt.ask("\nEnter Country Name where the City is Located")
+            regionName = Prompt.ask("Enter Region Name where the City is Located")
+            cityName = Prompt.ask("Enter City Name")
+
+            # Check Country Name
+            if not checkTableField(COUNTRY_TABLENAME, COUNTRY_NAME, countryName):
+                raise ValueError(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+
+            # Check Region Name
+            if not checkTableField(REGION_TABLENAME, REGION_NAME, regionName):
+                raise ValueError(REGION_TABLENAME, REGION_NAME, regionName)
+
+            # Check City Name
+            if not checkTableField(table, CITY_NAME, cityName):
+                raise ValueError(table, CITY_NAME, cityName)
+
+            # Get Country based on the Name Provided
+            c = self._countryTable.find(COUNTRY_NAME, countryName)
+
+            if c == None:
+                raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+
+            # Get Region based on the Name Provided and the Country Id
+            r = self._regionTable.find(c.countryId, regionName)
+
+            if r == None:
+                raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
+
+            # Get Region ID
+            regionId = r.regionId
+
+            cityFields = [CITY_FK_REGION, CITY_NAME]
+            cityValues = [regionId, cityName]
+
+            # Check if City Name has already been Inserted for the Given Region
+            if self._cityTable.getMult(cityFields, cityValues):
+                uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
+                return
+
+            # Insert City
+            self._cityTable.add(City(cityName, regionId))
 
     # Remove Row from Table Handler
     def _rmHandler(self, table: str):
@@ -268,9 +374,7 @@ class EventHandler:
             if not Confirm.ask(self.__rmConfirmMsg):
                 return
 
-            # Ask for Confirmation
-            if Confirm.ask("\nAre you Sure to Remove this Country?"):
-                self._countryTable.remove(countryID)
+            self._countryTable.remove(countryID)
 
         elif table == REGION_TABLENAME:
             # Ask for Region ID to Remove
@@ -285,9 +389,22 @@ class EventHandler:
             if not Confirm.ask(self.__rmConfirmMsg):
                 return
 
+            self._regionTable.remove(regionID)
+
+        elif table == CITY_TABLENAME:
+            # Ask for City ID to Remove
+            cityId = IntPrompt.ask("\nEnter City ID to Remove")
+
+            # Print Fetched Results
+            if not self._cityTable.get(CITY_ID, cityId):
+                noCoincidenceFetched()
+                return
+
             # Ask for Confirmation
-            if Confirm.ask("\nAre you Sure to Remove this Region?"):
-                self._regionTable.remove(regionID)
+            if not Confirm.ask(self.__rmConfirmMsg):
+                return
+
+            self._cityTable.remove(cityId)
 
     # Main Event Handler
     def mainHandler(self, action: str, table: str):
@@ -313,17 +430,19 @@ class EventHandler:
                 except Exception as err:
                     console.print(err, style="warning")
 
-                # Ask if the User wants to Exit the Program
-                exit = Confirm.ask("\nDo you want to End the Current Session?")
-
-                if exit:
-                    break
+                # Stop Program Flow
+                Prompt.ask("\nPress ENTER to Continue")
 
                 # Clear Screen
                 clear()
 
                 # Ask Next Action
                 action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
+
+                # Check if the User wants to Exit the Program
+                if action == EXIT:
+                    break
+
                 table = Prompt.ask("At which table?", choices=TABLE_CMDS)
         except KeyboardInterrupt:
-            console.print("\nExiting...", style="warning")
+            return

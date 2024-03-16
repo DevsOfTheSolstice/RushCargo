@@ -299,16 +299,13 @@ class CountryTable(BasicTable):
 
     # Print Items
     def __print(self):
+        c = None
+
         # Number of Items
         nItems = len(self._items)
 
-        # Check Items
-        if self._items is None:
-            console.print("Error: No Items Fetched", style="warning")
-            return
-
         # No Results
-        elif nItems == 0:
+        if nItems == 0:
             noCoincidenceFetched()
             return
 
@@ -322,11 +319,11 @@ class CountryTable(BasicTable):
 
         # Loop Over Items
         for item in self._items:
-            id = str(item[0])
-            name = item[1]
-            phonePrefix = str(item[2])
+            # Intialize Country from Item Fetched
+            c = Country.fromItemFetched(item)
 
-            table.add_row(id, name, phonePrefix)
+            # Add Row to Rich Table
+            table.add_row(str(c.countryId), c.name, str(c.phonePrefix))
 
         # Print New Line
         console.print("\n")
@@ -366,7 +363,7 @@ class CountryTable(BasicTable):
         countriesTuple = []
         countriesName = []
 
-        # Create  Touples List from Countries List, and Countries Name List
+        # Create Tuples List from Countries List, and Countries Name List
         for c in countries:
             countriesTuple.append([c.name, c.phonePrefix])
             countriesName.append(c.name)
@@ -397,21 +394,16 @@ class CountryTable(BasicTable):
     def find(self, field: str, value) -> Country | None:
         """
         Returns Country Object if it was Found. Otherwise, False
+
+        NOTE: All Columns from this Table Contain Unique Values
         """
 
         # Get Country
         if not self._get(field, value):
             return None
 
-        # Get Country Fields from Items
-        country = self._items[0]
-
-        id = country[0]
-        name = country[1]
-        phonePrefix = country[2]
-
-        # Return Country
-        return Country(name, phonePrefix, id)
+        # Get Country from Item Fetched
+        return Country.fromItemFetched(self._items[0])
 
     # Get All Items from Country Table
     def all(self, orderBy: str, desc: bool):
@@ -438,16 +430,13 @@ class RegionTable(BasicTable):
 
     # Print Items
     def __print(self):
+        r = None
+
         # Number of Items
         nItems = len(self._items)
 
-        # Check Items
-        if self._items is None:
-            console.print("Error: No Items Fetched", style="warning")
-            return
-
         # No Results
-        elif nItems == 0:
+        if nItems == 0:
             noCoincidenceFetched()
             return
 
@@ -465,13 +454,17 @@ class RegionTable(BasicTable):
 
         # Loop Over Items
         for item in self._items:
-            cid = str(item[0])
-            airForwarder = str(item[1])
-            oceanForwarder = str(item[2])
-            rid = str(item[3])
-            name = item[4]
+            # Intialize Region from Item Fetched
+            r = Region.fromItemFetched(item)
 
-            table.add_row(cid, airForwarder, oceanForwarder, rid, name)
+            # Add Row to Rich Table
+            table.add_row(
+                str(r.regionId),
+                str(r.countryId),
+                r.name,
+                str(r.airForwarderId),
+                str(r.oceanForwarderId),
+            )
 
         # Print New Line
         console.print("\n")
@@ -511,7 +504,7 @@ class RegionTable(BasicTable):
         regionsTuple = []
         regionsName = []
 
-        # Create  Touples List from Regions List, and Regions Name List
+        # Create Tuples List from Regions List, and Regions Name List
         for r in regions:
             regionsTuple.append([r.countryId, r.name])
             regionsName.append(r.name)
@@ -538,7 +531,7 @@ class RegionTable(BasicTable):
             self.__print()
         return True
 
-    # Filter Items with Multiple WHERE Conditions from Region Table
+    # Filter Items with Multiple Conditions from Region Table
     def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
         if not BasicTable._getMult(self, field, value):
             return False
@@ -547,6 +540,21 @@ class RegionTable(BasicTable):
         if printItems:
             self.__print()
         return True
+
+    # Find Region
+    def find(self, countryId: int, regionName: str) -> Region | None:
+        """
+        Returns Region Object if it was Found. Otherwise, False
+        """
+
+        # Get Region
+        if not self.getMult(
+            [REGION_FK_COUNTRY, REGION_NAME], [countryId, regionName], False
+        ):
+            return None
+
+        # Get Region Fields from Item Fetched
+        return Region.fromItemFetched(self._items[0])
 
     # Get All Items from Region Table
     def all(self, orderBy: str, desc: bool):
@@ -562,3 +570,130 @@ class RegionTable(BasicTable):
     # Remove Row from Region Table
     def remove(self, rid: int):
         BasicTable._remove(self, REGION_ID, rid)
+
+
+# City Table Class
+class CityTable(BasicTable):
+    # Constructor
+    def __init__(self, database: Database):
+        # Initialize Basic Table Class
+        super().__init__(CITY_TABLENAME, database)
+
+    # Print Items
+    def __print(self):
+        c = None
+
+        # Number of Items
+        nItems = len(self._items)
+
+        # No Results
+        if nItems == 0:
+            noCoincidenceFetched()
+            return
+
+        # Initialize Rich Table
+        table = getTable("City", nItems)
+
+        # Add Table Columns
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
+
+        # Loop Over Items
+        for item in self._items:
+            # Intialize Region from Item Fetched
+            c = City.fromItemFetched(item)
+
+            # Add Row to Rich Table
+            table.add_row(str(c.cityId), str(c.regionId), c.name, str(c.warehouseId))
+
+        # Print New Line
+        console.print("\n")
+
+        # Print Table
+        console.print(table)
+
+    # Get Insert Query
+    def __getInsertQuery(self):
+        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
+            tableName=sql.Identifier(self._tableName),
+            fields=sql.SQL(",").join(
+                [sql.Identifier(CITY_FK_REGION), sql.Identifier(CITY_NAME)]
+            ),
+        )
+
+    # Insert City to Table
+    def add(self, c: City):
+        # Get Query
+        query = self.__getInsertQuery()
+
+        # Execute Query
+        try:
+            self.c.execute(query, [c.regionId, c.name])
+            console.print(
+                f"{c.name} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Insert Multiple Cities to Table
+    def addMany(self, cities: list[City]):
+        # Get Query
+        query = self.__getInsertQuery()
+
+        citiesTuple = []
+        citiesName = []
+
+        # Create Tuples List from Cities List, and Cities Name List
+        for c in cities:
+            citiesTuple.append([c.regionId, c.name])
+            citiesName.append(c.name)
+
+        # Execute Query
+        try:
+            extras.execute_values(
+                self.c, query.as_string(self.c), citiesTuple, page_size=100
+            )
+            console.print(
+                f"{' '.join(citiesName)} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Filter Items from City Table
+    def get(self, field: str, value, printItems: bool = True):
+        if not BasicTable._get(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Filter Items with Multiple Conditions from City Table
+    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Get All Items from City Table
+    def all(self, orderBy: str, desc: bool):
+        BasicTable._all(self, orderBy, desc)
+
+        # Print Items
+        self.__print()
+
+    # Modify Row from City Table
+    def modify(self, cid: int, field: str, value):
+        BasicTable._modify(self, CITY_ID, cid, field, value)
+
+    # Remove Row from City Table
+    def remove(self, cid: int):
+        BasicTable._remove(self, CITY_ID, cid)

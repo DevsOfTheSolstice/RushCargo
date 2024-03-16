@@ -40,6 +40,9 @@ def main():
     # Call Main Event Handler
     e.mainHandler(action, table)
 
+    # Program End
+    console.print("\nExiting...", style="warning")
+
 
 if __name__ == "__main__":
     main()

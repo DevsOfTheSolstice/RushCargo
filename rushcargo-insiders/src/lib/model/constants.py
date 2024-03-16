@@ -19,10 +19,13 @@ THEME = Theme(
 BOX_STYLE = box.ROUNDED
 
 # Number of Characters to Print per Column for Common Table Attributes
-ID_NCHAR = 7
+ID_NCHAR = 10
 
 # ... for Location-related Tables
 LOCATION_NAME_NCHAR = 20
+
+# ... for Warehouse-related Attributes
+WAREHOUSE_NCHAR = 20
 
 # ... for Forwarder-related Attributes
 FORWARDER_NCHAR = 20
@@ -44,15 +47,23 @@ REGION_FK_COUNTRY = "country_id"
 REGION_FK_AIR_FORWARDER = "main_air_freight_forwarder"
 REGION_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
 
+# City ...
+CITY_TABLENAME = "city"
+CITY_ID = "city_id"
+CITY_NAME = "city_name"
+CITY_FK_REGION = "region_id"
+CITY_FK_WAREHOUSE = "main_warehouse"
+
 # Action-related Commands
 ADD = "add"
 RM = "rm"
 MOD = "mod"
 GET = "get"
 ALL = "all"
+EXIT = "exit"
 
 # Table-related Available Action Commands
-ACTION_CMDS = [ADD, RM, MOD, GET, ALL]
+ACTION_CMDS = [ADD, RM, MOD, GET, ALL, EXIT]
 
 # Available Tables that can be Interacted with
-TABLE_CMDS = [COUNTRY_TABLENAME, REGION_TABLENAME]
+TABLE_CMDS = [COUNTRY_TABLENAME, REGION_TABLENAME, CITY_TABLENAME]

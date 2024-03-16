@@ -29,9 +29,30 @@ def getTable(tableName: str, nItems: int):
     )
 
 
-# Message Print when there's Nothing Fetched from Query
+# Message Printed when there's Nothing Fetched from Query
 def noCoincidenceFetched():
     console.print("No Results Fetched", style="warning")
+
+
+# Message Printed when the User tries to Insert a Row which has Unique Fields that Contains Values
+# that have been already Inserted
+def uniqueInserted(tableName: str, field: str, value):
+    console.print(
+        f"Unique '{value}' Already Inserted at '{field}' on {tableName}",
+        style="warning",
+    )
+
+
+# Message Printed when the User tries to Insert a Row that Contains Values which Violates
+# Unique Constraint of Multiple Columns
+def uniqueInsertedMult(tableName: str, field: list[str], value: list):
+    fieldStr = ",".join(f for f in field)
+    valueStr = ",".join(str(v) for v in value)
+
+    console.print(
+        f"({valueStr}) at ({fieldStr}) Violates Unique Constraint on {tableName}",
+        style="warning",
+    )
 
 
 # Default Database Class
@@ -132,6 +153,22 @@ class BasicTable:
         # Get Cursor
         self.c = database.getCursor()
 
+    # Returns Get Query
+    def __getQuery(self, field: str):
+        return sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
+            tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
+        )
+
+    # Returns Get Query with One And Condition
+    def __getAndQuery(self, field1: str, field2: str):
+        return sql.SQL(
+            "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+        ).format(
+            tableName=sql.Identifier(self._tableName),
+            field1=sql.Identifier(field1),
+            field2=sql.Identifier(field2),
+        )
+
     # Order By Table
     def _orderBy(self, orderBy: str, desc: bool):
         query = None
@@ -182,13 +219,45 @@ class BasicTable:
         """
 
         # Get Query
-        query = sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
-            tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
-        )
+        query = self.__getQuery(field)
 
         # Execute Query
         try:
             self.c.execute(query, [value])
+            self._items = self.c.fetchall()
+        except Exception as err:
+            raise err
+
+        return len(self._items) > 0
+
+    # Filter Items from Table with Multiple WHERE Conditions
+    def _getMult(self, field: list[str], value: list) -> bool:
+        # Lists MUST have the Same Length
+        length = len(field)
+        values = None
+
+        if length != len(value):
+            raise LenError()
+
+        """
+        Returns True if One or More Items were Fetched. Otherwise, False
+        """
+
+        query = None
+
+        # Check Number of WHERE Conditions
+        if length > 2:
+            console.print("Query hasn't been Implemented", style="warning")
+            return
+
+        # Get Query
+        elif length == 2:
+            query = self.__getAndQuery(field[0], field[1])
+            values = [value[0], value[1]]
+
+        # Execute Query
+        try:
+            self.c.execute(query, values)
             self._items = self.c.fetchall()
         except Exception as err:
             raise err
@@ -267,12 +336,11 @@ class CountryTable(BasicTable):
 
     # Get Insert Query
     def __getInsertQuery(self):
-        return sql.SQL(
-            "INSERT INTO {tableName} ({name}, {phone_prefix}) VALUES (%s, %s)"
-        ).format(
+        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
-            name=sql.Identifier(COUNTRY_NAME),
-            phone_prefix=sql.Identifier(COUNTRY_PHONE_PREFIX),
+            fields=sql.SQL(",").join(
+                [sql.Identifier(COUNTRY_NAME), sql.Identifier(COUNTRY_PHONE_PREFIX)]
+            ),
         )
 
     # Insert Country to Table
@@ -316,13 +384,34 @@ class CountryTable(BasicTable):
             raise err
 
     # Filter Items from Country Table
-    def get(self, field: str, value) -> int:
+    def get(self, field: str, value, printItems: bool = True) -> int:
         if not BasicTable._get(self, field, value):
             return False
 
         # Print Items
-        self.__print()
+        if printItems:
+            self.__print()
         return True
+
+    # Find Country
+    def find(self, field: str, value) -> Country | None:
+        """
+        Returns Country Object if it was Found. Otherwise, False
+        """
+
+        # Get Country
+        if not self._get(field, value):
+            return None
+
+        # Get Country Fields from Items
+        country = self._items[0]
+
+        id = country[0]
+        name = country[1]
+        phonePrefix = country[2]
+
+        # Return Country
+        return Country(name, phonePrefix, id)
 
     # Get All Items from Country Table
     def all(self, orderBy: str, desc: bool):
@@ -342,86 +431,6 @@ class CountryTable(BasicTable):
 
 # Region Table Class
 class RegionTable(BasicTable):
-    # Get Insert Query
-    def __getInsertQuery(self):
-        return sql.SQL(
-            "INSERT INTO {tableName} ({countryId}, {airForwarder}, {oceanForwarder}, {name}) VALUES (%s, %s, %s, %s)"
-        ).format(
-            tableName=sql.Identifier(self._tableName),
-            countryId=sql.Identifier(COUNTRY_ID),
-            airForwarder=sql.Identifier(REGION_FK_AIR_FORWARDER),
-            oceanForwarder=sql.Identifier(REGION_FK_OCEAN_FORWARDER),
-            name=sql.Identifier(REGION_NAME),
-        )
-
-    # Insert Region to Table
-    def add(self, r: Region):
-        # Get Query
-        query = self.__getInsertQuery()
-
-        # Execute Query
-        try:
-            self.c.execute(
-                query, [r.countryId, r.airForwarderId, r.oceanForwarderId, r.name]
-            )
-            console.print(
-                f"{r.name} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
-    # Insert Multiple Regions to Table
-    def addMany(self, regions: list[Region]):
-        # Get Query
-        query = self.__getInsertQuery()
-
-        regionsTuple = []
-        regionsName = []
-
-        # Create  Touples List from Regions List, and Regions Name List
-        for r in regions:
-            regionsTuple.append(
-                [r.countryId, r.airForwarderId, r.oceanForwarderId, r.name]
-            )
-            regionsName.append(r.name)
-
-        # Execute Query
-        try:
-            extras.execute_values(
-                self.c, query.as_string(self.c), regionsTuple, page_size=100
-            )
-            console.print(
-                f"{' '.join(regionsName)} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
-    # Filter Items from Region Table
-    def get(self, field: str, value):
-        if not BasicTable.get(self, field, value):
-            return False
-
-        # Print Items
-        self.__print()
-        return True
-
-    # Get All Items from Region Table
-    def all(self, orderBy: str, desc: bool):
-        BasicTable.all(self, orderBy, desc)
-
-        # Print Items
-        self.__print()
-
-    # Modify Row from Region Table
-    def modify(self, rid: int, field: str, value):
-        BasicTable.modify(self, REGION_ID, rid, field, value)
-
-    # Remove Row from Region Table
-    def remove(self, rid: int):
-        BasicTable.remove(self, REGION_ID, rid)
-
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
@@ -446,13 +455,13 @@ class RegionTable(BasicTable):
         table = getTable("Region", nItems)
 
         # Add Table Columns
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Country ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
         table.add_column("Air Forwarder ID", justify="left", max_width=FORWARDER_NCHAR)
         table.add_column(
             "Ocean Forwarder ID", justify="left", max_width=FORWARDER_NCHAR
         )
-        table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -462,10 +471,94 @@ class RegionTable(BasicTable):
             rid = str(item[3])
             name = item[4]
 
-            table.add_row(str(cid, airForwarder, oceanForwarder, rid, name))
+            table.add_row(cid, airForwarder, oceanForwarder, rid, name)
 
         # Print New Line
         console.print("\n")
 
         # Print Table
         console.print(table)
+
+    # Get Insert Query
+    def __getInsertQuery(self):
+        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
+            tableName=sql.Identifier(self._tableName),
+            fields=sql.SQL(",").join(
+                [sql.Identifier(REGION_FK_COUNTRY), sql.Identifier(REGION_NAME)]
+            ),
+        )
+
+    # Insert Region to Table
+    def add(self, r: Region):
+        # Get Query
+        query = self.__getInsertQuery()
+
+        # Execute Query
+        try:
+            self.c.execute(query, [r.countryId, r.name])
+            console.print(
+                f"{r.name} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Insert Multiple Regions to Table
+    def addMany(self, regions: list[Region]):
+        # Get Query
+        query = self.__getInsertQuery()
+
+        regionsTuple = []
+        regionsName = []
+
+        # Create  Touples List from Regions List, and Regions Name List
+        for r in regions:
+            regionsTuple.append([r.countryId, r.name])
+            regionsName.append(r.name)
+
+        # Execute Query
+        try:
+            extras.execute_values(
+                self.c, query.as_string(self.c), regionsTuple, page_size=100
+            )
+            console.print(
+                f"{' '.join(regionsName)} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Filter Items from Region Table
+    def get(self, field: str, value, printItems: bool = True):
+        if not BasicTable._get(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Filter Items with Multiple WHERE Conditions from Region Table
+    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Get All Items from Region Table
+    def all(self, orderBy: str, desc: bool):
+        BasicTable._all(self, orderBy, desc)
+
+        # Print Items
+        self.__print()
+
+    # Modify Row from Region Table
+    def modify(self, rid: int, field: str, value):
+        BasicTable._modify(self, REGION_ID, rid, field, value)
+
+    # Remove Row from Region Table
+    def remove(self, rid: int):
+        BasicTable._remove(self, REGION_ID, rid)

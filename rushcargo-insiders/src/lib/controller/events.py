@@ -236,6 +236,10 @@ class EventHandler:
 
             # Get Country ID
             country = self._countryTable.find(COUNTRY_NAME, countryName)
+
+            if country == None:
+                raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+
             countryId = country.countryId
 
             regionFields = [REGION_FK_COUNTRY, REGION_NAME]
@@ -307,7 +311,7 @@ class EventHandler:
                         self._rmHandler(table)
 
                 except Exception as err:
-                    log.exception(err)
+                    console.print(err, style="warning")
 
                 # Ask if the User wants to Exit the Program
                 exit = Confirm.ask("\nDo you want to End the Current Session?")

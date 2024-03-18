@@ -121,12 +121,19 @@ def initDb() -> tuple[Database, str]:
     load_dotenv(dotenvPath)
 
     # Get Database-related Environment Variables
-    host = os.getenv("HOST")
-    port = os.getenv("PORT")
-    dbname = os.getenv("DBNAME")
-    user = os.getenv("USER")
-    password = os.getenv("PASSWORD")
-    arcGISApiKey = os.getenv("ARGCIS_API_KEY")
+    try:
+        host = os.getenv("HOST")
+        port = os.getenv("PORT")
+        dbname = os.getenv("DBNAME")
+        user = os.getenv("USER")
+        password = os.getenv("PASSWORD")
+    except:
+        console.print("Missing Database Information", style="warning")
+
+    try:
+        arcGISApiKey = os.getenv("ARGCIS_API_KEY")
+    except:
+        console.print("ArcGIS API Key not Found", style="warning")
 
     # Initialize Database Object
     return Database(dbname, user, password, host, port), arcGISApiKey
@@ -150,19 +157,23 @@ class BasicTable:
         self.c = database.getCursor()
 
     # Returns Get Query
-    def __getQuery(self, field: str):
-        return sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
-            tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
+    def __getQuery(self, field: str, value):
+        return sql.SQL("SELECT * FROM {tableName} WHERE {field} = {value}").format(
+            tableName=sql.Identifier(self._tableName),
+            field=sql.Identifier(field),
+            value=str(value),
         )
 
     # Returns Get Query with One And Condition
-    def __getAndQuery(self, field1: str, field2: str):
+    def __getAndQuery(self, field1: str, field2: str, value1: str, value2: str):
         return sql.SQL(
-            "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            "SELECT * FROM {tableName} WHERE {field1} = {value1} AND {field2} = {value2}"
         ).format(
             tableName=sql.Identifier(self._tableName),
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
+            value1=str(value1),
+            value2=str(value2),
         )
 
     # Order By Table
@@ -215,11 +226,11 @@ class BasicTable:
         """
 
         # Get Query
-        query = self.__getQuery(field)
+        query = self.__getQuery(field, value)
 
         # Execute Query
         try:
-            self._items = self.c.execute(query, [value]).fetchall()
+            self._items = self.c.execute(query).fetchall()
         except Exception as err:
             raise err
 
@@ -229,7 +240,6 @@ class BasicTable:
     def _getMult(self, field: list[str], value: list) -> bool:
         # Lists MUST have the Same Length
         length = len(field)
-        values = None
 
         if length != len(value):
             raise LenError()
@@ -247,12 +257,11 @@ class BasicTable:
 
         # Get Query
         elif length == 2:
-            query = self.__getAndQuery(field[0], field[1])
-            values = [value[0], value[1]]
+            query = self.__getAndQuery(field[0], field[1], value[0], value[1])
 
         # Execute Query
         try:
-            self._items = self.c.execute(query, values).fetchall()
+            self._items = self.c.execute(query).fetchall()
         except Exception as err:
             raise err
 

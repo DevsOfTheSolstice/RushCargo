@@ -15,17 +15,21 @@ def clear():
 
 # String Input Validator
 def checkString(
-    input: str,
+    inputStr: str,
     isAlpha: bool = True,
     isDigit: bool = True,
     isWhitespace: bool = False,
     isSpecial: bool = False,
 ) -> bool:
     # Nothing to Check
-    if isAlpha and isDigit and isSpecial:
+    if isAlpha and isDigit and isWhitespace and isSpecial:
         return True
 
-    for i in input:
+    # Check String Length
+    if len(inputStr) == 0:
+        return False
+
+    for i in inputStr:
         # Check if the Given Character is an Alphabetical Character
         if isAlpha and i.isalpha():
             continue
@@ -47,18 +51,18 @@ def checkString(
 
 
 # String Input Validator that Only Accepts Digits
-def onlyDigits(input: str) -> bool:
-    return checkString(input, False, True, False, False)
+def onlyDigits(inputStr: str) -> bool:
+    return checkString(inputStr, False, True, False, False)
 
 
 # String Input Validator that Only Accepts Alphabetic Characters
-def onlyAlpha(input: str) -> bool:
-    return checkString(input, True, False, False, False)
+def onlyAlpha(inputStr: str) -> bool:
+    return checkString(inputStr, True, False, False, False)
 
 
 # String Input Validator that Only Accepts Alphabetic Characters or Whitespaces
-def onlyAlphaWithWhitespaces(input: str) -> bool:
-    return checkString(input, True, False, True, False)
+def onlyAlphaWithWhitespaces(inputStr: str) -> bool:
+    return checkString(inputStr, True, False, True, False)
 
 
 # Check Table Value for the Given Field
@@ -81,6 +85,16 @@ def checkTableValue(table: str, field: str, value) -> bool:
     elif table == REGION_TABLENAME:
         # Check if Region Name only Contains Characters or Whitespaces
         if field == REGION_NAME:
+            return onlyAlphaWithWhitespaces(value)
+
+        # Check Value Given for Numeric Data Types
+        else:
+            return onlyDigits(value)
+
+    # Check Field for Subregion Table
+    elif table == SUBREGION_TABLENAME:
+        # Check if Subregion Name only Contains Characters or Whitespaces
+        if field == SUBREGION_NAME:
             return onlyAlphaWithWhitespaces(value)
 
         # Check Value Given for Numeric Data Types

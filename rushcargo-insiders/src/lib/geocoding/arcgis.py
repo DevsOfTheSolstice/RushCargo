@@ -4,20 +4,14 @@ from arcgis.geometry import Point
 
 
 # ArcGIS Geocoder Class
-class Geocoder:
+class ArcGisGeocoder:
     # GIS
     _gis = None
 
     def __init__(self, arcGisApiKey: str):
-        self._gis = GIS(api_key=arcGisApiKey)
-
-    # Find Latitude and Longitude for a Given Address
-    def getCountry(self, address: str):
-        geocodeResult = geocode(address=address, category="City")
-
-        return geocodeResult
+        self._gis = GIS(api_key=arcGisApiKey, referer="https")
 
 
-# Initialize Geocoder
-def initGeocoder(arcGisApiKey: str) -> Geocoder:
-    return Geocoder(arcGisApiKey)
+# Initialize ArcGis Geocoder
+def initArcGisGeocoder(arcGisApiKey: str) -> ArcGisGeocoder:
+    return ArcGisGeocoder(arcGisApiKey)

@@ -239,6 +239,9 @@ ALTER TABLE Warehouse_Connection
 DROP COLUMN IF EXISTS radial_distance;
 
 --28
+ALTER TABLE City_Area
+DROP CONSTRAINT IF EXISTS city_area_city_id_fkey;
+
 ALTER TABLE City RENAME TO Subregion;
 
 ALTER TABLE Subregion
@@ -251,18 +254,27 @@ RENAME COLUMN city_name TO subregion_name;
 CREATE TABLE City (
     city_id BIGSERIAL PRIMARY KEY,
     city_name VARCHAR(255) NOT NULL,
-    id_subregion BIGSERIAL NOT NULL,
-    FOREIGN KEY (id_subregion) REFERENCES Subregion(subregion_id)
+    subregion_id BIGSERIAL NOT NULL,
+    FOREIGN KEY (subregion_id) REFERENCES Subregion(subregion_id)
 );
 
+ALTER TABLE building
+DROP CONSTRAINT IF EXISTS fk_area_id;
+
+ALTER TABLE assigned_delivery
+DROP CONSTRAINT IF EXISTS fk_area_id;
+
+ALTER TABLE City_Area
+DROP COLUMN city_id,
+ADD COLUMN city_id BIGINT NOT NULL,
+ADD CONSTRAINT city_area_city_id_fkey
+FOREIGN KEY (city_id) REFERENCES City(city_id);
+
 --30
-ALTER TABLE City_area
-DROP CONSTRAINT IF EXISTS city_area_city_id_fkey;
+ALTER TABLE Country
+ADD COLUMN country_code VARCHAR(10) NOT NULL;
 
-ALTER TABLE City_area
-ADD CONSTRAINT city_area_city_id_fkey FOREIGN KEY (city_id) REFERENCES City(city_id);
-
---Droped tables
+--Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;
 DROP TABLE IF EXISTS Land_Guide;

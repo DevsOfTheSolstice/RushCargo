@@ -18,6 +18,17 @@ class LenError(Exception):
         super().__init__(f"Lists don't have the Same Length\n")
 
 
+class LocationError(Exception):
+    """
+    Exception Raised when Geopy couldn't Find a Given Location for a Specific Address Type
+    """
+
+    def __init__(self, locationName, locationType):
+        super().__init__(
+            f"Geopy didn't Find '{locationName}' with Address Type of '{locationType}'\n"
+        )
+
+
 class RowNotFound(Exception):
     """
     Exception Raised when a Query MUST Return at Least One Coincidence, but it doesn't

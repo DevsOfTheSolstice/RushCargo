@@ -5,7 +5,8 @@ from rich.logging import RichHandler
 from ..model.database import *
 from ..model.database_locations import *
 
-from ..geocoding.arcgis import *
+from ..geocoding.constants import *
+from ..geocoding.geopy import *
 
 from ..model.classes import *
 from ..model.constants import *
@@ -28,8 +29,8 @@ class EventHandler:
     # Database Connection
     _db = None
 
-    # Geocoder
-    _geocoder = None
+    # Geocoders
+    _geopyGeocoder = None
 
     # ArcGIS Credentials
     _arcGisApiKey = None
@@ -63,8 +64,8 @@ class EventHandler:
         # Initialize Database Connection
         self._db, self._arcGisApiKey = initDb()
 
-        # Initialize Geocoder
-        self._geocoder = initGeocoder(self._arcGisApiKey)
+        # Initialize Geopy Geocoder
+        self._geopyGeocoder = initGeopyGeocoder(NOMINATIM_USER_AGENT)
 
         # Initialize Table Classes
         self.__initTables()
@@ -78,68 +79,84 @@ class EventHandler:
         self._cityTable = CityTable(self._db)
         self._cityAreaTable = CityAreaTable(self._db)
 
-    # Get Country Id based on its Name
-    def __getCountryId(self) -> int:
+    # Get Country Id and Name
+    def __getCountryId(self) -> tuple:
         countryName = Prompt.ask("\nEnter Country Name")
 
         # Check Country Name
         isValueValid(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
-        # Get Country based on the Name Provided
+        # Get Country Name from Geopy API based on the Name Provided
+        countryName = self._geopyGeocoder.getCountry(countryName)
+
+        # Get Country
         c = self._countryTable.find(COUNTRY_NAME, countryName)
 
         if c == None:
             raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
-        return c.countryId
+        return c.countryId, countryName
 
     # Get Region Id based on its Name and the Country Id where it's Located
-    def __getRegionId(self) -> int:
-        countryId = self.__getCountryId()
+    def __getRegionId(self) -> tuple:
+        countryId, countryName = self.__getCountryId()
         regionName = Prompt.ask("Enter Region Name")
 
         # Check Region Name
         isValueValid(REGION_TABLENAME, REGION_NAME, regionName)
 
-        # Get Region based on the Name Provided and the Country Id
+        # Get Region Name from Geopy API on the Name Provided
+        regionName = self._geopyGeocoder.getRegion(countryName, regionName)
+
+        # Get Region
         r = self._regionTable.find(countryId, regionName)
 
         if r == None:
             raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
 
-        return r.regionId
+        return countryName, r.regionId, regionName
 
     # Get Subregion Id based on its Name and the Region Id where it's Located
-    def __getSubregionId(self) -> int:
-        regionId = self.__getRegionId()
+    def __getSubregionId(self) -> tuple | None:
+        countryName, regionId, regionName = self.__getRegionId()
         subregionName = Prompt.ask("Enter Subregion Name")
 
         # Check Subregion Name
         isValueValid(SUBREGION_TABLENAME, SUBREGION_NAME, subregionName)
 
-        # Get Subregion based on the Name Provided and the Region Id
+        # Get Subregion Name from Geopy API based on the Name Provided
+        subregionName = self._geopyGeocoder.getRegion(
+            countryName, regionName, subregionName
+        )
+
+        # Get Subregion
         s = self._subregionTable.find(regionId, subregionName)
 
         if s == None:
             raise RowNotFound(SUBREGION_TABLENAME, SUBREGION_NAME, subregionName)
 
-        return s.subregionId
+        return countryName, regionName, s.subregionId, subregionName
 
     # Get City Id based on its Name and the Subregion Id where it's Located
     def __getCityId(self) -> int:
-        subregionId = self.__getSubregionId()
+        countryName, regionName, subregionId, subregionName = self.__getSubregionId()
         cityName = Prompt.ask("Enter City Name")
 
         # Check City Name
         isValueValid(CITY_TABLENAME, CITY_NAME, cityName)
 
-        # Get City based on the Name Provided and the Subregion Id
+        # Get City Name from Geopy API based on the Name Provided
+        cityName = self._geopyGeocoder.getRegion(
+            countryName, regionName, subregionName, cityName
+        )
+
+        # Get City
         c = self._cityTable.find(subregionId, cityName)
 
         if c == None:
             raise RowNotFound(CITY_TABLENAME, CITY_NAME, cityName)
 
-        return c.cityId
+        return countryName, regionName, subregionName, c.cityId, cityName
 
     # Get All Table Handler
     def _allHandler(self, table: str):
@@ -457,12 +474,15 @@ class EventHandler:
                 uniqueInserted(COUNTRY_TABLENAME, COUNTRY_PHONE_PREFIX, phonePrefix)
                 return
 
+            # Get Country Name from Geopy API based on the Name Provided
+            countryName = self._geopyGeocoder.getCountry(countryName)
+
             # Insert Country
             self._countryTable.add(Country(countryName, phonePrefix))
 
         elif table == REGION_TABLENAME:
             # Asks for Region Fields
-            countryId = self.__getCountryId()
+            countryId, countryName = self.__getCountryId()
             regionName = Prompt.ask("Enter Region Name")
 
             # Check Region Name
@@ -476,12 +496,15 @@ class EventHandler:
                 uniqueInsertedMult(REGION_TABLENAME, regionFields, regionValues)
                 return
 
+            # Get Region Name from Geopy API based on the Name Provided
+            regionName = self._geopyGeocoder.getRegion(countryName, regionName)
+
             # Insert Region
             self._regionTable.add(Region(regionName, countryId))
 
         elif table == SUBREGION_TABLENAME:
             # Asks for Subregion Fields
-            regionId = self.__getRegionId()
+            countryName, regionId, regionName = self.__getRegionId()
             subregionName = Prompt.ask("Enter Subregion Name")
 
             # Check Subregion Name
@@ -497,12 +520,19 @@ class EventHandler:
                 )
                 return
 
+            # Get Subregion Name from Geopy API based on the Name Provided
+            subregionName = self._geopyGeocoder.getSubregion(
+                countryName, regionName, subregionName
+            )
+
             # Insert Subregion
             self._subregionTable.add(Subregion(subregionName, regionId))
 
         elif table == CITY_TABLENAME:
             # Asks for City Fields
-            subregionId = self.__getSubregionId()
+            countryName, regionName, subregionId, subregionName = (
+                self.__getSubregionId()
+            )
             cityName = Prompt.ask("Enter City Name")
 
             # Check City Name
@@ -516,12 +546,19 @@ class EventHandler:
                 uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
                 return
 
+            # Get City Name from Geopy API based on the Name Provided
+            cityName = self._geopyGeocoder.getCity(
+                countryName, regionName, subregionName, cityName
+            )
+
             # Insert City
             self._cityTable.add(City(cityName, subregionId))
 
         elif table == CITY_AREA_TABLENAME:
             # Asks for City Area Fields
-            cityId = self.__getCityId()
+            countryName, regionName, subregionName, cityId, cityName = (
+                self.__getCityId()
+            )
             areaName = Prompt.ask("Enter City Area Name")
             areaDescription = Prompt.ask("Enter City Area Description")
 
@@ -536,6 +573,11 @@ class EventHandler:
             if self._cityAreaTable.getMult(areaFields, areaValues):
                 uniqueInsertedMult(CITY_AREA_TABLENAME, areaFields, areaValues)
                 return
+
+            # Get City Area Name from Geopy API based on the Name Provided
+            areaName = self._geopyGeocoder.getCityArea(
+                countryName, regionName, subregionName, cityName, areaName
+            )
 
             # Insert City Area
             self._cityAreaTable.add(CityArea(areaName, areaDescription, cityId))
@@ -641,8 +683,12 @@ class EventHandler:
                 except Exception as err:
                     console.print(err, style="warning")
 
-                # Stop Program Flow
-                Prompt.ask("\nPress ENTER to Continue")
+                # Ask to Change Action
+                if Confirm.ask("\nDo you want to Continue with this Command?"):
+                    # Clear Screen
+                    clear()
+
+                    continue
 
                 # Clear Screen
                 clear()

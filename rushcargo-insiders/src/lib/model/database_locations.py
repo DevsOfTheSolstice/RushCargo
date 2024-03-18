@@ -438,7 +438,7 @@ class CityTable(BasicTable):
         return True
 
     # Find City from City Table
-    def find(self, subregionId: int, cityName: str) -> Subregion | None:
+    def find(self, subregionId: int, cityName: str) -> City | None:
         """
         Returns City Object if it was Found. Otherwise, False
         """

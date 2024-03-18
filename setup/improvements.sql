@@ -218,6 +218,26 @@ ADD COLUMN warehouse_name VARCHAR(255);
 ALTER TABLE Warehouse_Connection
 ADD COLUMN id BIGSERIAL PRIMARY KEY;
 
+--23
+ALTER TABLE Legal_Client
+ADD COLUMN route_distance DECIMAL(4,2) NOT NULL;
+
+--24
+ALTER TABLE Natural_Client
+ADD COLUMN route_distance DECIMAL(4,2) NOT NULL;
+
+--25
+ALTER TABLE Branch
+DROP COLUMN IF EXISTS radial_distance;
+
+--26
+ALTER TABLE Allied_Shipping_Office
+DROP COLUMN IF EXISTS radial_distance;
+
+--27
+ALTER TABLE Warehouse_Connection
+DROP COLUMN IF EXISTS radial_distance;
+
 --Droped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;

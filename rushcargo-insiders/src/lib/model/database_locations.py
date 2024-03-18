@@ -66,31 +66,6 @@ class CountryTable(BasicTable):
         except Exception as err:
             raise err
 
-    # Insert Multiple Countries to Table
-    def addMany(self, countries: list[Country]) -> None:
-        # Get Query
-        query = self.__getInsertQuery()
-
-        countriesTuple = []
-        countriesName = []
-
-        # Create Tuples List from Countries List, and Countries Name List
-        for c in countries:
-            countriesTuple.append([c.name, c.phonePrefix])
-            countriesName.append(c.name)
-
-        # Execute Query
-        try:
-            extras.execute_values(
-                self.c, query.as_string(self.c), countriesTuple, page_size=100
-            )
-            console.print(
-                f"{' '.join(countriesName)} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
     # Filter Items from Country Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
@@ -207,31 +182,6 @@ class RegionTable(BasicTable):
         except Exception as err:
             raise err
 
-    # Insert Multiple Regions to Table
-    def addMany(self, regions: list[Region]) -> None:
-        # Get Query
-        query = self.__getInsertQuery()
-
-        regionsTuple = []
-        regionsName = []
-
-        # Create Tuples List from Regions List, and Regions Name List
-        for r in regions:
-            regionsTuple.append([r.countryId, r.name])
-            regionsName.append(r.name)
-
-        # Execute Query
-        try:
-            extras.execute_values(
-                self.c, query.as_string(self.c), regionsTuple, page_size=100
-            )
-            console.print(
-                f"{' '.join(regionsName)} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
     # Filter Items from Region Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
@@ -283,6 +233,125 @@ class RegionTable(BasicTable):
         BasicTable._remove(self, REGION_ID, regionId)
 
 
+# Subregion Table Class
+class SubregionTable(BasicTable):
+    # Constructor
+    def __init__(self, database: Database):
+        # Initialize Basic Table Class
+        super().__init__(SUBREGION_TABLENAME, database)
+
+    # Print Items
+    def __print(self) -> None:
+        s = None
+
+        # Number of Items
+        nItems = len(self._items)
+
+        # No Results
+        if nItems == 0:
+            noCoincidenceFetched()
+            return
+
+        # Initialize Rich Table
+        table = getTable("Subregion", nItems)
+
+        # Add Table Columns
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
+
+        # Loop Over Items
+        for item in self._items:
+            # Intialize Subregion from Item Fetched
+            s = Subregion.fromItemFetched(item)
+
+            # Add Row to Rich Table
+            table.add_row(
+                str(s.subregionId), str(s.regionId), s.name, str(s.warehouseId)
+            )
+
+        # Print New Line
+        console.print("\n")
+
+        # Print Table
+        console.print(table)
+
+    # Get Insert Query
+    def __getInsertQuery(self):
+        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
+            tableName=sql.Identifier(self._tableName),
+            fields=sql.SQL(",").join(
+                [sql.Identifier(SUBREGION_FK_REGION), sql.Identifier(SUBREGION_NAME)]
+            ),
+        )
+
+    # Insert Subregion to Table
+    def add(self, s: Subregion) -> None:
+        # Get Query
+        query = self.__getInsertQuery()
+
+        # Execute Query
+        try:
+            self.c.execute(query, [s.regionId, s.name])
+            console.print(
+                f"{s.name} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Filter Items from Subregion Table
+    def get(self, field: str, value, printItems: bool = True) -> bool:
+        if not BasicTable._get(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Filter Items with Multiple Conditions from Subregion Table
+    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Find Subregion from Subregion Table
+    def find(self, regionId: int, subregionName: str) -> Subregion | None:
+        """
+        Returns Subregion Object if it was Found. Otherwise, False
+        """
+
+        # Get Subregion
+        if not self.getMult(
+            [SUBREGION_FK_REGION, SUBREGION_NAME], [regionId, subregionName], False
+        ):
+            return None
+
+        # Get Subregion Object from Item Fetched
+        return Subregion.fromItemFetched(self._items[0])
+
+    # Get All Items from Subregion Table
+    def all(self, orderBy: str, desc: bool) -> None:
+        BasicTable._all(self, orderBy, desc)
+
+        # Print Items
+        self.__print()
+
+    # Modify Row from Subregion Table
+    def modify(self, subregionId: int, field: str, value) -> None:
+        BasicTable._modify(self, SUBREGION_ID, subregionId, field, value)
+
+    # Remove Row from Subregion Table
+    def remove(self, subregionId: int) -> None:
+        BasicTable._remove(self, SUBREGION_ID, subregionId)
+
+
 # City Table Class
 class CityTable(BasicTable):
     # Constructor
@@ -292,7 +361,7 @@ class CityTable(BasicTable):
 
     # Print Items
     def __print(self) -> None:
-        c = None
+        s = None
 
         # Number of Items
         nItems = len(self._items)
@@ -307,17 +376,16 @@ class CityTable(BasicTable):
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Subregion ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
-        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
         # Loop Over Items
         for item in self._items:
-            # Intialize Region from Item Fetched
+            # Intialize City from Item Fetched
             c = City.fromItemFetched(item)
 
             # Add Row to Rich Table
-            table.add_row(str(c.cityId), str(c.regionId), c.name, str(c.warehouseId))
+            table.add_row(str(c.subregionId), str(c.regionId), c.name)
 
         # Print New Line
         console.print("\n")
@@ -330,7 +398,7 @@ class CityTable(BasicTable):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
-                [sql.Identifier(CITY_FK_REGION), sql.Identifier(CITY_NAME)]
+                [sql.Identifier(CITY_FK_SUBREGION), sql.Identifier(CITY_NAME)]
             ),
         )
 
@@ -341,34 +409,9 @@ class CityTable(BasicTable):
 
         # Execute Query
         try:
-            self.c.execute(query, [c.regionId, c.name])
+            self.c.execute(query, [c.subregionId, c.name])
             console.print(
                 f"{c.name} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
-    # Insert Multiple Cities to Table
-    def addMany(self, cities: list[City]) -> None:
-        # Get Query
-        query = self.__getInsertQuery()
-
-        citiesTuple = []
-        citiesName = []
-
-        # Create Tuples List from Cities List, and Cities Name List
-        for c in cities:
-            citiesTuple.append([c.regionId, c.name])
-            citiesName.append(c.name)
-
-        # Execute Query
-        try:
-            extras.execute_values(
-                self.c, query.as_string(self.c), citiesTuple, page_size=100
-            )
-            console.print(
-                f"{' '.join(citiesName)} Successfully Inserted to {self._tableName} Table",
                 style="success",
             )
         except Exception as err:
@@ -395,13 +438,15 @@ class CityTable(BasicTable):
         return True
 
     # Find City from City Table
-    def find(self, regionId: int, cityName: str) -> City | None:
+    def find(self, subregionId: int, cityName: str) -> Subregion | None:
         """
         Returns City Object if it was Found. Otherwise, False
         """
 
         # Get City
-        if not self.getMult([CITY_FK_REGION, CITY_NAME], [regionId, cityName], False):
+        if not self.getMult(
+            [CITY_FK_SUBREGION, CITY_NAME], [subregionId, cityName], False
+        ):
             return None
 
         # Get City Object from Item Fetched
@@ -484,31 +529,6 @@ class CityAreaTable(BasicTable):
             self.c.execute(query, [a.cityId, a.areaName])
             console.print(
                 f"{a.areaName} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
-    # Insert Multiple City Areas to Table
-    def addMany(self, areas: list[City]) -> None:
-        # Get Query
-        query = self.__getInsertQuery()
-
-        areasTuple = []
-        areasName = []
-
-        # Create Tuples List from City Areas List, and City Areas Name List
-        for a in areas:
-            areasTuple.append([a.regionId, a.name])
-            areasName.append(a.name)
-
-        # Execute Query
-        try:
-            extras.execute_values(
-                self.c, query.as_string(self.c), areasTuple, page_size=100
-            )
-            console.print(
-                f"{' '.join(areasName)} Successfully Inserted to {self._tableName} Table",
                 style="success",
             )
         except Exception as err:

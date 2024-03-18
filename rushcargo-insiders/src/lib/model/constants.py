@@ -48,12 +48,18 @@ REGION_FK_COUNTRY = "country_id"
 REGION_FK_AIR_FORWARDER = "main_air_freight_forwarder"
 REGION_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
 
+# Subregion...
+SUBREGION_TABLENAME = "subregion"
+SUBREGION_ID = "subregion_id"
+SUBREGION_NAME = "subregion_name"
+SUBREGION_FK_REGION = "region_id"
+SUBREGION_FK_WAREHOUSE = "main_warehouse"
+
 # City ...
 CITY_TABLENAME = "city"
 CITY_ID = "city_id"
 CITY_NAME = "city_name"
-CITY_FK_REGION = "region_id"
-CITY_FK_WAREHOUSE = "main_warehouse"
+CITY_FK_SUBREGION = "subregion_id"
 
 # City Area ...
 CITY_AREA_TABLENAME = "city_area"

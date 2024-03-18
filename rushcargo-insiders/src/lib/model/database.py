@@ -1,4 +1,4 @@
-from psycopg2 import connect, sql, extras
+from psycopg import connect, sql
 from rich.console import Console
 from rich.table import Table
 from pathlib import Path
@@ -15,7 +15,7 @@ console = Console(theme=THEME)
 
 
 # Get Table with Default values
-def getTable(tableName: str, nItems: int)->Table:
+def getTable(tableName: str, nItems: int) -> Table:
     # Initialize Rich Table
     return Table(
         title=f"{tableName} Table Query",
@@ -30,13 +30,13 @@ def getTable(tableName: str, nItems: int)->Table:
 
 
 # Message Printed when there's Nothing Fetched from Query
-def noCoincidenceFetched()->None:
+def noCoincidenceFetched() -> None:
     console.print("No Results Fetched", style="warning")
 
 
 # Message Printed when the User tries to Insert a Row which has Unique Fields that Contains Values
 # that have been already Inserted
-def uniqueInserted(tableName: str, field: str, value)->None:
+def uniqueInserted(tableName: str, field: str, value) -> None:
     console.print(
         f"Unique '{value}' Already Inserted at '{field}' on {tableName}",
         style="warning",
@@ -45,7 +45,7 @@ def uniqueInserted(tableName: str, field: str, value)->None:
 
 # Message Printed when the User tries to Insert a Row that Contains Values which Violates
 # Unique Constraint of Multiple Columns
-def uniqueInsertedMult(tableName: str, field: list[str], value: list)->None:
+def uniqueInsertedMult(tableName: str, field: list[str], value: list) -> None:
     fieldStr = ",".join(f for f in field)
     valueStr = ",".join(str(v) for v in value)
 
@@ -86,12 +86,7 @@ class Database:
 
         # Connect to Database
         self.conn = connect(
-            host=host,
-            dbname=dbname,
-            user=user,
-            password=password,
-            port=port,
-            sslmode="require",
+            f"host={host} dbname={dbname} user={user} password={password} port={port} sslmode={'require'}"
         )
         self.c = self.getCursor()
 
@@ -112,7 +107,7 @@ class Database:
 
 
 # Initialize Database Connection
-def initdb()->Database:
+def initDb() -> tuple[Database, str]:
     # Get Path to 'src' Directory
     src = Path(__file__).parent.parent.parent
 
@@ -131,9 +126,10 @@ def initdb()->Database:
     dbname = os.getenv("DBNAME")
     user = os.getenv("USER")
     password = os.getenv("PASSWORD")
+    arcGISApiKey = os.getenv("ARGCIS_API_KEY")
 
     # Initialize Database Object
-    return Database(dbname, user, password, host, port)
+    return Database(dbname, user, password, host, port), arcGISApiKey
 
 
 # Basic Table Class
@@ -170,7 +166,7 @@ class BasicTable:
         )
 
     # Order By Table
-    def _orderBy(self, orderBy: str, desc: bool)->None:
+    def _orderBy(self, orderBy: str, desc: bool) -> None:
         query = None
 
         # Get Query
@@ -187,12 +183,12 @@ class BasicTable:
 
         # Execute Query
         try:
-            self.c.execute(query)
+            return self.c.execute(query)
         except Exception as err:
             raise (err)
 
     # Modify Row from Table
-    def _modify(self, idField: str, idValue: int, field: str, value)->None:
+    def _modify(self, idField: str, idValue: int, field: str, value) -> None:
         # Get Query
         query = sql.SQL(
             "UPDATE {tableName} SET {field} = (%s) WHERE {id} = (%s)"
@@ -223,8 +219,7 @@ class BasicTable:
 
         # Execute Query
         try:
-            self.c.execute(query, [value])
-            self._items = self.c.fetchall()
+            self._items = self.c.execute(query, [value]).fetchall()
         except Exception as err:
             raise err
 
@@ -257,24 +252,22 @@ class BasicTable:
 
         # Execute Query
         try:
-            self.c.execute(query, values)
-            self._items = self.c.fetchall()
+            self._items = self.c.execute(query, values).fetchall()
         except Exception as err:
             raise err
 
         return len(self._items) > 0
 
     # Get All Items from Table
-    def _all(self, orderBy: str, desc: bool)->None:
+    def _all(self, orderBy: str, desc: bool) -> None:
         # Fetch Items
         try:
-            self._orderBy(orderBy, desc)
-            self._items = self.c.fetchall()
+            self._items = self._orderBy(orderBy, desc).fetchall()
         except Exception as err:
             raise err
 
     # Remove Row from Table
-    def _remove(self, idField: str, idValue: int)->None:
+    def _remove(self, idField: str, idValue: int) -> None:
         # Get Query
         query = sql.SQL("DELETE FROM {tablename} WHERE {id} = (%s)").format(
             tablename=sql.Identifier(self._tableName), id=sql.Identifier(idField)

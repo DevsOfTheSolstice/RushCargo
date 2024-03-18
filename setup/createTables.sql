@@ -489,7 +489,7 @@ CREATE TABLE City_area (
     FOREIGN KEY (city_id) REFERENCES City(city_id) 
 );
 
---modifications
+-- Modifications
 ALTER TABLE Region
 ADD FOREIGN KEY (main_air_freight_forwarder) REFERENCES Air_Freight_Forwader(building_id);
 

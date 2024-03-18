@@ -1,10 +1,11 @@
 from rich.prompt import Prompt, IntPrompt, Confirm
-import os
 import logging
 from rich.logging import RichHandler
 
 from ..model.database import *
 from ..model.database_locations import *
+
+from ..geocoding.arcgis import *
 
 from ..model.classes import *
 from ..model.constants import *
@@ -27,9 +28,16 @@ class EventHandler:
     # Database Connection
     _db = None
 
+    # Geocoder
+    _geocoder = None
+
+    # ArcGIS Credentials
+    _arcGisApiKey = None
+
     # Table Classes
     _countryTable = None
     _regionTable = None
+    _subregionTable = None
     _cityTable = None
     _cityAreaTable = None
 
@@ -45,6 +53,7 @@ class EventHandler:
     __modConfirmMsg = "Is this the Row you want to Modify?"
     __modFieldMsg = "Which Field do you want to Modify?"
     __modValueMsg = "Which New Value do you want to Assign it?"
+    __noModMsg = "Nothing to Modify"
 
     # Remove Handler Messages
     __rmConfirmMsg = "Is this the Row you want to Remove?"
@@ -52,7 +61,10 @@ class EventHandler:
     # Constructor
     def __init__(self):
         # Initialize Database Connection
-        self._db = initdb()
+        self._db, self._arcGisApiKey = initDb()
+
+        # Initialize Geocoder
+        self._geocoder = initGeocoder(self._arcGisApiKey)
 
         # Initialize Table Classes
         self.__initTables()
@@ -62,6 +74,7 @@ class EventHandler:
         # Initialize Table Classes
         self._countryTable = CountryTable(self._db)
         self._regionTable = RegionTable(self._db)
+        self._subregionTable = SubregionTable(self._db)
         self._cityTable = CityTable(self._db)
         self._cityAreaTable = CityAreaTable(self._db)
 
@@ -96,16 +109,32 @@ class EventHandler:
 
         return r.regionId
 
-    # Get City Id based on its Name and the Region Id where it's Located
-    def __getCityId(self) -> int:
+    # Get Subregion Id based on its Name and the Region Id where it's Located
+    def __getSubregionId(self) -> int:
         regionId = self.__getRegionId()
+        subregionName = Prompt.ask("Enter Subregion Name")
+
+        # Check Subregion Name
+        isValueValid(SUBREGION_TABLENAME, SUBREGION_NAME, subregionName)
+
+        # Get Subregion based on the Name Provided and the Region Id
+        s = self._subregionTable.find(regionId, subregionName)
+
+        if s == None:
+            raise RowNotFound(SUBREGION_TABLENAME, SUBREGION_NAME, subregionName)
+
+        return s.subregionId
+
+    # Get City Id based on its Name and the Subregion Id where it's Located
+    def __getCityId(self) -> int:
+        subregionId = self.__getSubregionId()
         cityName = Prompt.ask("Enter City Name")
 
         # Check City Name
         isValueValid(CITY_TABLENAME, CITY_NAME, cityName)
 
-        # Get City based on the Name Provided and the Region Id
-        c = self._cityTable.find(regionId, cityName)
+        # Get City based on the Name Provided and the Subregion Id
+        c = self._cityTable.find(subregionId, cityName)
 
         if c == None:
             raise RowNotFound(CITY_TABLENAME, CITY_NAME, cityName)
@@ -145,11 +174,26 @@ class EventHandler:
             # Print Table
             self._regionTable.all(sortBy, desc)
 
+        elif table == SUBREGION_TABLENAME:
+            # Asks for Sort Order
+            sortBy = Prompt.ask(
+                self.__allSortByMsg,
+                choices=[
+                    SUBREGION_ID,
+                    SUBREGION_FK_REGION,
+                    SUBREGION_NAME,
+                    SUBREGION_FK_WAREHOUSE,
+                ],
+            )
+
+            # Print Table
+            self._subregionTable.all(sortBy, desc)
+
         elif table == CITY_TABLENAME:
             # Asks for Sort Order
             sortBy = Prompt.ask(
                 self.__allSortByMsg,
-                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
+                choices=[CITY_ID, CITY_FK_SUBREGION, CITY_NAME],
             )
 
             # Print Table
@@ -215,11 +259,36 @@ class EventHandler:
             # Print Table Coincidences
             self._regionTable.get(field, value)
 
+        elif table == SUBREGION_TABLENAME:
+            # Asks for Field to Compare
+            field = Prompt.ask(
+                self.__getFieldMsg,
+                choices=[
+                    SUBREGION_ID,
+                    SUBREGION_FK_REGION,
+                    SUBREGION_NAME,
+                    SUBREGION_FK_WAREHOUSE,
+                ],
+            )
+
+            # Prompt to Ask the Value to be Compared
+            if field == SUBREGION_NAME:
+                value = Prompt.ask(self.__getValueMsg)
+
+                # Check Value
+                isValueValid(table, field, value)
+
+            else:
+                value = str(IntPrompt.ask(self.__getValueMsg))
+
+            # Print Table Coincidences
+            self._subregionTable.get(field, value)
+
         elif table == CITY_TABLENAME:
             # Asks for Field to Compare
             field = Prompt.ask(
                 self.__getFieldMsg,
-                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
+                choices=[CITY_ID, CITY_FK_SUBREGION, CITY_NAME],
             )
 
             # Prompt to Ask the Value to be Compared
@@ -233,7 +302,7 @@ class EventHandler:
                 value = str(IntPrompt.ask(self.__getValueMsg))
 
             # Print Table Coincidences
-            self._cityAreaTable.get(field, value)
+            self._cityTable.get(field, value)
 
         elif table == CITY_AREA_TABLENAME:
             # Asks for Field to Compare
@@ -253,7 +322,7 @@ class EventHandler:
                 value = str(IntPrompt.ask(self.__getValueMsg))
 
             # Print Table Coincidences
-            self._cityTable.get(field, value)
+            self._cityAreaTable.get(field, value)
 
     # Modify Row from Table Handler
     def _modHandler(self, table: str):
@@ -311,12 +380,12 @@ class EventHandler:
             # Modify Region
             self._regionTable.modify(regionId, field, value)
 
-        elif table == CITY_TABLENAME:
-            # Ask for City ID to Modify
-            cityId = IntPrompt.ask("\nEnter City ID to Modify")
+        elif table == SUBREGION_TABLENAME:
+            # Ask for Subregion ID to Modify
+            subregionId = IntPrompt.ask("\nEnter Subregion ID to Modify")
 
             # Print Fetched Results
-            if not self._cityTable.get(CITY_ID, cityId):
+            if not self._subregionTable.get(SUBREGION_ID, subregionId):
                 noCoincidenceFetched()
                 return
 
@@ -327,17 +396,20 @@ class EventHandler:
             # Ask for Field to Modify
             field = Prompt.ask(
                 self.__modFieldMsg,
-                choices=[CITY_FK_WAREHOUSE],
+                choices=[SUBREGION_FK_WAREHOUSE],
             )
 
             # Prompt to Ask the New Value
-            if field == CITY_FK_WAREHOUSE:
+            if field == SUBREGION_FK_WAREHOUSE:
                 value = str(IntPrompt.ask(self.__modValueMsg))
 
             # TO DEVELOP: CHECK AND CONFIRM WAREHOUSE
 
-            # Modify City
-            self._cityTable.modify(cityId, field, value)
+            # Modify Subregion
+            self._subregionTable.modify(subregionId, field, value)
+
+        elif table == CITY_TABLENAME:
+            console.print(self.__noModMsg, style="warning")
 
         elif table == CITY_AREA_TABLENAME:
             # Ask for City Area ID to Modify
@@ -407,16 +479,37 @@ class EventHandler:
             # Insert Region
             self._regionTable.add(Region(regionName, countryId))
 
+        elif table == SUBREGION_TABLENAME:
+            # Asks for Subregion Fields
+            regionId = self.__getRegionId()
+            subregionName = Prompt.ask("Enter Subregion Name")
+
+            # Check Subregion Name
+            isValueValid(table, SUBREGION_NAME, subregionName)
+
+            subregionFields = [SUBREGION_FK_REGION, SUBREGION_NAME]
+            subregionValues = [regionId, subregionName]
+
+            # Check if Subregion Name has already been Inserted for the Given Region
+            if self._subregionTable.getMult(subregionFields, subregionValues):
+                uniqueInsertedMult(
+                    SUBREGION_TABLENAME, subregionFields, subregionValues
+                )
+                return
+
+            # Insert Subregion
+            self._subregionTable.add(Subregion(subregionName, regionId))
+
         elif table == CITY_TABLENAME:
             # Asks for City Fields
-            regionId = self.__getRegionId()
+            subregionId = self.__getSubregionId()
             cityName = Prompt.ask("Enter City Name")
 
             # Check City Name
             isValueValid(table, CITY_NAME, cityName)
 
-            cityFields = [CITY_FK_REGION, CITY_NAME]
-            cityValues = [regionId, cityName]
+            cityFields = [CITY_FK_SUBREGION, CITY_NAME]
+            cityValues = [subregionId, cityName]
 
             # Check if City Name has already been Inserted for the Given Region
             if self._cityTable.getMult(cityFields, cityValues):
@@ -424,7 +517,7 @@ class EventHandler:
                 return
 
             # Insert City
-            self._cityTable.add(City(cityName, regionId))
+            self._cityTable.add(City(cityName, subregionId))
 
         elif table == CITY_AREA_TABLENAME:
             # Asks for City Area Fields
@@ -478,6 +571,21 @@ class EventHandler:
                 return
 
             self._regionTable.remove(regionID)
+
+        elif table == SUBREGION_TABLENAME:
+            # Ask for Subregion ID to Remove
+            subregionId = IntPrompt.ask("\nEnter Subregion ID to Remove")
+
+            # Print Fetched Results
+            if not self._subregionTable.get(SUBREGION_ID, subregionId):
+                noCoincidenceFetched()
+                return
+
+            # Ask for Confirmation
+            if not Confirm.ask(self.__rmConfirmMsg):
+                return
+
+            self._subregionTable.remove(subregionId)
 
         elif table == CITY_TABLENAME:
             # Ask for City ID to Remove

@@ -270,10 +270,6 @@ ADD COLUMN city_id BIGINT NOT NULL,
 ADD CONSTRAINT city_area_city_id_fkey
 FOREIGN KEY (city_id) REFERENCES City(city_id);
 
---30
-ALTER TABLE Country
-ADD COLUMN country_code VARCHAR(10) NOT NULL;
-
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;

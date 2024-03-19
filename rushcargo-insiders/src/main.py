@@ -25,7 +25,9 @@ def main():
     )
 
     # Table Argument
-    parser.add_argument("table", help="Insert to Table", choices=TABLE_CMDS, type=str)
+    parser.add_argument(
+        "table", help="Insert to Table", choices=TABLE_ARGPARSE_CMDS, type=str
+    )
 
     # Get Arguments
     args = parser.parse_args()
@@ -33,12 +35,20 @@ def main():
     # Get Action and Table
     action = args.action
     table = args.table
+    tableGroup = None
+
+    # Get Table Group
+    if table in TABLE_TERRITORY_CMDS:
+        tableGroup = TABLE_TERRITORY_CMD
+
+    elif table in TABLE_BUILDING_CMDS:
+        tableGroup = TABLE_BUILDING_CMD
 
     # Initialize Event Handler
     e = EventHandler()
 
     # Call Main Event Handler
-    e.mainHandler(action, table)
+    e.handler(action, tableGroup, table)
 
     # Program End
     console.print("\nExiting...", style="warning")

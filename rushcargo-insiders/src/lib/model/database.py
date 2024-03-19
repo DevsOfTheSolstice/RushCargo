@@ -107,7 +107,7 @@ class Database:
 
 
 # Initialize Database Connection
-def initDb() -> tuple[Database, str]:
+def initDb() -> tuple[Database, str, str]:
     # Get Path to 'src' Directory
     src = Path(__file__).parent.parent.parent
 
@@ -136,7 +136,7 @@ def initDb() -> tuple[Database, str]:
         console.print("ArcGIS API Key not Found", style="warning")
 
     # Initialize Database Object
-    return Database(dbname, user, password, host, port), arcGISApiKey
+    return Database(dbname, user, password, host, port), user, arcGISApiKey
 
 
 # Basic Table Class

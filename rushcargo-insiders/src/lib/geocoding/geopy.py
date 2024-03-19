@@ -10,8 +10,8 @@ class GeopyGeocoder:
     _geolocator = None
 
     # Constructor
-    def __init__(self, userAgent: str):
-        self._geolocator = Nominatim(user_agent=userAgent)
+    def __init__(self, userAgent: str, user: str):
+        self._geolocator = Nominatim(user_agent=f"{userAgent}-{user}")
 
     # Get Name
     def __getName(self, locationRaw: dict):
@@ -97,5 +97,5 @@ class GeopyGeocoder:
 
 
 # Initialize Geopy Geocoder
-def initGeopyGeocoder(userAgent: str) -> GeopyGeocoder:
-    return GeopyGeocoder(userAgent)
+def initGeopyGeocoder(userAgent: str, user:str) -> GeopyGeocoder:
+    return GeopyGeocoder(userAgent, user)

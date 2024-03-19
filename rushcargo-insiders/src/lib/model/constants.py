@@ -68,6 +68,9 @@ CITY_AREA_NAME = "area_name"
 CITY_AREA_DESCRIPTION = "area_description"
 CITY_AREA_FK_CITY = "city_id"
 
+# Building ...
+BUILDING_TABLENAME = "building"
+
 # Action-related Commands
 ADD = "add"
 RM = "rm"
@@ -80,10 +83,23 @@ EXIT = "exit"
 ACTION_CMDS = [ADD, RM, MOD, GET, ALL, EXIT]
 
 # Available Tables that can be Interacted with
-TABLE_CMDS = [
+
+# Territory-related Commands
+TABLE_TERRITORY_CMD = "territory"
+TABLE_TERRITORY_CMDS = [
     COUNTRY_TABLENAME,
     REGION_TABLENAME,
     SUBREGION_TABLENAME,
     CITY_TABLENAME,
     CITY_AREA_TABLENAME,
 ]
+
+# Building-related Commands
+TABLE_BUILDING_CMD = "building"
+TABLE_BUILDING_CMDS = [BUILDING_TABLENAME]
+
+# Table Group Commands
+TABLE_GROUP_CMDS = [TABLE_TERRITORY_CMD, TABLE_BUILDING_CMD]
+
+# ArgParse Commands
+TABLE_ARGPARSE_CMDS = list(TABLE_TERRITORY_CMDS + TABLE_BUILDING_CMDS)

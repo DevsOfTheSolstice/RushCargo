@@ -63,10 +63,8 @@ class Database:
     _user = None
     _password = None
     _port = None
-
-    # Public Fields
-    conn = None
-    c = None
+    _conn = None
+    _c = None
 
     # Constructor
     def __init__(
@@ -85,25 +83,25 @@ class Database:
         self._port = port
 
         # Connect to Database
-        self.conn = connect(
+        self._conn = connect(
             f"host={host} dbname={dbname} user={user} password={password} port={port} sslmode={'require'}"
         )
-        self.c = self.getCursor()
+        self._c = self.getCursor()
 
     # Destructor
     def __del__(self):
         # Commit Command
-        self.conn.commit()
+        self._conn.commit()
 
         # Close Connection
-        if self.c is not None:
-            self.c.close()
-        if self.conn is not None:
-            self.conn.close()
+        if self._c != None:
+            self._c.close()
+        if self._conn != None:
+            self._conn.close()
 
     # Get Cursor
     def getCursor(self):
-        return self.conn.cursor()
+        return self._conn.cursor()
 
 
 # Initialize Database Connection
@@ -130,23 +128,16 @@ def initDb() -> tuple[Database, str, str]:
     except:
         console.print("Missing Database Information", style="warning")
 
-    try:
-        arcGISApiKey = os.getenv("ARGCIS_API_KEY")
-    except:
-        console.print("ArcGIS API Key not Found", style="warning")
-
     # Initialize Database Object
-    return Database(dbname, user, password, host, port), user, arcGISApiKey
+    return Database(dbname, user, password, host, port), user
 
 
 # Basic Table Class
 class BasicTable:
-    # Private Fields
+    # Protected Fields
     _tableName = None
     _items = None
-
-    # Public Fields
-    c = None
+    _c = None
 
     # Constructor
     def __init__(self, tableName: str, database: Database):
@@ -154,7 +145,7 @@ class BasicTable:
         self._tableName = tableName
 
         # Get Cursor
-        self.c = database.getCursor()
+        self._c = database.getCursor()
 
     # Returns Get Query
     def __getQuery(self, field: str, value):
@@ -194,7 +185,7 @@ class BasicTable:
 
         # Execute Query
         try:
-            return self.c.execute(query)
+            return self._c.execute(query)
         except Exception as err:
             raise (err)
 
@@ -211,7 +202,7 @@ class BasicTable:
 
         # Execute Query
         try:
-            self.c.execute(query, [value, idValue])
+            self._c.execute(query, [value, idValue])
             console.print(
                 f"Data '{value}' Successfully Assigned to '{field}' at '{idField}' '{idValue}' in {self._tableName} Table",
                 style="success",
@@ -230,7 +221,7 @@ class BasicTable:
 
         # Execute Query
         try:
-            self._items = self.c.execute(query).fetchall()
+            self._items = self._c.execute(query).fetchall()
         except Exception as err:
             raise err
 
@@ -261,7 +252,7 @@ class BasicTable:
 
         # Execute Query
         try:
-            self._items = self.c.execute(query).fetchall()
+            self._items = self._c.execute(query).fetchall()
         except Exception as err:
             raise err
 
@@ -283,7 +274,7 @@ class BasicTable:
         )
 
         try:
-            self.c.execute(query, [idValue])
+            self._c.execute(query, [idValue])
             console.print(
                 f"Row with '{idField}' '{idValue}' Successfully Removed from {self._tableName} Table",
                 style="success",

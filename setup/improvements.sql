@@ -270,6 +270,23 @@ ADD COLUMN city_id BIGINT NOT NULL,
 ADD CONSTRAINT city_area_city_id_fkey
 FOREIGN KEY (city_id) REFERENCES City(city_id);
 
+--30
+ALTER TABLE Allied_Shipping_Office
+RENAME COLUMN building_id TO office_id;
+
+ALTER TABLE Building
+ADD COLUMN address_description VARCHAR(255) NOT NULL;
+
+ALTER TABLE Branch
+RENAME COLUMN warehouse_id TO warehouse_connection;
+
+--31
+ALTER TABLE Warehouse
+DROP COLUMN warehouse_name;
+
+ALTER TABLE Building
+ADD COLUMN building_name VARCHAR(50) NOT NULL;
+
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;

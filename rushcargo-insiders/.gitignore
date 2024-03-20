@@ -1,3 +1,4 @@
 .env
+geopy.db
 /venv
 __pycache__/

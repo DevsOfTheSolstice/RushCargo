@@ -3,33 +3,57 @@ from geopy.geocoders import Nominatim
 from .constants import *
 from ..model.exceptions import *
 
+from ..local_database.database import *
+from ..local_database.constants import *
 
-# Geopy Geocoder Class
-class GeopyGeocoder:
+
+# GeoPy Geocoder Class
+class GeoPyGeocoder:
     # Geolocator
     _geolocator = None
 
+    # GeoPy Local Database
+    _localdb = None
+    _tables = None
+
     # Constructor
     def __init__(self, userAgent: str, user: str):
-        self._geolocator = Nominatim(user_agent=f"{userAgent}-{user}")
+        # Initialize Geolocator
+        self._geolocator = Nominatim(user_agent=f"{userAgent}-{user}", timeout=5)
+
+        # Initialize GeoPy Local Database
+        self._localdb = GeoPyDatabase()
+        self._tables = GeoPyTable(self._localdb)
 
     # Get Name
     def __getName(self, locationRaw: dict):
         return locationRaw[NOMINATIM_NAME]
 
     # Get Country Name
-    def getCountry(self, country: str) -> str | None:
+    def getCountry(self, search: str) -> str | None:
+        # Check if Country Search is Stored at Local Database
+        name = self._tables.getCountry(search)
+
+        if name != None:
+            return name
+
         # Get Country Location
-        location = self._geolocator.geocode(country)
+        location = self._geolocator.geocode(search)
 
         # Check if it's a Country:
         try:
             if location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_COUNTRY:
-                return self.__getName(location.raw)
+                # Get Country Name
+                name = self.__getName(location.raw)
+
+                # Store Country Search at Local Database
+                self._tables.addCountry(search, name)
+
+                return name
             else:
                 raise -1
         except:
-            raise LocationError(country, NOMINATIM_COUNTRY)
+            raise LocationError(search, NOMINATIM_COUNTRY)
 
     # Get Region Name
     def getRegion(self, country: str, region: str) -> str | None:
@@ -96,6 +120,6 @@ class GeopyGeocoder:
             raise LocationError(cityArea, NOMINATIM_CITY_AREA)
 
 
-# Initialize Geopy Geocoder
-def initGeopyGeocoder(userAgent: str, user:str) -> GeopyGeocoder:
-    return GeopyGeocoder(userAgent, user)
+# Initialize GeoPy Geocoder
+def initGeoPyGeocoder(userAgent: str, user: str) -> GeoPyGeocoder:
+    return GeoPyGeocoder(userAgent, user)

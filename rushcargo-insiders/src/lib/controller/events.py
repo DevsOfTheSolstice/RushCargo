@@ -3,7 +3,9 @@ import logging
 from rich.logging import RichHandler
 
 from ..model.database import *
-from ..model.database_locations import *
+from ..model.database_territory import *
+
+# from ..model.database_building import *
 
 from ..geocoding.constants import *
 from ..geocoding.geopy import *
@@ -53,16 +55,14 @@ class EventHandler:
     # Constructor
     def __init__(self):
         # Initialize Database Connection
-        self.__db, self.__user, self.__arcGisApiKey = initDb()
+        self.__db, self.__user = initDb()
 
         # Initialize Event Hanlder Classes
         self.__initHandlers()
 
     # Initialize Event Handler Classes
     def __initHandlers(self):
-        self.__territoryEventHandler = TerritoryEventHandler(
-            self.__db, self.__user, self.__arcGisApiKey
-        )
+        self.__territoryEventHandler = TerritoryEventHandler(self.__db, self.__user)
 
     # Main Event Handler
     def handler(self, action: str, tableGroup: str, table: str) -> None:
@@ -122,11 +122,8 @@ class TerritoryEventHandler(EventHandler):
     # Geocoders
     _geopyGeocoder = None
 
-    # ArcGIS Credentials
-    _arcGisApiKey = None
-
     # Constructor
-    def __init__(self, db: Database, user: str, arcGisApiKey: str):
+    def __init__(self, db: Database, user: str):
         # Initialize Table Classes
         self._countryTable = CountryTable(db)
         self._regionTable = RegionTable(db)
@@ -135,8 +132,7 @@ class TerritoryEventHandler(EventHandler):
         self._cityAreaTable = CityAreaTable(db)
 
         # Initialize Geocoders
-        self._geopyGeocoder = initGeopyGeocoder(NOMINATIM_USER_AGENT, user)
-        self._arcGisApiKey = arcGisApiKey
+        self._geopyGeocoder = initGeoPyGeocoder(NOMINATIM_USER_AGENT, user)
 
     # Get Country Id and Name
     def getCountryId(self) -> tuple:
@@ -145,7 +141,7 @@ class TerritoryEventHandler(EventHandler):
         # Check Country Name
         isValueValid(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
-        # Get Country Name from Geopy API based on the Name Provided
+        # Get Country Name from GeoPy API based on the Name Provided
         countryName = self._geopyGeocoder.getCountry(countryName)
 
         # Get Country
@@ -164,7 +160,7 @@ class TerritoryEventHandler(EventHandler):
         # Check Region Name
         isValueValid(REGION_TABLENAME, REGION_NAME, regionName)
 
-        # Get Region Name from Geopy API on the Name Provided
+        # Get Region Name from GeoPy API on the Name Provided
         regionName = self._geopyGeocoder.getRegion(countryName, regionName)
 
         # Get Region
@@ -183,7 +179,7 @@ class TerritoryEventHandler(EventHandler):
         # Check Subregion Name
         isValueValid(SUBREGION_TABLENAME, SUBREGION_NAME, subregionName)
 
-        # Get Subregion Name from Geopy API based on the Name Provided
+        # Get Subregion Name from GeoPy API based on the Name Provided
         subregionName = self._geopyGeocoder.getSubregion(
             countryName, regionName, subregionName
         )
@@ -204,7 +200,7 @@ class TerritoryEventHandler(EventHandler):
         # Check City Name
         isValueValid(CITY_TABLENAME, CITY_NAME, cityName)
 
-        # Get City Name from Geopy API based on the Name Provided
+        # Get City Name from GeoPy API based on the Name Provided
         cityName = self._geopyGeocoder.getCity(
             countryName, regionName, subregionName, cityName
         )
@@ -225,7 +221,7 @@ class TerritoryEventHandler(EventHandler):
         # Check City Area Name
         isValueValid(CITY_AREA_TABLENAME, CITY_AREA_NAME, areaName)
 
-        # Get City Area Name from Geopy API based on the Name Provided
+        # Get City Area Name from GeoPy API based on the Name Provided
         cityName = self._geopyGeocoder.getCityArea(
             countryName, regionName, subregionName, cityName, areaName
         )
@@ -544,6 +540,9 @@ class TerritoryEventHandler(EventHandler):
             # Check Country Name
             isValueValid(table, COUNTRY_NAME, countryName)
 
+            # Get Country Name from GeoPy API based on the Name Provided
+            countryName = self._geopyGeocoder.getCountry(countryName)
+
             # Check if Country Name has already been Inserted
             if self._countryTable.get(COUNTRY_NAME, countryName):
                 uniqueInserted(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
@@ -553,9 +552,6 @@ class TerritoryEventHandler(EventHandler):
             if self._countryTable.get(COUNTRY_PHONE_PREFIX, phonePrefix):
                 uniqueInserted(COUNTRY_TABLENAME, COUNTRY_PHONE_PREFIX, phonePrefix)
                 return
-
-            # Get Country Name from Geopy API based on the Name Provided
-            countryName = self._geopyGeocoder.getCountry(countryName)
 
             # Insert Country
             self._countryTable.add(Country(countryName, phonePrefix))
@@ -568,6 +564,9 @@ class TerritoryEventHandler(EventHandler):
             # Check Region Name
             isValueValid(table, REGION_NAME, regionName)
 
+            # Get Region Name from GeoPy API based on the Name Provided
+            regionName = self._geopyGeocoder.getRegion(countryName, regionName)
+
             regionFields = [REGION_FK_COUNTRY, REGION_NAME]
             regionValues = [countryId, regionName]
 
@@ -575,9 +574,6 @@ class TerritoryEventHandler(EventHandler):
             if self._regionTable.getMult(regionFields, regionValues):
                 uniqueInsertedMult(REGION_TABLENAME, regionFields, regionValues)
                 return
-
-            # Get Region Name from Geopy API based on the Name Provided
-            regionName = self._geopyGeocoder.getRegion(countryName, regionName)
 
             # Insert Region
             self._regionTable.add(Region(regionName, countryId))
@@ -590,6 +586,11 @@ class TerritoryEventHandler(EventHandler):
             # Check Subregion Name
             isValueValid(table, SUBREGION_NAME, subregionName)
 
+            # Get Subregion Name from GeoPy API based on the Name Provided
+            subregionName = self._geopyGeocoder.getSubregion(
+                countryName, regionName, subregionName
+            )
+
             subregionFields = [SUBREGION_FK_REGION, SUBREGION_NAME]
             subregionValues = [regionId, subregionName]
 
@@ -599,11 +600,6 @@ class TerritoryEventHandler(EventHandler):
                     SUBREGION_TABLENAME, subregionFields, subregionValues
                 )
                 return
-
-            # Get Subregion Name from Geopy API based on the Name Provided
-            subregionName = self._geopyGeocoder.getSubregion(
-                countryName, regionName, subregionName
-            )
 
             # Insert Subregion
             self._subregionTable.add(Subregion(subregionName, regionId))
@@ -616,18 +612,18 @@ class TerritoryEventHandler(EventHandler):
             # Check City Name
             isValueValid(table, CITY_NAME, cityName)
 
-            cityFields = [CITY_FK_SUBREGION, CITY_NAME]
-            cityValues = [subregionId, cityName]
-
             # Check if City Name has already been Inserted for the Given Region
             if self._cityTable.getMult(cityFields, cityValues):
                 uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
                 return
 
-            # Get City Name from Geopy API based on the Name Provided
+            # Get City Name from GeoPy API based on the Name Provided
             cityName = self._geopyGeocoder.getCity(
                 countryName, regionName, subregionName, cityName
             )
+
+            cityFields = [CITY_FK_SUBREGION, CITY_NAME]
+            cityValues = [subregionId, cityName]
 
             # Insert City
             self._cityTable.add(City(cityName, subregionId))
@@ -642,6 +638,11 @@ class TerritoryEventHandler(EventHandler):
             isValueValid(table, CITY_AREA_NAME, areaName)
             isValueValid(table, CITY_AREA_DESCRIPTION, areaDescription)
 
+            # Get City Area Name from GeoPy API based on the Name Provided
+            areaName = self._geopyGeocoder.getCityArea(
+                countryName, regionName, subregionName, cityName, areaName
+            )
+
             areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
             areaValues = [cityId, areaName]
 
@@ -649,11 +650,6 @@ class TerritoryEventHandler(EventHandler):
             if self._cityAreaTable.getMult(areaFields, areaValues):
                 uniqueInsertedMult(CITY_AREA_TABLENAME, areaFields, areaValues)
                 return
-
-            # Get City Area Name from Geopy API based on the Name Provided
-            areaName = self._geopyGeocoder.getCityArea(
-                countryName, regionName, subregionName, cityName, areaName
-            )
 
             # Insert City Area
             self._cityAreaTable.add(CityArea(areaName, areaDescription, cityId))

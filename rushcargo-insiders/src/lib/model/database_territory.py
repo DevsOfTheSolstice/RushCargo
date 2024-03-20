@@ -58,7 +58,7 @@ class CountryTable(BasicTable):
 
         # Execute Query
         try:
-            self.c.execute(query, [c.name, c.phonePrefix])
+            self._c.execute(query, [c.name, c.phonePrefix])
             console.print(
                 f"{c.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
@@ -131,8 +131,8 @@ class RegionTable(BasicTable):
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Country ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Country ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Air Forwarder ID", justify="left", max_width=FORWARDER_NCHAR)
         table.add_column(
             "Ocean Forwarder ID", justify="left", max_width=FORWARDER_NCHAR
@@ -146,8 +146,8 @@ class RegionTable(BasicTable):
             # Add Row to Rich Table
             table.add_row(
                 str(r.regionId),
-                str(r.countryId),
                 r.name,
+                str(r.countryId),
                 str(r.airForwarderId),
                 str(r.oceanForwarderId),
             )
@@ -174,7 +174,7 @@ class RegionTable(BasicTable):
 
         # Execute Query
         try:
-            self.c.execute(query, [r.countryId, r.name])
+            self._c.execute(query, [r.countryId, r.name])
             console.print(
                 f"{r.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
@@ -257,8 +257,8 @@ class SubregionTable(BasicTable):
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
         # Loop Over Items
@@ -268,7 +268,7 @@ class SubregionTable(BasicTable):
 
             # Add Row to Rich Table
             table.add_row(
-                str(s.subregionId), str(s.regionId), s.name, str(s.warehouseId)
+                str(s.subregionId), s.name, str(s.regionId), str(s.warehouseId)
             )
 
         # Print New Line
@@ -293,7 +293,7 @@ class SubregionTable(BasicTable):
 
         # Execute Query
         try:
-            self.c.execute(query, [s.regionId, s.name])
+            self._c.execute(query, [s.regionId, s.name])
             console.print(
                 f"{s.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
@@ -376,8 +376,8 @@ class CityTable(BasicTable):
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Subregion ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Subregion ID", justify="left", max_width=ID_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -385,7 +385,7 @@ class CityTable(BasicTable):
             c = City.fromItemFetched(item)
 
             # Add Row to Rich Table
-            table.add_row(str(c.subregionId), str(c.regionId), c.name)
+            table.add_row(str(c.cityId), c.name, str(c.subregionId))
 
         # Print New Line
         console.print("\n")
@@ -409,7 +409,7 @@ class CityTable(BasicTable):
 
         # Execute Query
         try:
-            self.c.execute(query, [c.subregionId, c.name])
+            self._c.execute(query, [c.subregionId, c.name])
             console.print(
                 f"{c.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
@@ -492,9 +492,9 @@ class CityAreaTable(BasicTable):
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("City ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
         table.add_column("Description", justify="left", max_width=DESCRIPTION_NCHAR)
+        table.add_column("City ID", justify="left", max_width=ID_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -502,7 +502,7 @@ class CityAreaTable(BasicTable):
             a = CityArea.fromItemFetched(item)
 
             # Add Row to Rich Table
-            table.add_row(str(a.areaId), str(a.cityId), a.areaName, a.areaDescription)
+            table.add_row(str(a.areaId), a.areaName, a.areaDescription, str(a.cityId))
 
         # Print New Line
         console.print("\n")
@@ -526,7 +526,7 @@ class CityAreaTable(BasicTable):
 
         # Execute Query
         try:
-            self.c.execute(query, [a.cityId, a.areaName])
+            self._c.execute(query, [a.cityId, a.areaName])
             console.print(
                 f"{a.areaName} Successfully Inserted to {self._tableName} Table",
                 style="success",

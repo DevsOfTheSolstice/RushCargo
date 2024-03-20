@@ -70,6 +70,24 @@ CITY_AREA_FK_CITY = "city_id"
 
 # Building ...
 BUILDING_TABLENAME = "building"
+BUILDING_ID = "building_id"
+BUILDING_NAME = "building_name"
+BUILDING_EMAIL = "email"
+BUILDING_PHONE = "phone"
+BUILDING_GPS_LATITUDE = "gps_latitude"
+BUILDING_GPS_LONGITUDE = "gps_longitude"
+BUILDING_ADDRESS_DESCRIPTION = "address_description"
+BUILDING_FK_CITY_AREA = "area_id"
+
+# Warehouse ...
+WAREHOUSE_TABLENAME = "warehouse"
+WAREHOUSE_ID = "warehouse_id"
+
+# Branch ...
+BRANCH_TABLENAME = "branch"
+BRANCH_ID = "branch_id"
+BRANCH_RUTE_DISTANCE = "rute_distance"
+BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
 
 # Action-related Commands
 ADD = "add"

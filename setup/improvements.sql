@@ -287,6 +287,16 @@ DROP COLUMN warehouse_name;
 ALTER TABLE Building
 ADD COLUMN building_name VARCHAR(50) NOT NULL;
 
+--32 
+ALTER TABLE Package
+DROP COLUMN shipping_number;
+
+ALTER TABLE Package
+ADD COLUMN shipping_number BIGINT;
+
+ALTER TABLE Package
+RENAME COLUMN nombre_usuario to username;
+
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;

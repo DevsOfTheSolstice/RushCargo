@@ -16,7 +16,7 @@ class GeoPyDatabase:
         self._conn = sqlite3.connect(self._dbname)
         self._c = self.getCursor()
 
-        # Initialize Rows Coutner Table
+        # Initialize Rows Counter Table
         self.__initTable()
 
     # Create GeoPy Rows Counter Table if it doesn't Exist
@@ -64,9 +64,9 @@ class GeoPyDatabase:
         self._conn.commit()
 
         # Close Connection
-        if self._c is not None:
+        if self._c != None:
             self._c.close()
-        if self._conn is not None:
+        if self._conn != None:
             self._conn.close()
 
     # Get Cursor
@@ -91,6 +91,11 @@ class GeoPyTable:
         self.__initGeoPyRegionNameTable()
         self.__initGeoPyRegionSearchTable()
 
+    # Print Debug
+    def __debug(self, tableName: str):
+        print(f"\n{tableName}")
+        print(self._c.execute(f"SELECT * FROM {tableName}").fetchall())
+
     # Create GeoPy Country Name Table if it doesn't Exist
     def __initGeoPyCountryNameTable(self):
         # Create Table Query
@@ -98,6 +103,10 @@ class GeoPyTable:
 
         # Execute Query
         self._c.execute(query)
+
+        # Debug Message
+        if GEOPY_DEBUG_MODE:
+            self.__debug(GEOPY_COUNTRY_NAME_TABLENAME)
 
     # Create GeoPy Country Search Table if it doesn't Exist
     def __initGeoPyCountrySearchTable(self):
@@ -107,6 +116,10 @@ class GeoPyTable:
         # Execute Query
         self._c.execute(query)
 
+        # Debug Message
+        if GEOPY_DEBUG_MODE:
+            self.__debug(GEOPY_COUNTRY_SEARCH_TABLENAME)
+
     # Create GeoPy Region Name Table if it doesn't Exist
     def __initGeoPyRegionNameTable(self):
         # Create Table Query
@@ -114,6 +127,10 @@ class GeoPyTable:
 
         # Execute Query
         self._c.execute(query)
+
+        # Debug Message
+        if GEOPY_DEBUG_MODE:
+            self.__debug(GEOPY_REGION_NAME_TABLENAME)
 
     # Create GeoPy Region Search Table if it doesn't Exist
     def __initGeoPyRegionSearchTable(self):
@@ -123,13 +140,17 @@ class GeoPyTable:
         # Execute Query
         self._c.execute(query)
 
+        # Debug Message
+        if GEOPY_DEBUG_MODE:
+            self.__debug(GEOPY_REGION_SEARCH_TABLENAME)
+
     # Fetch One Item and return its Value
     def __fetchone(self):
         # Fetch Item
         self._item = self._item.fetchone()
 
         # Check Item Fetched
-        if self._item is None:
+        if self._item == None:
             return None
 
         return self._item[0]
@@ -193,23 +214,25 @@ class GeoPyTable:
         self.__setCounter(tableName, counter - 1)
 
     # Remove Locations from a Given Name ID Query
-    def __removeLocationsNameId(self, tableName: str, field: str, rowid: int):
-        # Get Number of Locations to Remove
-        queryNumber = f"SELECT COUNT({GEOPY_ROWID}) FROM {tableName} WHERE {field} = ?"
-
+    def __removeLocationsNameId(self, tableName: str, field: str, nameId: int):
+        # Get Number of Locations to Remove Query
+        queryNumber = f"SELECT COUNT(*) FROM {tableName} WHERE {GEOPY_ROWID} IN (SELECT {GEOPY_ROWID} FROM {tableName} WHERE {field} = ?)"
         # Remove Locations Query
         queryRemove = f"DELETE FROM {tableName} WHERE {field} = ?"
 
-        # Execute Queries
-        self._item = self._c.execute(queryNumber, (rowid,))
-        self._c.execute(queryRemove, (rowid,))
+        # Execute Query to Get Number of Locations to Remove
+        self._item = self._c.execute(queryNumber, (nameId,))
 
         # Fetch Number of Queries that were Removed
         number = self.__fetchone()
         counter = self.__getCounter(tableName)
+        print(number, counter)
 
         # Decrease Counter
         self.__setCounter(tableName, counter - number)
+
+        # Execute Query to Remove Locations
+        self._c.execute(queryRemove, (nameId,))
 
     # Get Child Locations from its Parent Location to be Removed that are being Stored
     def __getChildLocationsToRemove(
@@ -219,9 +242,7 @@ class GeoPyTable:
         queryToRemove = f"SELECT {GEOPY_ROWID} FROM {tableName} WHERE {parentField} = ?"
 
         # Get Number of Locations to Remove Query
-        queryNumber = (
-            f"SELECT COUNT({GEOPY_ROWID}) FROM {tableName} WHERE {parentField} = ?"
-        )
+        queryNumber = f"SELECT COUNT(*) FROM {tableName} WHERE {parentField} = ?"
 
         # Execute Query to Get the Number of Locations to Remove
         self._item = self._c.execute(queryNumber, (parentNameId,))
@@ -246,10 +267,10 @@ class GeoPyTable:
         parentRowid: int,
     ):
         # Get Child Locations Searches to Remove Query
-        querySearch = f"DELETE {GEOPY_SEARCH} FROM {searchTableName} INNER JOIN {nameTableName} {GEOPY_NAME} ON {GEOPY_SEARCH}.{searchNameIdField} = {GEOPY_NAME}.{GEOPY_ROWID} WHERE {childNameIdField} = ?"
+        querySearch = f"DELETE FROM {searchTableName} WHERE {GEOPY_ROWID} IN (SELECT {GEOPY_SEARCH}.{GEOPY_ROWID} FROM {searchTableName} {GEOPY_SEARCH} INNER JOIN {nameTableName} {GEOPY_NAME} ON {GEOPY_SEARCH}.{searchNameIdField} = {GEOPY_NAME}.{GEOPY_ROWID} WHERE {childNameIdField} = ?)"
 
         # Get Number of Child Locations Searches to Remove Query
-        queryNumber = f"SELECT COUNT({GEOPY_SEARCH}) FROM {searchTableName} INNER JOIN {nameTableName} {GEOPY_NAME} ON {GEOPY_SEARCH}.{searchNameIdField} = {GEOPY_NAME}.{GEOPY_ROWID} WHERE {childNameIdField} = ?"
+        queryNumber = f"SELECT COUNT(*) FROM {searchTableName} WHERE {GEOPY_ROWID} IN (SELECT {GEOPY_SEARCH}.{GEOPY_ROWID} FROM {searchTableName} {GEOPY_SEARCH} INNER JOIN {nameTableName} {GEOPY_NAME} ON {GEOPY_SEARCH}.{searchNameIdField} = {GEOPY_NAME}.{GEOPY_ROWID} WHERE {childNameIdField} = ?)"
 
         # Execute Query to Get the Number of Child Locations Searches to Remove
         self._item = self._c.execute(queryNumber, (parentRowid,))
@@ -340,7 +361,7 @@ class GeoPyTable:
     # Add Country Search Name to GeoPy Country Search Table
     def _addCountrySearch(self, search: str, countryNameId: int) -> tuple:
         # Add Country Search Name Query
-        query = f"INSERT OR IGNORE INTO {GEOPY_COUNTRY_NAME_TABLENAME} ({GEOPY_SEARCH}, {GEOPY_COUNTRY_NAME_ID}) VALUES (?,?)"
+        query = f"INSERT OR IGNORE INTO {GEOPY_COUNTRY_SEARCH_TABLENAME} ({GEOPY_SEARCH}, {GEOPY_COUNTRY_NAME_ID}) VALUES (?,?)"
 
         # Execute Query
         self._c.execute(
@@ -367,7 +388,7 @@ class GeoPyTable:
         self._addCountryName(name)
 
         # Get Country Name ID
-        countryNameId = self._getCountryNameId(name)
+        countryNameId = self.getCountryNameId(name)
 
         # Add Country Search
         self._addCountrySearch(search, countryNameId)
@@ -534,7 +555,7 @@ class GeoPyTable:
         # Get Region Name Id
         regionNameId = self._getFirstRegionNameId()
 
-        self._removeRegionSubregionsNameId(regionNameId)
+        # self._removeRegionSubregionsNameId(regionNameId)
         self._removeRegionSearchNameId(regionNameId)
 
         # Check Counter
@@ -553,8 +574,6 @@ class GeoPyTable:
 
     # Remove Region Searches for a Given Region Name ID
     def _removeRegionSearchNameId(self, regionNameId: int):
-        queryToRemove = f"SELECT {GEOPY_ROWID} FROM {GEOPY_REGION_NAME_TABLENAME} WHERE {GEOPY_COUNTRY_NAME_ID} = ?"
-
         # Remove Region Searches Query
         self.__removeLocationsNameId(
             GEOPY_REGION_SEARCH_TABLENAME, GEOPY_REGION_NAME_ID, regionNameId
@@ -572,10 +591,10 @@ class GeoPyTable:
         )
 
         # Remove Subregions
-        regions = self.__getChildLocationsToRemove(
-            GEOPY_REGION_NAME_TABLENAME, GEOPY_COUNTRY_NAME_ID, countryNameId
-        )
-        self.__removeRegionSubregionsNameId(regions)
+        # regions = self.__getChildLocationsToRemove(
+        #    GEOPY_REGION_NAME_TABLENAME, GEOPY_COUNTRY_NAME_ID, countryNameId
+        # )
+        # self.__removeRegionSubregionsNameId(regions)
 
         # Remove Regions
         self.__removeLocationsNameId(

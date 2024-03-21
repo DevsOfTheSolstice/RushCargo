@@ -2,7 +2,7 @@
 GEOPY_DATABASE_NAME = "geopy.db"
 
 # GeoPy Location-related Table Names
-GEOPY_ROWS_COUNTER_TABLENAME  ="rows_counter"
+GEOPY_ROWS_COUNTER_TABLENAME = "rows_counter"
 GEOPY_COUNTRY_NAME_TABLENAME = "country_name"
 GEOPY_COUNTRY_SEARCH_TABLENAME = "country_search"
 GEOPY_REGION_NAME_TABLENAME = "region_name"
@@ -24,7 +24,7 @@ GEOPY_SEARCH = "search"
 GEOPY_ROWID = "rowid"
 
 # Maximum Amount of Locations at its GeoPy Table
-GEOPY_COUNTRY_MAX = 50
+GEOPY_COUNTRY_MAX = 30
 GEOPY_REGION_MAX = 3 * GEOPY_COUNTRY_MAX
 GEOPY_SUBREGION_MAX = 2 * GEOPY_REGION_MAX
 GEOPY_CITY_MAX = 2 * GEOPY_SUBREGION_MAX
@@ -32,3 +32,6 @@ GEOPY_CITY_AREA_MAX = 3 * GEOPY_CITY_MAX
 
 # Times its Corresponding Location. Maximum Number of Searches for Given Table
 GEOPY_LOCATION_SEARCH_MAX = 10
+
+# GeoPy Debug Mode
+GEOPY_DEBUG_MODE = False

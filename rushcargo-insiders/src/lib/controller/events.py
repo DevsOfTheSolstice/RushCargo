@@ -167,11 +167,13 @@ class TerritoryEventHandler(EventHandler):
         # Check if Country Search is Stored in Local Database
         countryNameId = self._tables.getCountrySearchNameId(countrySearch)
         data[DICT_COUNTRY_NAME_ID] = countryNameId
+        countryName = None
 
         # Check Country Name ID
         if countryNameId != None:
             # Get Country Name from Local Database
-            data[DICT_COUNTRY_NAME] = self._tables.getCountryName(countryNameId)
+            countryName = self._tables.getCountryName(countryNameId)
+            data[DICT_COUNTRY_NAME] = countryName
         else:
             # Get Country Name from GeoPy API based on the Name Provided
             countryName = self._geopyGeocoder.getCountry(countrySearch)
@@ -207,11 +209,13 @@ class TerritoryEventHandler(EventHandler):
             data[DICT_COUNTRY_NAME_ID], regionSearch
         )
         data[DICT_REGION_NAME_ID] = regionNameId
+        regionName = None
 
         # Check Region Name ID
         if regionNameId != None:
             # Get Region Name from Local Database
-            data[DICT_REGION_NAME] = self._tables.getRegionName(regionNameId)
+            regionName = self._tables.getRegionName(regionNameId)
+            data[DICT_REGION_NAME] = regionName
         else:
             # Get Region Name from GeoPy API based on the Name Provided
             regionName = self._geopyGeocoder.getRegion(data, regionSearch)
@@ -253,11 +257,13 @@ class TerritoryEventHandler(EventHandler):
             data[DICT_REGION_NAME_ID], subregionSearch
         )
         data[DICT_SUBREGION_NAME_ID] = subregionNameId
+        subregionName = None
 
         # Check Subregion Name ID
         if subregionNameId != None:
             # Get Subregion Name from Local Database
-            data[DICT_SUBREGION_NAME] = self._tables.getSubregionName(subregionNameId)
+            subregionName = self._tables.getSubregionName(subregionNameId)
+            data[DICT_SUBREGION_NAME] = subregionName
         else:
             # Get Subregion Name from GeoPy API based on the Name Provided
             subregionName = self._geopyGeocoder.getSubregion(data, subregionSearch)
@@ -299,11 +305,13 @@ class TerritoryEventHandler(EventHandler):
             data[DICT_SUBREGION_NAME_ID], citySearch
         )
         data[DICT_CITY_NAME_ID] = cityNameId
+        cityName = None
 
         # Check City Name ID
         if cityNameId != None:
             # Get City Name from Local Database
-            data[DICT_CITY_NAME] = self._tables.getCityName(cityNameId)
+            cityName = self._tables.getCityName(cityNameId)
+            data[DICT_CITY_NAME] = cityName
         else:
             # Get City Name from GeoPy API based on the Name Provided
             cityName = self._geopyGeocoder.getCity(
@@ -344,13 +352,17 @@ class TerritoryEventHandler(EventHandler):
         isValueValid(CITY_AREA_TABLENAME, CITY_AREA_NAME, areaSearch)
 
         # Check if City Area Search is Stored in Local Database
-        areaNameId = self._tables.getCityAreaNameId(data[DICT_CITY_NAME_ID], areaSearch)
+        areaNameId = self._tables.getCityAreaSearchNameId(
+            data[DICT_CITY_NAME_ID], areaSearch
+        )
         data[DICT_CITY_AREA_NAME_ID] = areaNameId
+        areaName = None
 
         # Check City Name ID
         if areaNameId != None:
             # Get City Name from Local Database
-            data[DICT_CITY_AREA_NAME] = self._tables.getCityName(areaNameId)
+            areaName = self._tables.getCityName(areaNameId)
+            data[DICT_CITY_AREA_NAME] = areaName
         else:
             # Get City Area Name from GeoPy API based on the Name Provided
             areaName = self._geopyGeocoder.getCityArea(
@@ -689,7 +701,7 @@ class TerritoryEventHandler(EventHandler):
             isValueValid(table, COUNTRY_NAME, countrySearch)
 
             # Check if Country is Stored in Local Database
-            countryNameId = self._tables.getCountryNameId(countrySearch)
+            countryNameId = self._tables.getCountrySearchNameId(countrySearch)
             countryName = None
 
             # Check Country Name ID
@@ -700,14 +712,12 @@ class TerritoryEventHandler(EventHandler):
                 # Get Country Name from GeoPy API based on the Name Provided
                 countryName = self._geopyGeocoder.getCountry(countrySearch)
 
+                # Store Country Search in Local Database
+                self._tables.addCountry(countrySearch, countryName)
+
             # Check if Country Name has already been Inserted
             if self._countryTable.get(COUNTRY_NAME, countryName):
                 uniqueInserted(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
-                return
-
-            # Check if Country Phone Prefix has already been Inserted
-            if self._countryTable.get(COUNTRY_PHONE_PREFIX, phonePrefix):
-                uniqueInserted(COUNTRY_TABLENAME, COUNTRY_PHONE_PREFIX, phonePrefix)
                 return
 
             # Insert Country
@@ -722,7 +732,7 @@ class TerritoryEventHandler(EventHandler):
             isValueValid(table, REGION_NAME, regionSearch)
 
             # Check if Region is Stored in Local Database
-            regionNameId = self._tables.getRegionNameId(
+            regionNameId = self._tables.getRegionSearchNameId(
                 data[DICT_COUNTRY_NAME_ID], regionSearch
             )
             regionName = None
@@ -734,6 +744,11 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get Region Name from GeoPy API based on the Name Provided
                 regionName = self._geopyGeocoder.getRegion(data, regionSearch)
+
+                # Store Region Search in Local Database
+                self._tables.addRegion(
+                    data[DICT_COUNTRY_NAME_ID], regionSearch, regionName
+                )
 
             regionFields = [REGION_FK_COUNTRY, REGION_NAME]
             regionValues = [data[DICT_COUNTRY_ID], regionName]
@@ -755,7 +770,7 @@ class TerritoryEventHandler(EventHandler):
             isValueValid(table, SUBREGION_NAME, subregionSearch)
 
             # Check if Subregion is Stored in Local Database
-            subregionNameId = self._tables.getSubregionNameId(
+            subregionNameId = self._tables.getSubregionSearchNameId(
                 data[DICT_REGION_NAME_ID], subregionSearch
             )
             subregionName = None
@@ -767,6 +782,11 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get Subregion Name from GeoPy API based on the Name Provided
                 subregionName = self._geopyGeocoder.getSubregion(data, subregionSearch)
+
+                # Store Subregion Search in Local Database
+                self._tables.addSubregion(
+                    data[DICT_REGION_NAME_ID], subregionSearch, subregionName
+                )
 
             subregionFields = [SUBREGION_FK_REGION, SUBREGION_NAME]
             subregionValues = [data[DICT_REGION_ID], subregionName]
@@ -790,7 +810,7 @@ class TerritoryEventHandler(EventHandler):
             isValueValid(table, CITY_NAME, citySearch)
 
             # Check if City is Stored in Local Database
-            cityNameId = self._tables.getCityNameId(
+            cityNameId = self._tables.getCitySearchNameId(
                 data[DICT_SUBREGION_NAME_ID], citySearch
             )
             cityName = None
@@ -801,9 +821,10 @@ class TerritoryEventHandler(EventHandler):
                 cityName = self._tables.getCityName(cityNameId)
             else:
                 # Get City Name from GeoPy API based on the Name Provided
-                cityName = self._geopyGeocoder.getCity(
-                    data, citySearch
-                )
+                cityName = self._geopyGeocoder.getCity(data, citySearch)
+
+                # Store City Search in Local Database
+                self._tables.addCity(data[DICT_SUBREGION_NAME_ID], citySearch, cityName)
 
             cityFields = [CITY_FK_SUBREGION, CITY_NAME]
             cityValues = [data[DICT_SUBREGION_ID], cityName]
@@ -827,9 +848,7 @@ class TerritoryEventHandler(EventHandler):
             isValueValid(table, CITY_AREA_DESCRIPTION, areaDescription)
 
             # Check if City Area is Stored in Local Database
-            areaNameId = self._tables.getCityAreaNameId(
-                data, areaSearch
-            )
+            areaNameId = self._tables.getCityAreaSearchNameId(data, areaSearch)
             areaName = None
 
             # Check City Area Name ID
@@ -838,9 +857,10 @@ class TerritoryEventHandler(EventHandler):
                 areaName = self._tables.getCityAreaName(areaNameId)
             else:
                 # Get City Area Name from GeoPy API based on the Name Provided
-                areaName = self._geopyGeocoder.getCityArea(
-                    data, areaSearch
-                )
+                areaName = self._geopyGeocoder.getCityArea(data, areaSearch)
+
+                # Store City Area Search in Local Database
+                self._tables.addCityArea(data[DICT_CITY_NAME_ID], areaSearch, areaName)
 
             areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
             areaValues = [data[DICT_CITY_ID], areaName]
@@ -851,7 +871,9 @@ class TerritoryEventHandler(EventHandler):
                 return
 
             # Insert City Area
-            self._cityAreaTable.add(CityArea(areaName, areaDescription, data[DICT_CITY_ID]))
+            self._cityAreaTable.add(
+                CityArea(areaName, areaDescription, data[DICT_CITY_ID])
+            )
 
     # Remove Row from Table Handler
     def _rmHandler(self, table: str) -> None:

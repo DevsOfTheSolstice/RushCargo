@@ -1,6 +1,7 @@
 mod title;
 mod settings;
 mod login;
+mod client;
 mod trucker;
 
 use crossterm::event::{
@@ -132,6 +133,7 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 Screen::Title => title::event_act(key_event, sender, app),
                 Screen::Settings => settings::event_act(key_event, sender, app),
                 Screen::Login => login::event_act(key_event, sender, app),
+                Screen::Client(_) => client::event_act(key_event, sender, app),
                 Screen::Trucker => trucker::event_act(key_event, sender, app)
             }
         },

@@ -35,23 +35,23 @@ use crate::{
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let mut app_lock = app.lock().unwrap();
 
-    /*let chunks = Layout::default()
+    let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(8),
             Constraint::Length(2),
-            Constraint::Length(8),
+            Constraint::Length(10),
         ])
         .split(centered_rect(
             percent_x(f, 1.5),
-            percent_y(f, 1.8),
+            percent_y(f, 2.8),
             f.size()));
 
     let lower_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(10),
-            Constraint::Percentage(35),
+            Constraint::Percentage(15),
+            Constraint::Percentage(25),
             Constraint::Percentage(5),
             Constraint::Percentage(55),
         ])
@@ -80,15 +80,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         app_lock.list.actions.title.clone()
     ).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    f.render_stateful_widget(actions, actions_chunks[1], &mut app_lock.list.state.0);*/
+    f.render_stateful_widget(actions, actions_chunks[1], &mut app_lock.list.state.0);
 
-    //let width = lower_chunks[3].width as f64;
-    //let height = lower_chunks[3].height as f64;
-    let width = f.size().width as f64;
-    let height = f.size().height as f64;
+    let width = lower_chunks[3].width;
+    let height = lower_chunks[3].height;
 
-    let mid_width = f.size().width / 2;
-    let mid_height= f.size().height / 2;
+    let mid_width = width / 2;
+    let mid_height= height / 2;
 
     let canvas = Canvas::default()
         .marker(Marker::Dot)
@@ -158,11 +156,11 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 }
             } 
         })
-        .x_bounds([-(width / 2.0), width / 2.0])
-        .y_bounds([-(height / 2.0), height / 2.0])
-        .block(Block::default().borders(Borders::ALL));
+        .x_bounds([-((width / 2) as f64), (width / 2) as f64])
+        .y_bounds([-((height / 2) as f64), (height / 2) as f64])
+        .block(Block::default().borders(Borders::NONE));
 
-    f.render_widget(canvas, f.size());
+    f.render_widget(canvas, lower_chunks[3]);
 }
 
 fn get_vec(dot0: Dot, dot1: Dot) -> impl Fn(f64, char) -> Dot {

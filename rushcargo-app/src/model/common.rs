@@ -1,12 +1,21 @@
 use std::time::{Duration, Instant};
 use tui_input::Input;
+use super::client::Client;
 
 #[derive(Debug, Clone)]
 pub enum Screen {
     Title,
     Settings,
     Login,
+    Client(SubScreen),
     Trucker,
+}
+
+#[derive(Debug, Clone)]
+pub enum SubScreen {
+    ClientMain,
+    ClientLockers,
+    ClientSentPackages
 }
 
 impl std::fmt::Display for Screen {
@@ -16,6 +25,7 @@ impl std::fmt::Display for Screen {
                 Screen::Title => "Title",
                 Screen::Settings => "Settings",
                 Screen::Login => "Login",
+                Screen::Client(_) => "Client",
                 Screen::Trucker => "Trucker"
             }
         )
@@ -26,11 +36,20 @@ pub enum Popup {
     LoginSuccessful,
 }
 
+#[derive(Debug)]
+pub enum User {
+    Client(Client),
+}
+
+#[derive(Debug)]
 pub enum UserType {
-    Trucker,
-    MotorcycleCourier,
     NaturalClient,
     LegalClient,
+    Trucker,
+    Motorcyclist,
+    OrderAdmin,
+    ClientAdmin,
+    PackageAdmin,
 }
 
 pub enum InputMode {

@@ -1,6 +1,7 @@
 mod title;
 mod settings;
 mod login;
+mod client;
 mod common_fn;
 
 use std::sync::{Arc, Mutex};
@@ -10,7 +11,7 @@ use crate::model::{common::Screen, app::App};
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let curr_screen = app.lock().unwrap().active_screen.clone();
 
-    { 
+    {
         let mut app_lock = app.lock().unwrap();
         if app_lock.should_clear_screen {
             common_fn::clear_chunks(f, &Layout::default().split(f.size()));
@@ -28,6 +29,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         Screen::Login
         => login::render(app, f),
 
-        _ => panic!("Screen {:?} was not found on the main render function.", curr_screen)
+        Screen::Client(_)
+        => client::render(app, f),
+
+        Screen::Trucker
+        => todo!(),
     }
 }

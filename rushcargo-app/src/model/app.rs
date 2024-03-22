@@ -7,7 +7,7 @@ use crate::{
     HELP_TEXT,
     model::{
         app_list::ListData,
-        common::{Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer},
+        common::{User, SubScreen, Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
     }
@@ -21,7 +21,7 @@ pub struct App {
     pub settings: SettingsData,
     pub title: Option<Box<TitleData>>,
     pub list: ListData,
-    pub active_user: Option<UserType>,
+    pub user: Option<User>,
     prev_screen: Option<Screen>,
     pub active_screen: Screen,
     pub active_popup: Option<Popup>,
@@ -36,10 +36,6 @@ impl App {
         if let Err(e) = settings {
             panic!("Error on settings data build: {}", e);
         }
-        /*let title = TitleData::from_file();
-        if let Err(e) = title {
-            panic!("Error on title data build: {}", e);
-        }*/
         App {
             input: InputFields(Input::default(), Input::default()),
             input_mode: InputMode::Normal,
@@ -48,7 +44,7 @@ impl App {
             settings: settings.unwrap(),
             title: None,
             list: ListData::default(),
-            active_user: None,
+            user: None,
             prev_screen: None,
             active_screen: Screen::Login,
             active_popup: None,
@@ -69,7 +65,6 @@ impl App {
                 if let Err(e) = title {
                     panic!("Error on title data build: {}", e);
                 }
- 
                 self.active_screen = Screen::Title;
                 self.title = Some(Box::new(title.unwrap()));
                 self.add_timeout(10, 0, TimeoutType::CubeTick);
@@ -81,9 +76,12 @@ impl App {
                 self.active_screen = Screen::Login;
                 self.input_mode = InputMode::Editing(0);
                 self.failed_logins = 0;
-                self.active_user = None;
+                self.user = None;
             }
-            _ => {}
+            Screen::Client(_) => {
+                self.active_screen = Screen::Client(SubScreen::ClientMain);
+            }
+            Screen::Trucker => todo!(),
         }
     }
 
@@ -92,6 +90,7 @@ impl App {
             Some(Screen::Title) => {
                 self.title = None;
                 self.list.state.0.select(None);
+                self.timeout.remove(&TimeoutType::CubeTick);
             }
             Some(Screen::Settings) => {
                 self.list.state.0.select(None);
@@ -101,6 +100,7 @@ impl App {
                 self.input.1.reset();
                 self.input_mode = InputMode::Normal;
             }
+            Some(Screen::Client(_)) => {}
             Some(Screen::Trucker) => {}
             None => {}
         }
@@ -135,7 +135,7 @@ impl App {
                     timer.counter = 10;
                     self.update_cube();
                 },
-                _ => {},
+                _ => {}
             }
         } else {
             match timeout_type {

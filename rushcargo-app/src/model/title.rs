@@ -86,9 +86,9 @@ impl TitleData {
         let file_contents = fs::read_to_string(
             BIN_PATH.lock().unwrap().clone() + "title.bin")?;
             let text = bincode::deserialize(&file_contents[..].as_bytes())?;
-        let height = 5.0;
-        let width = 7.0;
-        let depth = 4.0;
+        let height = 3.0;
+        let width = 5.0;
+        let depth = 3.0;
         Ok(TitleData {
             text,
             cube: CubeData {

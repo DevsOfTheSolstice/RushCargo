@@ -21,12 +21,12 @@ class Country:
         return cls(name, phonePrefix, countryId)
 
 
-# Region Class
-class Region:
+# Province Class
+class Province:
     # Public Fields
     name: str = None
     countryId: int = None
-    regionId: int = None
+    provinceId: int = None
     airForwarderId: int = None
     oceanForwarderId: int = None
 
@@ -35,68 +35,68 @@ class Region:
         self,
         name: str,
         countryId: int,
-        regionId: int = None,
+        provinceId: int = None,
         airForwarderId: int = None,
         oceanForwarderId: int = None,
     ):
         self.name = name
         self.countryId = countryId
-        self.regionId = regionId
+        self.provinceId = provinceId
         self.airForwarderId = airForwarderId
         self.oceanForwarderId = oceanForwarderId
 
     @classmethod
     def fromItemFetched(cls, item: tuple):
         """
-        Initialize Region from Query Item Fetched
+        Initialize Province from Query Item Fetched
         """
-        regionId, countryId, name, airForwarderId, oceanForwarderId = item
+        provinceId, countryId, name, airForwarderId, oceanForwarderId = item
 
-        return cls(name, countryId, regionId, airForwarderId, oceanForwarderId)
+        return cls(name, countryId, provinceId, airForwarderId, oceanForwarderId)
 
 
-# Subregion Class
-class Subregion:
+# Region Class
+class Region:
     # Public Fields
     name: str = None
+    provinceId: int = None
     regionId: int = None
-    subregionId: int = None
     warehouseId: int = None
 
     # Constructor
     def __init__(
         self,
         name: str,
-        regionId: int,
-        subregionId: int = None,
+        provinceId: int,
+        regionId: int = None,
         warehouseId: int = None,
     ):
         self.name = name
+        self.provinceId = provinceId
         self.regionId = regionId
-        self.subregionId = subregionId
         self.warehouseId = warehouseId
 
     @classmethod
     def fromItemFetched(cls, item: tuple):
         """
-        Initialize Subregion from Query Item Fetched
+        Initialize Region from Query Item Fetched
         """
-        subregionId, regionId, name, warehouseId = item
+        regionId, provinceId, name, warehouseId = item
 
-        return cls(name, regionId, subregionId, warehouseId)
+        return cls(name, provinceId, regionId, warehouseId)
 
 
 # City Class
 class City:
     # Public Fields
     name: str = None
-    subregionId: int = None
+    regionId: int = None
     cityId: int = None
 
     # Constructor
-    def __init__(self, name: str, subregionId: int, cityId: int = None):
+    def __init__(self, name: str, regionId: int, cityId: int = None):
         self.name = name
-        self.subregionId = subregionId
+        self.regionId = regionId
         self.cityId = cityId
 
     @classmethod
@@ -104,9 +104,9 @@ class City:
         """
         Initialize City from Query Item Fetched
         """
-        cityId, name, subregionId = item
+        cityId, name, regionId = item
 
-        return cls(name, subregionId, cityId)
+        return cls(name, regionId, cityId)
 
 
 # City Area Class

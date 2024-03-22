@@ -40,26 +40,26 @@ COUNTRY_ID = "country_id"
 COUNTRY_NAME = "country_name"
 COUNTRY_PHONE_PREFIX = "phone_prefix"
 
+# Province ...
+PROVINCE_TABLENAME = "province"
+PROVINCE_ID = "province_id"
+PROVINCE_NAME = "province_name"
+PROVINCE_FK_COUNTRY = "country_id"
+PROVINCE_FK_AIR_FORWARDER = "main_air_freight_forwarder"
+PROVINCE_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
+
 # Region ...
 REGION_TABLENAME = "region"
 REGION_ID = "region_id"
 REGION_NAME = "region_name"
-REGION_FK_COUNTRY = "country_id"
-REGION_FK_AIR_FORWARDER = "main_air_freight_forwarder"
-REGION_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
-
-# Subregion...
-SUBREGION_TABLENAME = "subregion"
-SUBREGION_ID = "subregion_id"
-SUBREGION_NAME = "subregion_name"
-SUBREGION_FK_REGION = "region_id"
-SUBREGION_FK_WAREHOUSE = "main_warehouse"
+REGION_FK_PROVINCE = "province_id"
+REGION_FK_WAREHOUSE = "main_warehouse"
 
 # City ...
 CITY_TABLENAME = "city"
 CITY_ID = "city_id"
 CITY_NAME = "city_name"
-CITY_FK_SUBREGION = "subregion_id"
+CITY_FK_REGION = "region_id"
 
 # City Area ...
 CITY_AREA_TABLENAME = "city_area"
@@ -106,8 +106,8 @@ ACTION_CMDS = [ADD, RM, MOD, GET, ALL, EXIT]
 TABLE_TERRITORY_CMD = "territory"
 TABLE_TERRITORY_CMDS = [
     COUNTRY_TABLENAME,
+    PROVINCE_TABLENAME,
     REGION_TABLENAME,
-    SUBREGION_TABLENAME,
     CITY_TABLENAME,
     CITY_AREA_TABLENAME,
 ]

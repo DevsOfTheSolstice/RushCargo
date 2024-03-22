@@ -107,6 +107,132 @@ class CountryTable(BasicTable):
         BasicTable._remove(self, COUNTRY_ID, countryId)
 
 
+# Province Table Class
+class ProvinceTable(BasicTable):
+    # Constructor
+    def __init__(self, database: Database):
+        # Initialize Basic Table Class
+        super().__init__(PROVINCE_TABLENAME, database)
+
+    # Print Items
+    def __print(self) -> None:
+        r = None
+
+        # Number of Items
+        nItems = len(self._items)
+
+        # No Results
+        if nItems == 0:
+            noCoincidenceFetched()
+            return
+
+        # Initialize Rich Table
+        table = getTable("Province", nItems)
+
+        # Add Table Columns
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Country ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Air Forwarder ID", justify="left", max_width=FORWARDER_NCHAR)
+        table.add_column(
+            "Ocean Forwarder ID", justify="left", max_width=FORWARDER_NCHAR
+        )
+
+        # Loop Over Items
+        for item in self._items:
+            # Intialize Province from Item Fetched
+            p = Province.fromItemFetched(item)
+
+            # Add Row to Rich Table
+            table.add_row(
+                str(p.provinceId),
+                p.name,
+                str(p.countryId),
+                str(p.airForwarderId),
+                str(p.oceanForwarderId),
+            )
+
+        # Print New Line
+        console.print("\n")
+
+        # Print Table
+        console.print(table)
+
+    # Get Insert Query
+    def __getInsertQuery(self):
+        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
+            tableName=sql.Identifier(self._tableName),
+            fields=sql.SQL(",").join(
+                [sql.Identifier(PROVINCE_FK_COUNTRY), sql.Identifier(PROVINCE_NAME)]
+            ),
+        )
+
+    # Insert Province to Table
+    def add(self, r: Province) -> None:
+        # Get Query
+        query = self.__getInsertQuery()
+
+        # Execute Query
+        try:
+            self._c.execute(query, [r.countryId, r.name])
+            console.print(
+                f"{r.name} Successfully Inserted to {self._tableName} Table",
+                style="success",
+            )
+        except Exception as err:
+            raise err
+
+    # Filter Items from Province Table
+    def get(self, field: str, value, printItems: bool = True) -> bool:
+        if not BasicTable._get(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Filter Items with Multiple Conditions from Province Table
+    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Find Province from Province Table
+    def find(self, countryId: int, provinceName: str) -> Province | None:
+        """
+        Returns Province Object if it was Found. Otherwise, False
+        """
+
+        # Get Province
+        if not self.getMult(
+            [PROVINCE_FK_COUNTRY, PROVINCE_NAME], [countryId, provinceName], False
+        ):
+            return None
+
+        # Get Province Object from Item Fetched
+        return Province.fromItemFetched(self._items[0])
+
+    # Get All Items from Province Table
+    def all(self, orderBy: str, desc: bool) -> None:
+        BasicTable._all(self, orderBy, desc)
+
+        # Print Items
+        self.__print()
+
+    # Modify Row from Province Table
+    def modify(self, provinceId: int, field: str, value) -> None:
+        BasicTable._modify(self, PROVINCE_ID, provinceId, field, value)
+
+    # Remove Row from Province Table
+    def remove(self, provinceId: int) -> None:
+        BasicTable._remove(self, PROVINCE_ID, provinceId)
+
+
 # Region Table Class
 class RegionTable(BasicTable):
     # Constructor
@@ -116,7 +242,7 @@ class RegionTable(BasicTable):
 
     # Print Items
     def __print(self) -> None:
-        r = None
+        s = None
 
         # Number of Items
         nItems = len(self._items)
@@ -132,24 +258,17 @@ class RegionTable(BasicTable):
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
-        table.add_column("Country ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Air Forwarder ID", justify="left", max_width=FORWARDER_NCHAR)
-        table.add_column(
-            "Ocean Forwarder ID", justify="left", max_width=FORWARDER_NCHAR
-        )
+        table.add_column("Province ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
         # Loop Over Items
         for item in self._items:
             # Intialize Region from Item Fetched
-            r = Region.fromItemFetched(item)
+            s = Region.fromItemFetched(item)
 
             # Add Row to Rich Table
             table.add_row(
-                str(r.regionId),
-                r.name,
-                str(r.countryId),
-                str(r.airForwarderId),
-                str(r.oceanForwarderId),
+                str(s.regionId), s.name, str(s.provinceId), str(s.warehouseId)
             )
 
         # Print New Line
@@ -163,20 +282,20 @@ class RegionTable(BasicTable):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
-                [sql.Identifier(REGION_FK_COUNTRY), sql.Identifier(REGION_NAME)]
+                [sql.Identifier(REGION_FK_PROVINCE), sql.Identifier(REGION_NAME)]
             ),
         )
 
     # Insert Region to Table
-    def add(self, r: Region) -> None:
+    def add(self, s: Region) -> None:
         # Get Query
         query = self.__getInsertQuery()
 
         # Execute Query
         try:
-            self._c.execute(query, [r.countryId, r.name])
+            self._c.execute(query, [s.provinceId, s.name])
             console.print(
-                f"{r.name} Successfully Inserted to {self._tableName} Table",
+                f"{s.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
             )
         except Exception as err:
@@ -203,14 +322,14 @@ class RegionTable(BasicTable):
         return True
 
     # Find Region from Region Table
-    def find(self, countryId: int, regionName: str) -> Region | None:
+    def find(self, provinceId: int, regionName: str) -> Region | None:
         """
         Returns Region Object if it was Found. Otherwise, False
         """
 
         # Get Region
         if not self.getMult(
-            [REGION_FK_COUNTRY, REGION_NAME], [countryId, regionName], False
+            [REGION_FK_PROVINCE, REGION_NAME], [provinceId, regionName], False
         ):
             return None
 
@@ -231,125 +350,6 @@ class RegionTable(BasicTable):
     # Remove Row from Region Table
     def remove(self, regionId: int) -> None:
         BasicTable._remove(self, REGION_ID, regionId)
-
-
-# Subregion Table Class
-class SubregionTable(BasicTable):
-    # Constructor
-    def __init__(self, database: Database):
-        # Initialize Basic Table Class
-        super().__init__(SUBREGION_TABLENAME, database)
-
-    # Print Items
-    def __print(self) -> None:
-        s = None
-
-        # Number of Items
-        nItems = len(self._items)
-
-        # No Results
-        if nItems == 0:
-            noCoincidenceFetched()
-            return
-
-        # Initialize Rich Table
-        table = getTable("Subregion", nItems)
-
-        # Add Table Columns
-        table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
-        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
-
-        # Loop Over Items
-        for item in self._items:
-            # Intialize Subregion from Item Fetched
-            s = Subregion.fromItemFetched(item)
-
-            # Add Row to Rich Table
-            table.add_row(
-                str(s.subregionId), s.name, str(s.regionId), str(s.warehouseId)
-            )
-
-        # Print New Line
-        console.print("\n")
-
-        # Print Table
-        console.print(table)
-
-    # Get Insert Query
-    def __getInsertQuery(self):
-        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
-            tableName=sql.Identifier(self._tableName),
-            fields=sql.SQL(",").join(
-                [sql.Identifier(SUBREGION_FK_REGION), sql.Identifier(SUBREGION_NAME)]
-            ),
-        )
-
-    # Insert Subregion to Table
-    def add(self, s: Subregion) -> None:
-        # Get Query
-        query = self.__getInsertQuery()
-
-        # Execute Query
-        try:
-            self._c.execute(query, [s.regionId, s.name])
-            console.print(
-                f"{s.name} Successfully Inserted to {self._tableName} Table",
-                style="success",
-            )
-        except Exception as err:
-            raise err
-
-    # Filter Items from Subregion Table
-    def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not BasicTable._get(self, field, value):
-            return False
-
-        # Print Items
-        if printItems:
-            self.__print()
-        return True
-
-    # Filter Items with Multiple Conditions from Subregion Table
-    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, field, value):
-            return False
-
-        # Print Items
-        if printItems:
-            self.__print()
-        return True
-
-    # Find Subregion from Subregion Table
-    def find(self, regionId: int, subregionName: str) -> Subregion | None:
-        """
-        Returns Subregion Object if it was Found. Otherwise, False
-        """
-
-        # Get Subregion
-        if not self.getMult(
-            [SUBREGION_FK_REGION, SUBREGION_NAME], [regionId, subregionName], False
-        ):
-            return None
-
-        # Get Subregion Object from Item Fetched
-        return Subregion.fromItemFetched(self._items[0])
-
-    # Get All Items from Subregion Table
-    def all(self, orderBy: str, desc: bool) -> None:
-        BasicTable._all(self, orderBy, desc)
-
-        # Print Items
-        self.__print()
-
-    # Modify Row from Subregion Table
-    def modify(self, subregionId: int, field: str, value) -> None:
-        BasicTable._modify(self, SUBREGION_ID, subregionId, field, value)
-
-    # Remove Row from Subregion Table
-    def remove(self, subregionId: int) -> None:
-        BasicTable._remove(self, SUBREGION_ID, subregionId)
 
 
 # City Table Class
@@ -377,7 +377,7 @@ class CityTable(BasicTable):
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
-        table.add_column("Subregion ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -385,7 +385,7 @@ class CityTable(BasicTable):
             c = City.fromItemFetched(item)
 
             # Add Row to Rich Table
-            table.add_row(str(c.cityId), c.name, str(c.subregionId))
+            table.add_row(str(c.cityId), c.name, str(c.regionId))
 
         # Print New Line
         console.print("\n")
@@ -398,7 +398,7 @@ class CityTable(BasicTable):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
-                [sql.Identifier(CITY_FK_SUBREGION), sql.Identifier(CITY_NAME)]
+                [sql.Identifier(CITY_FK_REGION), sql.Identifier(CITY_NAME)]
             ),
         )
 
@@ -409,7 +409,7 @@ class CityTable(BasicTable):
 
         # Execute Query
         try:
-            self._c.execute(query, [c.subregionId, c.name])
+            self._c.execute(query, [c.regionId, c.name])
             console.print(
                 f"{c.name} Successfully Inserted to {self._tableName} Table",
                 style="success",
@@ -438,14 +438,14 @@ class CityTable(BasicTable):
         return True
 
     # Find City from City Table
-    def find(self, subregionId: int, cityName: str) -> City | None:
+    def find(self, regionId: int, cityName: str) -> City | None:
         """
         Returns City Object if it was Found. Otherwise, False
         """
 
         # Get City
         if not self.getMult(
-            [CITY_FK_SUBREGION, CITY_NAME], [subregionId, cityName], False
+            [CITY_FK_REGION, CITY_NAME], [regionId, cityName], False
         ):
             return None
 
@@ -498,7 +498,7 @@ class CityAreaTable(BasicTable):
 
         # Loop Over Items
         for item in self._items:
-            # Intialize Region from Item Fetched
+            # Intialize City Area from Item Fetched
             a = CityArea.fromItemFetched(item)
 
             # Add Row to Rich Table

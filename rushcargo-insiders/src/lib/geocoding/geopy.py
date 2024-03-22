@@ -35,43 +35,49 @@ class GeoPyGeocoder:
         except:
             raise LocationError(search, NOMINATIM_COUNTRY)
 
-    # Get Region Name
-    def getRegion(self, location: dict, region: str) -> str | None:
-        # Get Region Location
+    # Get Province Name
+    def getProvince(self, location: dict, province: str) -> str | None:
+        # Get Province Location
         location = self._geolocator.geocode(
-            ", ".join([region, location[DICT_COUNTRY_NAME]])
+            ", ".join([province, location[DICT_COUNTRY_NAME]])
         )
 
-        # Check if it's a Region
+        # Check if it's a Province
         try:
-            if location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION:
+            if (
+                location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
+                or location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE_ALT
+            ):
                 return self.__getName(location.raw)
             else:
                 raise -1
         except:
-            raise LocationError(region, NOMINATIM_REGION)
+            raise LocationError(province, NOMINATIM_PROVINCE)
 
-    # Get Subregion Name
-    def getSubregion(self, location: dict, subregion: str) -> str | None:
-        # Get Subregion Location
+    # Get Region Name
+    def getRegion(self, location: dict, region: str) -> str | None:
+        # Get Region Location
         location = self._geolocator.geocode(
             ", ".join(
                 [
-                    subregion,
-                    location[DICT_REGION_NAME],
+                    region,
+                    location[DICT_PROVINCE_NAME],
                     location[DICT_COUNTRY_NAME],
                 ]
             )
         )
 
-        # Check if it's a Subregion:
+        # Check if it's a Region:
         try:
-            if location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_SUBREGION:
+            if (
+                location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION
+                or location.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION_ALT
+            ):
                 return self.__getName(location.raw)
             else:
                 raise -1
         except:
-            raise LocationError(subregion, NOMINATIM_SUBREGION)
+            raise LocationError(region, NOMINATIM_REGION)
 
     # Get City Name
     def getCity(self, location: dict, city: str) -> str | None:
@@ -80,8 +86,8 @@ class GeoPyGeocoder:
             ", ".join(
                 [
                     city,
-                    location[DICT_SUBREGION_NAME],
                     location[DICT_REGION_NAME],
+                    location[DICT_PROVINCE_NAME],
                     location[DICT_COUNTRY_NAME],
                 ]
             )
@@ -104,8 +110,8 @@ class GeoPyGeocoder:
                 [
                     cityArea,
                     location[DICT_CITY_NAME],
-                    location[DICT_SUBREGION_NAME],
                     location[DICT_REGION_NAME],
+                    location[DICT_PROVINCE_NAME],
                     location[DICT_COUNTRY_NAME],
                 ]
             )

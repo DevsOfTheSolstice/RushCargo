@@ -4,21 +4,25 @@ from rich.logging import RichHandler
 
 from .constants import *
 
-from ..model.database import *
+from ..io.constants import (
+    ADD,
+    RM,
+    ALL,
+    GET,
+    MOD,
+    TABLE_TERRITORY_CMD,
+    TABLE_BUILDING_CMD,
+)
+from ..io.arguments import getEventHandlerArguments
+from ..io.validator import *
+
+from ..geocoding.geopy import initGeoPyGeocoder, NOMINATIM_USER_AGENT
+
+from ..local_database.database import GeoPyDatabase, GeoPyTables
+
 from ..model.database_territory import *
 
-from ..local_database.database import *
-from ..local_database.constants import *
-
 # from ..model.database_building import *
-
-from ..geocoding.constants import *
-from ..geocoding.geopy import *
-
-from ..model.classes import *
-from ..model.constants import *
-from ..model.exceptions import *
-from ..io.validator import *
 
 
 # Get Rich Logger
@@ -71,8 +75,6 @@ class EventHandler:
 
     # Main Event Handler
     def handler(self, action: str, tableGroup: str, table: str) -> None:
-        tableMsg = "At which Table?"
-
         try:
             while True:
                 try:
@@ -87,31 +89,24 @@ class EventHandler:
                 if Confirm.ask("\nDo you want to Continue with this Command?"):
                     # Clear Screen
                     clear()
-
                     continue
 
                 # Clear Screen
                 clear()
 
-                # Ask Next Action
-                action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
+                # Get Event Handler Arguments
+                arguments = getEventHandlerArguments()
 
                 # Check if the User wants to Exit the Program
-                if action == EXIT:
+                if arguments == None:
                     break
 
-                # Ask for Table Group to Work with
-                tableGroup = Prompt.ask(
-                    "At which Table Group?", choices=TABLE_GROUP_CMDS
-                )
+                # Get Arguments
+                action, tableGroup, table = arguments
 
-                # Ask for Table to Work with
-                if tableGroup == TABLE_TERRITORY_CMD:
-                    table = Prompt.ask(tableMsg, choices=TABLE_TERRITORY_CMDS)
-
-                elif tableGroup == TABLE_BUILDING_CMD:
-                    table = Prompt.ask(tableMsg, choices=TABLE_BUILDING_CMDS)
         except KeyboardInterrupt:
+            # Program End
+            console.print("\nExiting...", style="warning")
             return
 
 
@@ -417,6 +412,9 @@ class TerritoryEventHandler(EventHandler):
                 choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
             )
 
+            # Clear Terminal
+            clear()
+
             # Print Table
             self._countryTable.all(sortBy, desc)
 
@@ -433,6 +431,9 @@ class TerritoryEventHandler(EventHandler):
                 ],
             )
 
+            # Clear Terminal
+            clear()
+
             # Print Table
             self._provinceTable.all(sortBy, desc)
 
@@ -448,6 +449,9 @@ class TerritoryEventHandler(EventHandler):
                 ],
             )
 
+            # Clear Terminal
+            clear()
+
             # Print Table
             self._regionTable.all(sortBy, desc)
 
@@ -458,6 +462,9 @@ class TerritoryEventHandler(EventHandler):
                 choices=[CITY_ID, CITY_FK_REGION, CITY_NAME],
             )
 
+            # Clear Terminal
+            clear()
+
             # Print Table
             self._cityTable.all(sortBy, desc)
 
@@ -467,6 +474,9 @@ class TerritoryEventHandler(EventHandler):
                 self._allSortByMsg,
                 choices=[CITY_AREA_ID, CITY_AREA_FK_CITY, CITY_AREA_NAME],
             )
+
+            # Clear Terminal
+            clear()
 
             # Print Table
             self._cityAreaTable.all(sortBy, desc)
@@ -491,6 +501,9 @@ class TerritoryEventHandler(EventHandler):
 
             else:
                 value = str(IntPrompt.ask(self._getValueMsg))
+
+            # Clear Terminal
+            clear()
 
             # Print Table Coincidences
             self._countryTable.get(field, value)
@@ -518,6 +531,9 @@ class TerritoryEventHandler(EventHandler):
             else:
                 value = str(IntPrompt.ask(self._getValueMsg))
 
+            # Clear Terminal
+            clear()
+
             # Print Table Coincidences
             self._provinceTable.get(field, value)
 
@@ -543,6 +559,9 @@ class TerritoryEventHandler(EventHandler):
             else:
                 value = str(IntPrompt.ask(self._getValueMsg))
 
+            # Clear Terminal
+            clear()
+
             # Print Table Coincidences
             self._regionTable.get(field, value)
 
@@ -563,6 +582,9 @@ class TerritoryEventHandler(EventHandler):
             else:
                 value = str(IntPrompt.ask(self._getValueMsg))
 
+            # Clear Terminal
+            clear()
+
             # Print Table Coincidences
             self._cityTable.get(field, value)
 
@@ -582,6 +604,9 @@ class TerritoryEventHandler(EventHandler):
 
             else:
                 value = str(IntPrompt.ask(self._getValueMsg))
+
+            # Clear Terminal
+            clear()
 
             # Print Table Coincidences
             self._cityAreaTable.get(field, value)

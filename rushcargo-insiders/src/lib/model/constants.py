@@ -20,10 +20,12 @@ BOX_STYLE = box.ROUNDED
 
 # Number of Characters to Print per Column for Common Table Attributes
 ID_NCHAR = 10
-DESCRIPTION_NCHAR = 30
+DESCRIPTION_NCHAR = 20
+CONTACT_NCHAR = 10
 
 # ... for Location-related Tables
 LOCATION_NAME_NCHAR = 20
+COORDINATE_NCHAR = 10
 
 # ... for Warehouse-related Attributes
 WAREHOUSE_NCHAR = 20
@@ -88,36 +90,3 @@ BRANCH_TABLENAME = "branch"
 BRANCH_ID = "branch_id"
 BRANCH_RUTE_DISTANCE = "rute_distance"
 BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
-
-# Action-related Commands
-ADD = "add"
-RM = "rm"
-MOD = "mod"
-GET = "get"
-ALL = "all"
-EXIT = "exit"
-
-# Table-related Available Action Commands
-ACTION_CMDS = [ADD, RM, MOD, GET, ALL, EXIT]
-
-# Available Tables that can be Interacted with
-
-# Territory-related Commands
-TABLE_TERRITORY_CMD = "territory"
-TABLE_TERRITORY_CMDS = [
-    COUNTRY_TABLENAME,
-    PROVINCE_TABLENAME,
-    REGION_TABLENAME,
-    CITY_TABLENAME,
-    CITY_AREA_TABLENAME,
-]
-
-# Building-related Commands
-TABLE_BUILDING_CMD = "building"
-TABLE_BUILDING_CMDS = [BUILDING_TABLENAME]
-
-# Table Group Commands
-TABLE_GROUP_CMDS = [TABLE_TERRITORY_CMD, TABLE_BUILDING_CMD]
-
-# ArgParse Commands
-TABLE_ARGPARSE_CMDS = list(TABLE_TERRITORY_CMDS + TABLE_BUILDING_CMDS)

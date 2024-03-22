@@ -151,7 +151,6 @@ class Building:
     addressDescription: str = None
     gpsLatitude: int = None
     gpsLongitude: int = None
-    address: str = None
 
     # Constructor
     def __init__(

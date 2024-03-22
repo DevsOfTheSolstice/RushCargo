@@ -36,9 +36,6 @@ class CountryTable(BasicTable):
             # Add Row to Rich Table
             table.add_row(str(c.countryId), c.name, str(c.phonePrefix))
 
-        # Print New Line
-        console.print("\n")
-
         # Print Table
         console.print(table)
 
@@ -151,9 +148,6 @@ class ProvinceTable(BasicTable):
                 str(p.airForwarderId),
                 str(p.oceanForwarderId),
             )
-
-        # Print New Line
-        console.print("\n")
 
         # Print Table
         console.print(table)
@@ -271,9 +265,6 @@ class RegionTable(BasicTable):
                 str(s.regionId), s.name, str(s.provinceId), str(s.warehouseId)
             )
 
-        # Print New Line
-        console.print("\n")
-
         # Print Table
         console.print(table)
 
@@ -387,9 +378,6 @@ class CityTable(BasicTable):
             # Add Row to Rich Table
             table.add_row(str(c.cityId), c.name, str(c.regionId))
 
-        # Print New Line
-        console.print("\n")
-
         # Print Table
         console.print(table)
 
@@ -444,9 +432,7 @@ class CityTable(BasicTable):
         """
 
         # Get City
-        if not self.getMult(
-            [CITY_FK_REGION, CITY_NAME], [regionId, cityName], False
-        ):
+        if not self.getMult([CITY_FK_REGION, CITY_NAME], [regionId, cityName], False):
             return None
 
         # Get City Object from Item Fetched
@@ -503,9 +489,6 @@ class CityAreaTable(BasicTable):
 
             # Add Row to Rich Table
             table.add_row(str(a.areaId), a.areaName, a.areaDescription, str(a.cityId))
-
-        # Print New Line
-        console.print("\n")
 
         # Print Table
         console.print(table)

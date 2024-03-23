@@ -57,7 +57,7 @@ class CountryTable(BasicTable):
         try:
             self._c.execute(query, [c.name, c.phonePrefix])
             console.print(
-                f"{c.name} Successfully Inserted to {self._tableName} Table",
+                insertedRow(c.name, self._tableName),
                 style="success",
             )
         except Exception as err:
@@ -74,7 +74,7 @@ class CountryTable(BasicTable):
         return True
 
     # Find Country from Country Table
-    def find(self, field: str, value) -> Country | None:
+    def _find(self, field: str, value) -> Country | None:
         """
         Returns Country Object if it was Found. Otherwise, False
 
@@ -82,11 +82,15 @@ class CountryTable(BasicTable):
         """
 
         # Get Country
-        if not self._get(field, value):
+        if not self.get(field, value):
             return None
 
         # Get Country Object from Item Fetched
         return Country.fromItemFetched(self._items[0])
+
+    @classmethod
+    def find(cls, field:str, value):
+        return cls._find(cls, field, value)
 
     # Get All Items from Country Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -162,15 +166,15 @@ class ProvinceTable(BasicTable):
         )
 
     # Insert Province to Table
-    def add(self, r: Province) -> None:
+    def add(self, p: Province) -> None:
         # Get Query
         query = self.__getInsertQuery()
 
         # Execute Query
         try:
-            self._c.execute(query, [r.countryId, r.name])
+            self._c.execute(query, [p.countryId, p.name])
             console.print(
-                f"{r.name} Successfully Inserted to {self._tableName} Table",
+                insertedRow(p.name, self._tableName),
                 style="success",
             )
         except Exception as err:
@@ -187,8 +191,8 @@ class ProvinceTable(BasicTable):
         return True
 
     # Filter Items with Multiple Conditions from Province Table
-    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, field, value):
+    def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, fields, values):
             return False
 
         # Print Items
@@ -197,7 +201,7 @@ class ProvinceTable(BasicTable):
         return True
 
     # Find Province from Province Table
-    def find(self, countryId: int, provinceName: str) -> Province | None:
+    def _find(self, countryId: int, provinceName: str) -> Province | None:
         """
         Returns Province Object if it was Found. Otherwise, False
         """
@@ -210,6 +214,10 @@ class ProvinceTable(BasicTable):
 
         # Get Province Object from Item Fetched
         return Province.fromItemFetched(self._items[0])
+
+    @classmethod
+    def find(cls, countryId:int, provinceName:str):
+        return cls._find(cls, countryId, provinceName)
 
     # Get All Items from Province Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -278,15 +286,15 @@ class RegionTable(BasicTable):
         )
 
     # Insert Region to Table
-    def add(self, s: Region) -> None:
+    def add(self, r: Region) -> None:
         # Get Query
         query = self.__getInsertQuery()
 
         # Execute Query
         try:
-            self._c.execute(query, [s.provinceId, s.name])
+            self._c.execute(query, [r.provinceId, r.name])
             console.print(
-                f"{s.name} Successfully Inserted to {self._tableName} Table",
+                insertedRow(r.name, self._tableName),
                 style="success",
             )
         except Exception as err:
@@ -303,8 +311,8 @@ class RegionTable(BasicTable):
         return True
 
     # Filter Items with Multiple Conditions from Region Table
-    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, field, value):
+    def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, fields, values):
             return False
 
         # Print Items
@@ -313,7 +321,7 @@ class RegionTable(BasicTable):
         return True
 
     # Find Region from Region Table
-    def find(self, provinceId: int, regionName: str) -> Region | None:
+    def _find(self, provinceId: int, regionName: str) -> Region | None:
         """
         Returns Region Object if it was Found. Otherwise, False
         """
@@ -326,6 +334,10 @@ class RegionTable(BasicTable):
 
         # Get Region Object from Item Fetched
         return Region.fromItemFetched(self._items[0])
+
+    @classmethod
+    def find(cls, provinceId:int, regionName:str):
+        return cls._find(cls, provinceId, regionName)
 
     # Get All Items from Region Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -399,7 +411,7 @@ class CityTable(BasicTable):
         try:
             self._c.execute(query, [c.regionId, c.name])
             console.print(
-                f"{c.name} Successfully Inserted to {self._tableName} Table",
+                insertedRow(c.name, self._tableName),
                 style="success",
             )
         except Exception as err:
@@ -416,8 +428,8 @@ class CityTable(BasicTable):
         return True
 
     # Filter Items with Multiple Conditions from City Table
-    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, field, value):
+    def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, fields, values):
             return False
 
         # Print Items
@@ -426,7 +438,7 @@ class CityTable(BasicTable):
         return True
 
     # Find City from City Table
-    def find(self, regionId: int, cityName: str) -> City | None:
+    def _find(self, regionId: int, cityName: str) -> City | None:
         """
         Returns City Object if it was Found. Otherwise, False
         """
@@ -437,6 +449,10 @@ class CityTable(BasicTable):
 
         # Get City Object from Item Fetched
         return City.fromItemFetched(self._items[0])
+
+    @classmethod
+    def find(cls, regionId:int, cityName:str):
+        return cls._find(cls, regionId, cityName)
 
     # Get All Items from City Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -511,7 +527,7 @@ class CityAreaTable(BasicTable):
         try:
             self._c.execute(query, [a.cityId, a.areaName])
             console.print(
-                f"{a.areaName} Successfully Inserted to {self._tableName} Table",
+                insertedRow(a.areaName, self._tableName),
                 style="success",
             )
         except Exception as err:
@@ -528,14 +544,33 @@ class CityAreaTable(BasicTable):
         return True
 
     # Filter Items with Multiple Conditions from City Areas Table
-    def getMult(self, field: list[str], value: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, field, value):
+    def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
+        if not BasicTable._getMult(self, fields, values):
             return False
 
         # Print Items
         if printItems:
             self.__print()
         return True
+
+    # Find City Area from City Area Table
+    def _find(self, cityId: int, areaName: str) -> City | None:
+        """
+        Returns City Area Object if it was Found. Otherwise, False
+        """
+
+        # Get City Area
+        if not self.getMult(
+            [CITY_AREA_FK_CITY, CITY_AREA_NAME], [cityId, areaName], False
+        ):
+            return None
+
+        # Get City Area Object from Item Fetched
+        return CityArea.fromItemFetched(self._items[0])
+
+    @classmethod
+    def find(cls, cityId: int, areaName:str):
+        return cls._find(cls, cityId, areaName)
 
     # Get All Items from City Area Table
     def all(self, orderBy: str, desc: bool) -> None:

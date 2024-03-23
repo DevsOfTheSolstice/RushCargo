@@ -406,16 +406,28 @@ class GeoPyTables:
         self._c.execute(querySearch, (parentRowid,))
 
     # Get Country Name from GeoPy Country Name Table
-    def getCountryName(self, countryNameId: int) -> str | None:
+    def _getCountryName(self, countryNameId: int) -> str | None:
         return self.__getName(GEOPY_COUNTRY_TABLENAME, countryNameId)
 
+    @classmethod
+    def getCountryName(cls, countryNameId: int):
+        return cls._getCountryName(cls, countryNameId)
+
     # Get Country Name ID from GeoPy Country Name Table
-    def getCountryNameId(self, name: str) -> int | None:
+    def _getCountryNameId(self, name: str) -> int | None:
         return self.__getRootNameId(GEOPY_COUNTRY_TABLENAME, name)
 
+    @classmethod
+    def getCountryNameId(cls, name: str):
+        return cls._getCountryNameId(cls, name)
+
     # Get Country Name ID from GeoPy Country Search Table
-    def getCountrySearchNameId(self, search: str) -> int | None:
+    def _getCountrySearchNameId(self, search: str) -> int | None:
         return self.__getRootSearchNameId(GEOPY_COUNTRY_TABLENAME, search)
+
+    @classmethod
+    def getCountrySearchNameId(cls, search: str):
+        return cls._getCountrySearchNameId(cls, search)
 
     # Get First Country Name ID from GeoPy Country Name Table
     def _getFirstCountryNameId(self) -> int | None:
@@ -473,15 +485,19 @@ class GeoPyTables:
         self.__setCounter(searchTableName, counter)
 
     # Add Country
-    def addCountry(self, search: str, name: str) -> None:
+    def _addCountry(self, search: str, name: str) -> None:
         # Add Country Name if it hasn't being Inserted
         self._addCountryName(name)
 
         # Get Country Name ID
-        countryNameId = self.getCountryNameId(name)
+        countryNameId = self._getCountryNameId(name)
 
         # Add Country Search
         self._addCountrySearch(search, countryNameId)
+
+    @classmethod
+    def addCountry(cls, search: str, name: str):
+        return cls._addCountry(cls, search, name)
 
     # Remove First-in Country Name ID from GeoPy Country Name Table
     def _removeFirstCountryName(self) -> None:
@@ -515,17 +531,25 @@ class GeoPyTables:
         )
 
     # Get Province Name from GeoPy Province Name Table
-    def getProvinceName(self, provinceNameId: int) -> str | None:
+    def _getProvinceName(self, provinceNameId: int) -> str | None:
         return self.__getName(GEOPY_PROVINCE_TABLENAME, provinceNameId)
 
+    @classmethod
+    def getProvinceName(cls, provinceNameId: int):
+        return cls._getProvinceName(cls, provinceNameId)
+
     # Get Province Name ID from GeoPy Province Name Table
-    def getProvinceNameId(self, countryNameId: int, name: str) -> int | None:
+    def _getProvinceNameId(self, countryNameId: int, name: str) -> int | None:
         return self.__getChildNameId(
             GEOPY_PROVINCE_TABLENAME, GEOPY_COUNTRY_TABLENAME, name, countryNameId
         )
 
+    @classmethod
+    def getProvinceNameId(cls, countryNameId: int, name: str):
+        return cls._getProvinceNameId(cls, countryNameId, name)
+
     # Get Province Name ID from GeoPy Province Search Table
-    def getProvinceSearchNameId(
+    def _getProvinceSearchNameId(
         self, countryNameId: int, provinceSearch: str
     ) -> int | None:
         return self.__getChildSearchNameId(
@@ -534,6 +558,10 @@ class GeoPyTables:
             provinceSearch,
             countryNameId,
         )
+
+    @classmethod
+    def getProvinceSearchNameId(cls, countryNameId: int, provinceSearch: str):
+        return cls._getProvinceNameId(cls, countryNameId, provinceSearch)
 
     # Get First Province Name ID from GeoPy Province Name Table
     def _getFirstProvinceNameId(self) -> int | None:
@@ -598,7 +626,7 @@ class GeoPyTables:
         self.__setCounter(searchTableName, counter)
 
     # Add Province
-    def addProvince(
+    def _addProvince(
         self, countryNameId: int, provinceSearch: str, provinceName: str
     ) -> None:
         # Add Province Name if it hasn't being Inserted
@@ -609,6 +637,10 @@ class GeoPyTables:
 
         # Add Province Search
         self._addProvinceSearch(provinceSearch, provinceNameId)
+
+    @classmethod
+    def addProvince(cls, countryNameId: int, provinceSearch: str, provinceName: str):
+        return cls._addProvince(cls, countryNameId, provinceSearch, provinceName)
 
     # Remove First-in Province Name ID from GeoPy Province Name Table
     def _removeFirstProvinceName(self) -> None:
@@ -665,17 +697,25 @@ class GeoPyTables:
         )
 
     # Get Region Name from GeoPy Region Name Table
-    def getRegionName(self, regionNameId: int) -> str | None:
+    def _getRegionName(self, regionNameId: int) -> str | None:
         return self.__getName(GEOPY_REGION_TABLENAME, regionNameId)
 
+    @classmethod
+    def getRegionName(cls, regionNameId: int):
+        return cls._getRegionName(cls, regionNameId)
+
     # Get Region Name ID from GeoPy Region Name Table
-    def getRegionNameId(self, provinceNameId: int, name: str) -> int | None:
+    def _getRegionNameId(self, provinceNameId: int, name: str) -> int | None:
         return self.__getChildNameId(
             GEOPY_REGION_TABLENAME, GEOPY_PROVINCE_TABLENAME, name, provinceNameId
         )
 
+    @classmethod
+    def getRegionNameId(cls, provinceNameId: int, name: str):
+        return cls._getRegionNameId(cls, provinceNameId, name)
+
     # Get Region Name ID from GeoPy Region Search Table
-    def getRegionSearchNameId(
+    def _getRegionSearchNameId(
         self, provinceNameId: int, regionSearch: str
     ) -> int | None:
         return self.__getChildSearchNameId(
@@ -684,6 +724,10 @@ class GeoPyTables:
             regionSearch,
             provinceNameId,
         )
+
+    @classmethod
+    def getRegionSearchNameId(cls, provinceNameId: int, regionSearch: str):
+        return cls._getRegionSearchNameId(cls, provinceNameId, regionSearch)
 
     # Get First Region Name ID from GeoPy Region Name Table
     def _getFirstRegionNameId(self) -> int | None:
@@ -748,7 +792,7 @@ class GeoPyTables:
         self.__setCounter(searchTableName, counter)
 
     # Add Region
-    def addRegion(
+    def _addRegion(
         self, provinceNameId: int, regionSearch: str, regionName: str
     ) -> None:
         # Add Region Name if it hasn't being Inserted
@@ -759,6 +803,10 @@ class GeoPyTables:
 
         # Add Region Search
         self._addRegionSearch(regionSearch, regionNameId)
+
+    @classmethod
+    def addRegion(cls, provinceNameId: int, regionSearch: str, regionName: str):
+        return cls._addRegion(cls, provinceNameId, regionSearch, regionName)
 
     # Remove First-in Region Name ID from GeoPy Region Name Table
     def _removeFirstRegionName(self) -> None:
@@ -819,23 +867,35 @@ class GeoPyTables:
             )
 
     # Get City Name from GeoPy City Name Table
-    def getCityName(self, cityNameId: int) -> str | None:
+    def _getCityName(self, cityNameId: int) -> str | None:
         return self.__getName(GEOPY_CITY_TABLENAME, cityNameId)
 
+    @classmethod
+    def getCityName(cls, cityNameId: int):
+        return cls._getCityName(cls, cityNameId)
+
     # Get City Name ID from GeoPy City Name Table
-    def getCityNameId(self, regionNameId: int, name: str) -> int | None:
+    def _getCityNameId(self, regionNameId: int, name: str) -> int | None:
         return self.__getChildNameId(
             GEOPY_CITY_TABLENAME, GEOPY_REGION_TABLENAME, name, regionNameId
         )
 
+    @classmethod
+    def getCityNameId(cls, regionNameId: int, name: str):
+        return cls._getCityNameId(cls, regionNameId, name)
+
     # Get City Name ID from GeoPy City Search Table
-    def getCitySearchNameId(self, regionNameId: int, citySearch: str) -> int | None:
+    def _getCitySearchNameId(self, regionNameId: int, citySearch: str) -> int | None:
         return self.__getChildSearchNameId(
             GEOPY_CITY_TABLENAME,
             GEOPY_REGION_TABLENAME,
             citySearch,
             regionNameId,
         )
+
+    @classmethod
+    def getCitySearchNameId(cls, regionNameId: int, citySearch: str):
+        return cls._getCitySearchNameId(cls, regionNameId, citySearch)
 
     # Get First City Name ID from GeoPy City Name Table
     def _getFirstCityNameId(self) -> int | None:
@@ -900,7 +960,7 @@ class GeoPyTables:
         self.__setCounter(searchTableName, counter)
 
     # Add City
-    def addCity(self, regionNameId: int, citySearch: str, cityName: str) -> None:
+    def _addCity(self, regionNameId: int, citySearch: str, cityName: str) -> None:
         # Add City Name if it hasn't being Inserted
         self._addCityName(regionNameId, cityName)
 
@@ -909,6 +969,10 @@ class GeoPyTables:
 
         # Add City Search
         self._addCitySearch(citySearch, cityNameId)
+
+    @classmethod
+    def addCity(cls, regionNameId: int, citySearch: str, cityName: str):
+        return cls._addCity(cls, regionNameId, citySearch, cityName)
 
     # Remove First-in City Name ID from GeoPy City Name Table
     def _removeFirstCityName(self) -> None:
@@ -968,23 +1032,35 @@ class GeoPyTables:
             )
 
     # Get City Area Name from GeoPy City Area Name Table
-    def getCityAreaName(self, areaNameId: int) -> str | None:
+    def _getCityAreaName(self, areaNameId: int) -> str | None:
         return self.__getName(GEOPY_CITY_AREA_TABLENAME, areaNameId)
 
+    @classmethod
+    def getCityAreaName(cls, areaNameId: int):
+        return cls._getCityAreaName(cls, areaNameId)
+
     # Get City Area Name ID from GeoPy City Area Name Table
-    def getCityAreaNameId(self, cityNameId: int, name: str) -> int | None:
+    def _getCityAreaNameId(self, cityNameId: int, name: str) -> int | None:
         return self.__getChildNameId(
             GEOPY_CITY_AREA_TABLENAME, GEOPY_CITY_TABLENAME, name, cityNameId
         )
 
+    @classmethod
+    def getCityAreaNameId(cls, cityNameId: int, name: str):
+        return cls._getCityAreaNameId(cls, cityNameId, name)
+
     # Get City Area Name ID from GeoPy City Area Search Table
-    def getCityAreaSearchNameId(self, cityNameId: int, areaSearch: str) -> int | None:
+    def _getCityAreaSearchNameId(self, cityNameId: int, areaSearch: str) -> int | None:
         return self.__getChildSearchNameId(
             GEOPY_CITY_AREA_TABLENAME,
             GEOPY_CITY_TABLENAME,
             areaSearch,
             cityNameId,
         )
+
+    @classmethod
+    def getCityAreaSearchNameId(cls, cityNameId: int, areaSearch: str):
+        return cls._getCityAreaSearchNameId(cls, cityNameId, areaSearch)
 
     # Get First City Area Name ID from GeoPy City Area Name Table
     def _getFirstCityAreaNameId(self) -> int | None:
@@ -1049,7 +1125,7 @@ class GeoPyTables:
         self.__setCounter(searchTableName, counter)
 
     # Add City Area
-    def addCityArea(self, cityNameId: int, areaSearch: str, areaName: str) -> None:
+    def _addCityArea(self, cityNameId: int, areaSearch: str, areaName: str) -> None:
         # Add City Area Name if it hasn't being Inserted
         self._addCityAreaName(cityNameId, areaName)
 
@@ -1058,6 +1134,10 @@ class GeoPyTables:
 
         # Add City Area Search
         self._addCityAreaSearch(areaSearch, areaNameId)
+
+    @classmethod
+    def addCityArea(cls, cityNameId: int, areaSearch: str, areaName: str):
+        return cls._addCityArea(cls, cityNameId, areaSearch, areaName)
 
     # Remove First-in City Area Name ID from GeoPy City Area Name Table
     def _removeFirstCityAreaName(self) -> None:

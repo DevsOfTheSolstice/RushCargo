@@ -29,6 +29,15 @@ class LocationError(Exception):
         )
 
 
+class PlaceNotFound(Exception):
+    """
+    Exception Raised when a Place wasn't Found by GeoPy Geocoder
+    """
+
+    def __init__(self, cityAreaName: str, placeName: str):
+        super().__init__(f"'{placeName}' Not Found at '{cityAreaName}'\n")
+
+
 class RowNotFound(Exception):
     """
     Exception Raised when a Query MUST Return at Least One Coincidence, but it doesn't

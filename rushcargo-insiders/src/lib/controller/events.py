@@ -16,13 +16,17 @@ from ..io.constants import (
 from ..io.arguments import getEventHandlerArguments
 from ..io.validator import *
 
-from ..geocoding.geopy import initGeoPyGeocoder, NOMINATIM_USER_AGENT
+from ..geocoding.geopy import (
+    initGeoPyGeocoder,
+    NOMINATIM_USER_AGENT,
+    NOMINATIM_LATITUDE,
+    NOMINATIM_LONGITUDE,
+)
 
 from ..local_database.database import GeoPyDatabase, GeoPyTables
 
 from ..model.database_territory import *
-
-# from ..model.database_building import *
+from ..model.database_building import *
 
 
 # Get Rich Logger
@@ -33,6 +37,11 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 log = logging.getLogger("rich")
+
+
+# Event Handlers
+territoryEventHandler = None
+buildingEventHandler = None
 
 
 # Event Handler Class
@@ -58,29 +67,39 @@ class EventHandler:
     # Remove Handler Messages
     _rmConfirmMsg = "Is this the Row you want to Remove?"
 
-    # Event Handlers
-    __territoryEventHandler = None
-
     # Constructor
     def __init__(self):
         # Initialize Database Connection
         self.__db, self.__user = initDb()
-
-        # Initialize Event Hanlder Classes
-        self.__initHandlers()
-
-    # Initialize Event Handler Classes
-    def __initHandlers(self):
-        self.__territoryEventHandler = TerritoryEventHandler(self.__db, self.__user)
 
     # Main Event Handler
     def handler(self, action: str, tableGroup: str, table: str) -> None:
         try:
             while True:
                 try:
-                    # Call Territory Event Handler
+                    # Global Variables
+                    global territoryEventHandler
+                    global buildingEventHandler
+
+                    # Check if it's a Territory Table
                     if tableGroup == TABLE_TERRITORY_CMD:
-                        self.__territoryEventHandler.handler(action, table)
+                        # Initialize Territory Event Handler Classes
+                        if territoryEventHandler == None:
+                            territoryEventHandler = TerritoryEventHandler(
+                                self.__db, self.__user
+                            )
+
+                        # Call Territory Event Handler
+                        territoryEventHandler.handler(action, table)
+
+                    # Check if it's a Building Table
+                    if tableGroup == TABLE_BUILDING_CMD:
+                        # Initialize Building Event Handler Classes
+                        if buildingEventHandler == None:
+                            buildingEventHandler = BuildingEventHandler(self.__db)
+
+                        # Call Building Event Handler
+                        buildingEventHandler.handler(action, table)
 
                 except Exception as err:
                     console.print(err, style="warning")
@@ -154,8 +173,8 @@ class TerritoryEventHandler(EventHandler):
         # Initialize Local Database Tables Class
         self.__tables = GeoPyTables(cursor)
 
-    # Get Country Id and Name
-    def getCountryId(self) -> dict | None:
+    # Get Country ID and Name
+    def _getCountryId(self) -> dict | None:
         countrySearch = Prompt.ask(self._getCountryMsg)
 
         # Check Country Name
@@ -186,7 +205,7 @@ class TerritoryEventHandler(EventHandler):
             data[DICT_COUNTRY_NAME_ID] = self.__tables.getCountryNameId(countryName)
 
         # Get Country
-        c = self._countryTable.find(COUNTRY_NAME, countryName)
+        c = self._countryTable._find(COUNTRY_NAME, countryName)
 
         if c == None:
             raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
@@ -196,8 +215,12 @@ class TerritoryEventHandler(EventHandler):
 
         return data
 
-    # Get Province Id based on its Name and the Country Id where it's Located
-    def getProvinceId(self) -> dict | None:
+    @classmethod
+    def getCountryId(cls):
+        return cls._getCountryId(cls)
+
+    # Get Province ID based on its Name and the Country ID where it's Located
+    def _getProvinceId(self) -> dict | None:
         data = self.getCountryId()
         provinceSearch = Prompt.ask(self._getProvinceMsg)
 
@@ -232,7 +255,7 @@ class TerritoryEventHandler(EventHandler):
             )
 
         # Get Province
-        p = self._provinceTable.find(data[DICT_COUNTRY_ID], provinceName)
+        p = self._provinceTable._find(data[DICT_COUNTRY_ID], provinceName)
 
         if p == None:
             raise RowNotFound(PROVINCE_TABLENAME, PROVINCE_NAME, provinceName)
@@ -246,8 +269,12 @@ class TerritoryEventHandler(EventHandler):
 
         return data
 
-    # Get Region Id based on its Name and the Province Id where it's Located
-    def getRegionId(self) -> dict | None:
+    @classmethod
+    def getProvinceId(cls):
+        return cls._getProvinceId(cls)
+
+    # Get Region ID based on its Name and the Province ID where it's Located
+    def _getRegionId(self) -> dict | None:
         data = self.getProvinceId()
         regionSearch = Prompt.ask(self._getRegionMsg)
 
@@ -282,7 +309,7 @@ class TerritoryEventHandler(EventHandler):
             )
 
         # Get Region
-        r = self._regionTable.find(data[DICT_PROVINCE_ID], regionName)
+        r = self._regionTable._find(data[DICT_PROVINCE_ID], regionName)
 
         if r == None:
             raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
@@ -296,8 +323,12 @@ class TerritoryEventHandler(EventHandler):
 
         return data
 
-    # Get City Id based on its Name and the Region Id where it's Located
-    def getCityId(self) -> dict | None:
+    @classmethod
+    def getRegionId(cls):
+        return cls._getRegionId(cls)
+
+    # Get City ID based on its Name and the Region ID where it's Located
+    def _getCityId(self) -> dict | None:
         data = self.getRegionId()
         citySearch = Prompt.ask(self._getCityMsg)
 
@@ -324,7 +355,7 @@ class TerritoryEventHandler(EventHandler):
             )
             data[DICT_CITY_NAME] = cityName
 
-            # Store Region Search at Local Database
+            # Store City Search at Local Database
             self.__tables.addCity(data[DICT_REGION_NAME_ID], citySearch, cityName)
 
             # Get City Name ID from Local Database
@@ -333,7 +364,7 @@ class TerritoryEventHandler(EventHandler):
             )
 
         # Get City
-        c = self._cityTable.find(data[DICT_REGION_ID], cityName)
+        c = self._cityTable._find(data[DICT_REGION_ID], cityName)
 
         if c == None:
             raise RowNotFound(CITY_TABLENAME, CITY_NAME, cityName)
@@ -347,8 +378,12 @@ class TerritoryEventHandler(EventHandler):
 
         return data
 
-    # Get City Area Id based on its Name and the City Id where it's Located
-    def getCityAreaId(self) -> dict | None:
+    @classmethod
+    def getCityId(cls):
+        return cls._getCityId(cls)
+
+    # Get City Area ID based on its Name and the City ID where it's Located
+    def _getCityAreaId(self) -> dict | None:
         data = self.getCityId()
         areaSearch = Prompt.ask(self._getCityAreaMsg)
 
@@ -376,7 +411,7 @@ class TerritoryEventHandler(EventHandler):
             data[DICT_CITY_AREA_NAME] = areaName
 
             # Store City Area Search at Local Database
-            self.__tables.addCity(data[DICT_CITY_NAME_ID], areaSearch, areaName)
+            self.__tables.addCityArea(data[DICT_CITY_NAME_ID], areaSearch, areaName)
 
             # Get City Area Name ID from Local Database
             data[DICT_CITY_AREA_NAME_ID] = self.__tables.getCityAreaNameId(
@@ -384,7 +419,7 @@ class TerritoryEventHandler(EventHandler):
             )
 
         # Get City Area
-        a = self._cityAreaTable.find(data[DICT_CITY_ID], areaName)
+        a = self._cityAreaTable._find(data[DICT_CITY_ID], areaName)
 
         if a == None:
             raise RowNotFound(CITY_AREA_TABLENAME, CITY_AREA_NAME, areaName)
@@ -398,6 +433,37 @@ class TerritoryEventHandler(EventHandler):
 
         return data
 
+    @classmethod
+    def getCityAreaId(cls):
+        return cls._getCityAreaId(cls)
+
+    # Get Place Coordinates
+    def _getPlaceCoordinates(self, msg: str) -> dict | None:
+        while True:
+            try:
+                data = self.getCityAreaId()
+                placeSearch = Prompt.ask(msg)
+
+                # Check Place Search
+                isAddressStr(placeSearch)
+
+                # Get Place Coordinates from GeoPy API based on the Data Provided
+                return self._geopyGeocoder.getPlaceCoordinates(data, placeSearch)
+
+            # Handle LocationError Exception
+            except LocationError as err:
+                console.print(err, style="warning")
+                console.print("\nTry Again with Another Name, or a Different Place")
+                continue
+
+            # Re-raise Other Type of Exceptions
+            except Exception as err:
+                raise err
+
+    @classmethod
+    def getPlaceCoordinates(cls, msg: str):
+        return cls._getPlaceCoordinates(cls, msg)
+
     # Get All Table Handler
     def _allHandler(self, table: str) -> None:
         sortBy = None
@@ -406,7 +472,7 @@ class TerritoryEventHandler(EventHandler):
         desc = Confirm.ask(self._allDescMsg)
 
         if table == COUNTRY_TABLENAME:
-            # Asks for Sort Order
+            # Ask the Sort Order
             sortBy = Prompt.ask(
                 self._allSortByMsg,
                 choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
@@ -419,7 +485,7 @@ class TerritoryEventHandler(EventHandler):
             self._countryTable.all(sortBy, desc)
 
         elif table == PROVINCE_TABLENAME:
-            # Asks for Sort Order
+            # Ask the Sort Order
             sortBy = Prompt.ask(
                 self._allSortByMsg,
                 choices=[
@@ -438,7 +504,7 @@ class TerritoryEventHandler(EventHandler):
             self._provinceTable.all(sortBy, desc)
 
         elif table == REGION_TABLENAME:
-            # Asks for Sort Order
+            # Ask the Sort Order
             sortBy = Prompt.ask(
                 self._allSortByMsg,
                 choices=[
@@ -456,7 +522,7 @@ class TerritoryEventHandler(EventHandler):
             self._regionTable.all(sortBy, desc)
 
         elif table == CITY_TABLENAME:
-            # Asks for Sort Order
+            # Ask the Sort Order
             sortBy = Prompt.ask(
                 self._allSortByMsg,
                 choices=[CITY_ID, CITY_FK_REGION, CITY_NAME],
@@ -469,7 +535,7 @@ class TerritoryEventHandler(EventHandler):
             self._cityTable.all(sortBy, desc)
 
         elif table == CITY_AREA_TABLENAME:
-            # Asks for Sort Order
+            # Ask the Sort Order
             sortBy = Prompt.ask(
                 self._allSortByMsg,
                 choices=[CITY_AREA_ID, CITY_AREA_FK_CITY, CITY_AREA_NAME],
@@ -724,6 +790,9 @@ class TerritoryEventHandler(EventHandler):
             if field == CITY_AREA_DESCRIPTION:
                 value = Prompt.ask(self._modValueMsg)
 
+                # Check City Area Description
+                isValueValid(CITY_AREA_TABLENAME, CITY_AREA_DESCRIPTION, value)
+
             # Modify City Area
             self._cityAreaTable.modify(areaId, field, value)
 
@@ -762,7 +831,7 @@ class TerritoryEventHandler(EventHandler):
 
         elif table == PROVINCE_TABLENAME:
             # Asks for Province Fields
-            data = self.getCountryId()
+            data = self._getCountryId()
             provinceSearch = Prompt.ask(self._getProvinceMsg)
 
             # Check Province Name
@@ -800,7 +869,7 @@ class TerritoryEventHandler(EventHandler):
 
         elif table == REGION_TABLENAME:
             # Asks for Region Fields
-            data = self.getProvinceId()
+            data = self._getProvinceId()
             regionSearch = Prompt.ask(self._getRegionMsg)
 
             # Check Region Name
@@ -838,7 +907,7 @@ class TerritoryEventHandler(EventHandler):
 
         elif table == CITY_TABLENAME:
             # Asks for City Fields
-            data = self.getRegionId()
+            data = self._getRegionId()
             citySearch = Prompt.ask(self._getCityMsg)
 
             # Check City Name
@@ -874,7 +943,7 @@ class TerritoryEventHandler(EventHandler):
 
         elif table == CITY_AREA_TABLENAME:
             # Asks for City Area Fields
-            data = self.getCityId()
+            data = self._getCityId()
             areaSearch = Prompt.ask(self._getCityAreaMsg)
             areaDescription = Prompt.ask("Enter City Area Description")
 
@@ -895,7 +964,9 @@ class TerritoryEventHandler(EventHandler):
                 areaName = self._geopyGeocoder.getCityArea(data, areaSearch)
 
                 # Store City Area Search in Local Database
-                self.__tables.addCityArea(data[DICT_CITY_NAME_ID], areaSearch, areaName)
+                self.__tables.addCityArea(
+                    data[DICT_CITY_NAME_ID], areaSearch, areaName
+                )
 
             areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
             areaValues = [data[DICT_CITY_ID], areaName]
@@ -988,6 +1059,197 @@ class TerritoryEventHandler(EventHandler):
             self._cityAreaTable.remove(areaId)
 
     # Territory Event Handler
+    def handler(self, action: str, table: str) -> None:
+        if action == ALL:
+            self._allHandler(table)
+
+        elif action == GET:
+            self._getHandler(table)
+
+        elif action == MOD:
+            self._modHandler(table)
+
+        elif action == ADD:
+            self._addHandler(table)
+
+        elif action == RM:
+            self._rmHandler(table)
+
+
+# Territory Table-related Event Handler
+class BuildingEventHandler(EventHandler):
+    # Table Classes
+    _warehouseTable = None
+
+    # Get Location Messages
+    _getBuildingMsg = "\nEnter Building Name"
+
+    # Constructor
+    def __init__(self, db: Database):
+        # Initialize Table Classes
+        self._warehouseTable = WarehouseTable(db)
+
+    # Check if Building Exists
+    def buildingExists(self, areaId: str, buildingName: str) -> bool:
+        buildingFields = [BUILDING_ID, BUILDING_FK_CITY_AREA]
+        buildingValues = [areaId, buildingName]
+
+        # Check if Building Name has already been Inserted for the City Area
+        if self._warehouseTable._getMultParentTable(buildingFields, buildingValues):
+            uniqueInsertedMult(buildingValues, buildingFields, buildingValues)
+            return
+
+    # Get All Table Handler
+    def _allHandler(self, table: str) -> None:
+        sortBy = None
+
+        # Asks if the User wants to Print it in Descending Order
+        desc = Confirm.ask(self._allDescMsg)
+
+        if table == WAREHOUSE_TABLENAME:
+            # Ask the Sort Order
+            sortBy = Prompt.ask(
+                self._allSortByMsg,
+                choices=[WAREHOUSE_ID, BUILDING_NAME, BUILDING_FK_CITY_AREA],
+            )
+
+            # Clear Terminal
+            clear()
+
+            # Print Table
+            self._warehouseTable.all(sortBy, desc)
+
+    # Get Table Handler
+    def _getHandler(self, table: str) -> None:
+        field = value = None
+
+        if table == WAREHOUSE_TABLENAME:
+            # Asks for Field to Compare
+            field = Prompt.ask(
+                self._getFieldMsg,
+                choices=[
+                    WAREHOUSE_ID,
+                    BUILDING_NAME,
+                    BUILDING_PHONE,
+                    BUILDING_FK_CITY_AREA,
+                ],
+            )
+
+            # Prompt to Ask the Value to be Compared
+            if field == BUILDING_NAME:
+                value = Prompt.ask(self._getValueMsg)
+
+                # Check Value
+                isValueValid(table, field, value)
+
+            else:
+                value = str(IntPrompt.ask(self._getValueMsg))
+
+            # Clear Terminal
+            clear()
+
+            # Print Table Coincidences
+            self._warehouseTable.get(field, value)
+
+    # Modify Row from Table Handler
+    def _modHandler(self, table: str) -> None:
+        field = value = None
+        warehouseId = None
+
+        if table == WAREHOUSE_TABLENAME:
+            # Ask for Warehouse ID to Modify
+            warehouseId = IntPrompt.ask("\nEnter Warehouse ID to Modify")
+
+            # Print Fetched Results
+            if not self._warehouseTable.get(WAREHOUSE_ID, warehouseId):
+                noCoincidenceFetched()
+                return
+
+            # Ask for Confirmation
+            if not Confirm.ask(self._modConfirmMsg):
+                return
+
+            # Ask for Field to Modify
+            field = Prompt.ask(
+                self._modFieldMsg,
+                choices=[BUILDING_NAME, BUILDING_PHONE, BUILDING_EMAIL],
+            )
+
+            # Prompt to Ask the New Value
+            if field == BUILDING_PHONE:
+                value = str(IntPrompt.ask(self._modValueMsg))
+
+            elif field == BUILDING_EMAIL:
+                value = Prompt.ask(self._modValueMsg)
+
+                # Check Warehouse Email and Get its Normalized Form
+                value = isEmailValid(value)
+
+            elif field == BUILDING_NAME:
+                value = Prompt.ask(self._modValueMsg)
+
+                # Check Warehouse Building Name
+                isValueValid(table, field, value)
+
+            # Modify Warehouse
+            self._warehouseTable.modify(warehouseId, field, value)
+
+    # Add Row to Table Handler
+    def _addHandler(self, table: str) -> None:
+        if table == WAREHOUSE_TABLENAME:
+            # Asks for Warehouse Fields
+            coords = TerritoryEventHandler.getPlaceCoordinates(
+                "Enter Place Name Near to Warehouse"
+            )
+            warehouseName = Prompt.ask("Enter Warehouse Name")
+            warehousePhone = IntPrompt.ask("Enter Warehouse Phone Number")
+            warehouseEmail = Prompt.ask("Enter Warehouse Email")
+            addressDescription = Prompt.ask("Enter Warehouse Address Description")
+
+            # Check Warehouse Name, Phone, Email and Description
+            isValueValid(table, BUILDING_NAME, warehouseName)
+            isValueValid(table, BUILDING_PHONE, warehousePhone)
+            isEmailValid(warehouseEmail)
+            isAddressStr(table, BUILDING_ADDRESS_DESCRIPTION, addressDescription)
+
+            # Check if Building Name for the Given City Area Already Exists
+            if self.buildingExists(coords[DICT_CITY_AREA_ID, warehouseName]):
+                console.print(
+                    f"There's a Building Named as '{warehouseName}' in '{coords[DICT_CITY_AREA_NAME]}'",
+                    style="warning",
+                )
+
+            # Insert Warehouse
+            self._warehouseTable.add(
+                Warehouse(
+                    addressDescription,
+                    warehouseName,
+                    warehouseEmail,
+                    coords[NOMINATIM_LATITUDE],
+                    coords[NOMINATIM_LONGITUDE],
+                    warehousePhone,
+                    coords[DICT_CITY_AREA_ID],
+                )
+            )
+
+    # Remove Row from Table Handler
+    def _rmHandler(self, table: str) -> None:
+        if table == COUNTRY_TABLENAME:
+            # Ask for Warehouse ID to Remove
+            warehouseId = IntPrompt.ask("\nEnter Warehouse ID to Remove")
+
+            # Print Fetched Results
+            if not self._warehouseTable.get(WAREHOUSE_ID, warehouseId):
+                noCoincidenceFetched()
+                return
+
+            # Ask for Confirmation
+            if not Confirm.ask(self._rmConfirmMsg):
+                return
+
+            self._warehouseTable.remove(warehouseId)
+
+    # Building Event Handler
     def handler(self, action: str, table: str) -> None:
         if action == ALL:
             self._allHandler(table)

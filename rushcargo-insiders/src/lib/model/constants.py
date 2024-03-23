@@ -20,15 +20,15 @@ BOX_STYLE = box.ROUNDED
 
 # Number of Characters to Print per Column for Common Table Attributes
 ID_NCHAR = 10
-DESCRIPTION_NCHAR = 20
+DESCRIPTION_NCHAR = 15
 CONTACT_NCHAR = 10
 
 # ... for Location-related Tables
-LOCATION_NAME_NCHAR = 20
-COORDINATE_NCHAR = 10
+LOCATION_NAME_NCHAR = 15
+COORDINATE_NCHAR = 8
 
 # ... for Warehouse-related Attributes
-WAREHOUSE_NCHAR = 20
+WAREHOUSE_NCHAR = 10
 
 # ... for Forwarder-related Attributes
 FORWARDER_NCHAR = 20

@@ -3,12 +3,10 @@ from rich.console import Console
 
 from .constants import *
 
+from ..model.database import console
 from ..model.constants import THEME
 
 from ..terminal.constants import TITLE_MSG, WELCOME_MSG
-
-# Get Console
-console = Console(theme=THEME)
 
 
 # Function to Get Arguments for the Main Event Handler

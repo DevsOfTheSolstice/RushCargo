@@ -13,8 +13,9 @@ impl HelpText {
             },
             client: ClientHelpText {
                 main: "Press `TAB` to switch actions, or `Esc` to go back.",
-                lockers: "Select a locker",
-                sent_packages: "Select"
+                lockers: "Select a locker.",
+                locker_packages: "Select a package.",
+                sent_packages: "Select a package.",
             },
         }
     }
@@ -29,5 +30,6 @@ pub struct LoginHelpText {
 pub struct ClientHelpText {
     pub main: &'static str,
     pub lockers: &'static str,
+    pub locker_packages: &'static str,
     pub sent_packages: &'static str,
 }

@@ -9,7 +9,7 @@ use crate::{
     event::{Event, InputBlacklist},
     model::{
         common::{User, Popup, UserType, TimeoutType},
-        client::Client,
+        client::{ClientData, Client},
         app::App,
     }
 };
@@ -54,10 +54,16 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                                         let first_name = res.try_get("client_name")?;
                                         let last_name = res.try_get("last_name")?;
                                         Some(User::Client(
-                                            Client {
-                                                username,
-                                                first_name,
-                                                last_name
+                                            ClientData {
+                                                info:
+                                                    Client {
+                                                        username,
+                                                        first_name,
+                                                        last_name
+                                                    },
+                                                viewing_lockers: None,
+                                                viewing_lockers_idx: 0,
+                                                active_locker: None,
                                             }
                                         ))
                                     }

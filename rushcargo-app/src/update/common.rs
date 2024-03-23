@@ -23,7 +23,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             Ok(())
         }
         Event::EnterScreen(screen) => {
-            app.lock().unwrap().enter_screen(&screen);
+            app.lock().unwrap().enter_screen(&screen, pool).await;
             Ok(())
         },
         Event::SwitchInput => {
@@ -61,8 +61,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             match subscreen {
                 Some(SubScreen::ClientMain) => {
                     match app_lock.action_sel {
-                        Some(0) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockers)),
-                        Some(1) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientSentPackages)),
+                        Some(0) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockers), pool).await,
+                        Some(1) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientSentPackages), pool).await,
                         _ => {}
                     }
                 }

@@ -1,9 +1,9 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    prelude::{Alignment, Frame},
+    prelude::{Alignment, Frame, Margin},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Clear, Paragraph}
+    widgets::{Table, Row, Block, BorderType, Borders, Clear, Paragraph}
 };
 use std::sync::{Arc, Mutex};
 use crate::{
@@ -48,8 +48,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let client_data = Paragraph::new(
         Line::from(vec![
             Span::raw(" User "),
-            Span::styled(client.username.clone(), Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::raw(format!(": {} {}", client.first_name.clone(), client.last_name.clone()))
+            Span::styled(client.info.username.clone(), Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+            Span::raw(format!(": {} {}", client.info.first_name.clone(), client.info.last_name.clone()))
         ])
     ).block(client_data_block);
     f.render_widget(client_data, chunks[0]);
@@ -97,6 +97,52 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         Screen::Client(SubScreen::ClientLockers) => {
             let help = Paragraph::new(HELP_TEXT.client.lockers).block(help_block);
             f.render_widget(help, chunks[2]);
+
+            let lockers_table_area = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(100)
+                ])
+                .split(chunks[1].inner(&Margin::new(6, 0)));
+
+            let header =
+                Row::new(vec!["#", "Country", "Packages"])
+                .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
+            
+            let widths = [
+                Constraint::Length(3),
+                Constraint::Length(10),
+                Constraint::Length(8),
+            ];
+
+            let rows: Vec<Row> =
+                client.viewing_lockers.as_ref().unwrap()
+                .iter()
+                .enumerate()
+                .map(|(i, locker)| {
+                    Row::new(vec![
+                        (client.viewing_lockers_idx + 1 - (client.viewing_lockers.as_ref().unwrap().len() - i) as i64).to_string(),
+                        locker.country.name.clone(),
+                        locker.package_count.to_string(),
+                    ])
+                })
+                .collect();
+                
+            let lockers_table = Table::new(rows, widths)
+                .column_spacing(3)
+                .header(header.bottom_margin(1))
+                .highlight_style(Style::default().fg(Color::LightYellow).add_modifier(Modifier::REVERSED))
+                .highlight_symbol(" ▶ ")
+                .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
+                .block(Block::default().borders(Borders::ALL).border_type(BorderType::Plain));
+
+            f.render_stateful_widget(lockers_table, lockers_table_area[0], &mut app_lock.table.state);
+        }
+        Screen::Client(SubScreen::ClientLockerPackages) => {
+            let help = Paragraph::new(HELP_TEXT.client.locker_packages).block(help_block);
+            f.render_widget(help, chunks[2]);
+
+            
         }
         Screen::Client(SubScreen::ClientSentPackages) => {
             let help = Paragraph::new(HELP_TEXT.client.sent_packages).block(help_block);

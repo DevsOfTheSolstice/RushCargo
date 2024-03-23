@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use sqlx::{Row, Pool, Postgres};
 use anyhow::{Result, anyhow};
 use ratatui::widgets::{List, ListState};
 use std::time::{Duration, Instant};
@@ -7,6 +8,7 @@ use crate::{
     HELP_TEXT,
     model::{
         app_list::ListData,
+        app_table::TableData,
         common::{User, SubScreen, Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
@@ -22,6 +24,7 @@ pub struct App {
     pub settings: SettingsData,
     pub title: Option<Box<TitleData>>,
     pub list: ListData,
+    pub table: TableData,
     pub user: Option<User>,
     prev_screen: Option<Screen>,
     pub active_screen: Screen,
@@ -46,6 +49,7 @@ impl App {
             settings: settings.unwrap(),
             title: None,
             list: ListData::default(),
+            table: TableData::default(),
             user: None,
             prev_screen: None,
             active_screen: Screen::Login,
@@ -58,7 +62,7 @@ impl App {
 }
 
 impl App {
-    pub fn enter_screen(&mut self, screen: &Screen) {
+    pub async fn enter_screen(&mut self, screen: &Screen, pool: &Pool<Postgres>) {
         self.should_clear_screen = true;
         self.cleanup();
         match screen {
@@ -85,9 +89,16 @@ impl App {
             }
             Screen::Client(SubScreen::ClientLockers) => {
                 self.active_screen = Screen::Client(SubScreen::ClientLockers);
+                if let Some(User::Client(client)) = &mut self.user {
+                    client.get_lockers_next(pool).await.expect("could not get initial lockers");
+                }
+            }
+            Screen::Client(SubScreen::ClientLockerPackages) => {
+                self.active_screen = Screen::Client(SubScreen::ClientLockerPackages);
             }
             Screen::Client(SubScreen::ClientSentPackages) => {
                 self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
+
             }
             Screen::Trucker => todo!(),
         }
@@ -110,6 +121,12 @@ impl App {
             }
             Some(Screen::Client(SubScreen::ClientMain)) => {
                 self.action_sel = None;
+            }
+            Some(Screen::Client(SubScreen::ClientLockers)) => {
+                if let Some(User::Client(client)) = &mut self.user {
+                    client.viewing_lockers = None;
+                    client.viewing_lockers_idx = 0;
+                }
             }
             Some(Screen::Client(_)) => {}
             Some(Screen::Trucker) => {}

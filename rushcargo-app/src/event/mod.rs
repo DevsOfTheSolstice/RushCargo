@@ -21,6 +21,7 @@ use anyhow::Result;
 use crate::model::{
     app::App,
     app_list::ListType,
+    app_table::TableType,
     common::{Screen, TimeoutType}
 };
 
@@ -51,6 +52,10 @@ pub enum Event {
     NextListItem(ListType),
     PrevListItem(ListType),
     SelectListItem(ListType),
+
+    NextTableItem(TableType),
+    PrevTableItem(TableType),
+    SelectTableItem(TableType),
 
     TryLogin,
 }

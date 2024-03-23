@@ -12,7 +12,8 @@ use std::{
 use crate::{
     event::{Event, InputBlacklist, SENDER_ERR},
     model::{
-    app::App, common::{SubScreen, InputMode, Popup, Screen, User}
+    app::App, common::{SubScreen, InputMode, Popup, Screen, User},
+    app_table::TableType
     },
 };
 
@@ -39,8 +40,33 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                     sender.send(Event::SelectAction)
                 }
                 _ => Ok(())
-            }.expect(SENDER_ERR);
+            }
         }
-        _ => {}
-    }
+        SubScreen::ClientLockers => {
+            match key_event.code {
+                KeyCode::Esc => {
+                    sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain)))
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    sender.send(Event::NextTableItem(TableType::Lockers))
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    sender.send(Event::PrevTableItem(TableType::Lockers))
+                }
+                KeyCode::Enter => {
+                    sender.send(Event::SelectTableItem(TableType::Lockers))
+                }
+                _ => Ok(())
+            }
+        }
+        SubScreen::ClientSentPackages => {
+            match key_event.code {
+                KeyCode::Esc => {
+                    sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain)))
+                }
+                _ => Ok(())
+            }
+        }
+        _ => Ok(())
+    }.expect(SENDER_ERR);
 }

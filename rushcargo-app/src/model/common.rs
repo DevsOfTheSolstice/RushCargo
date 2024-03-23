@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 use tui_input::Input;
-use super::client::Client;
+use super::client::ClientData;
 
 #[derive(Debug, Clone)]
 pub enum Screen {
@@ -15,7 +15,8 @@ pub enum Screen {
 pub enum SubScreen {
     ClientMain,
     ClientLockers,
-    ClientSentPackages
+    ClientLockerPackages,
+    ClientSentPackages,
 }
 
 impl std::fmt::Display for Screen {
@@ -38,7 +39,7 @@ pub enum Popup {
 
 #[derive(Debug)]
 pub enum User {
-    Client(Client),
+    Client(ClientData),
 }
 
 #[derive(Debug)]

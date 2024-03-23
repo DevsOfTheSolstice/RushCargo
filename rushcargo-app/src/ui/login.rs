@@ -99,7 +99,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     .scroll((0, password_scroll as u16));
 
     f.render_widget(input, chunks[2]);
-    
+
     let help_text = {
         if app_lock.failed_logins == 3 {
             Text::from(format!("{}{}", HELP_TEXT.login.login_failed_lock, app_lock.timeout.get(&TimeoutType::Login).unwrap().counter))

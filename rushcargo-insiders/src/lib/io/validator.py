@@ -1,7 +1,9 @@
 import os
 from email_validator import validate_email, EmailNotValidError
 
-from ..model.constants import *
+from .constants import TABLE_TERRITORY_CMDS, TABLE_BUILDING_CMDS
+
+from ..model.exceptions import FieldValueError, PlaceError
 
 
 # Clear Function
@@ -13,18 +15,6 @@ def clear():
     # For Posix
     else:
         os.system("clear")
-
-
-# Email String Validator
-def isEmailValid(email: str) -> str:
-    try:
-        # Validating Email
-        validatedEmail = validate_email(email)
-
-        # Get Email Normalized Form
-        return validatedEmail.email
-    except EmailNotValidError as err:
-        raise err
 
 
 # String Input Validator
@@ -76,115 +66,62 @@ def isDigitStr(inputStr: str) -> bool:
     return checkString(inputStr, False, False, True, False, False, False)
 
 
-# String Input Validator that Only Accepts Digit or Dot Characters
-def isDotStr(inputStr: str) -> bool:
-    return checkString(inputStr, False, False, True, False, False, True)
-
-
 # String Input Validator that Only Accepts Alphabetic Characters
 def isAlphaStr(inputStr: str) -> bool:
     return checkString(inputStr, False, True, False, False, False, False)
 
 
-# String Input Validator that Only Accepts Alphabetic, Digit or Whitespace Characters
-def isAddressStr(inputStr: str, nullable: bool = False) -> bool:
-    return checkString(inputStr, nullable, True, True, True, False, False)
+# String Input Validator that Checks if the Given String Corresponds to a Valid Address
+def isAddressStr(inputStr: str, canDigits: bool, nullable: bool) -> bool:
+    return checkString(inputStr, nullable, True, canDigits, True, False, False)
 
 
-# String Input Validator for Territories Name
-def territoryValidator(inputStr: str, nullable: bool = False) -> bool:
-    return checkString(inputStr, nullable, True, False, True, True, False)
+# String Input Validator for Territories Address
+def territoryAddressValidator(inputStr: str) -> bool:
+    return isAddressStr(inputStr, False, True)
 
 
 # String Input Validator for Building Name
-def buildingValidator(inputStr: str, nullable: bool = False) -> bool:
-    return checkString(inputStr, nullable, True, False, True, True, False)
+def buildingAddressValidator(inputStr: str) -> bool:
+    return isAddressStr(inputStr, True, False)
 
 
-# Check Table Value for the Given Field
-def checkTableValue(table: str, field: str, value) -> bool:
-    """
-    Returns True for Valid Values. Otherwise, False
-    """
+# Table Email Validator that Returns its Normalized Form (if It's Valid)
+def isEmailValid(email: str) -> str:
+    try:
+        # Validating Email
+        validatedEmail = validate_email(email)
 
-    # Check Field for Country Table
-    if table == COUNTRY_TABLENAME:
-        # Check if Country Name only Contains Alphabetic, En Dash or Whitespace Characters
-        if field == COUNTRY_NAME:
-            return territoryValidator(value)
+        # Get Email Normalized Form
+        return validatedEmail.email
+    except EmailNotValidError as err:
+        raise err
 
-        # Check Value Given for Numeric Data Types
+
+# Table Phone Number Validator
+def isPhoneValid(table: str, field: str, phone: str):
+    if not isDigitStr(phone):
+        raise FieldValueError(table, field, phone)
+
+
+# Table Address Validator
+def isAddressValid(table: str, field: str, address: str):
+    if table in TABLE_TERRITORY_CMDS:
+        if not territoryAddressValidator(address):
+            raise FieldValueError(table, field, address)
         else:
-            return isDigitStr(value)
+            return
 
-    # Check Field for Province Table
-    elif table == PROVINCE_TABLENAME:
-        # Check if Province Name only Contains Alphabetic, En Dash or Whitespace Characters
-        if field == PROVINCE_NAME:
-            return territoryValidator(value)
-
-        # Check Value Given for Numeric Data Types
+    elif table == TABLE_BUILDING_CMDS:
+        if not buildingAddressValidator(address):
+            raise FieldValueError(table, field, address)
         else:
-            return isDigitStr(value)
-
-    # Check Field for Region Table
-    elif table == REGION_TABLENAME:
-        # Check if Region Name only Contains Alphabetic, En Dash or Whitespace Characters
-        if field == REGION_NAME:
-            return territoryValidator(value)
-
-        # Check Value Given for Numeric Data Types
-        else:
-            return isDigitStr(value)
-
-    # Check Field for City Table
-    elif table == CITY_TABLENAME:
-        # Check if City Name only Contains Alphabetic, En Dash or Whitespace Characters
-        if field == CITY_NAME:
-            return territoryValidator(value)
-
-        # Check Value Given for Numeric Data Types
-        else:
-            return isDigitStr(value)
-
-    elif table == CITY_AREA_TABLENAME:
-        # Check if City Name only Contains Alphabetic, En Dash or Whitespace Characters
-        if field == CITY_AREA_NAME:
-            return territoryValidator(value)
-
-        # Check if City Area Description only Contains Alphabetic, Digit or Whitespace Characters or it's Empty
-        elif field == CITY_AREA_DESCRIPTION:
-            return isAddressStr(value, True)
-
-        # Check Value Given for Numeric Data Types
-        else:
-            return isDigitStr(value)
-
-    elif table == BUILDING_TABLENAME or table == WAREHOUSE_TABLENAME:
-        # Check if Building Name only Contains Alphabetic, En Dash or Whitespace Characters
-        if field == BUILDING_NAME or field:
-            return buildingValidator(value)
-
-        # Check if Building Address Description only Contains Alphabetic, Digit or Whitespace Characters or it's Empty
-        elif field == BUILDING_ADDRESS_DESCRIPTION:
-            return isAddressStr(value, True)
-
-        # Check if Building Coordinates only Contain Digit or Point Characters
-        elif field == BUILDING_GPS_LATITUDE or field == BUILDING_GPS_LONGITUDE:
-            return isDotStr(field)
-
-        # Check Value Given for Numeric Data Types
-        elif field != BUILDING_EMAIL:
-            return isDigitStr(value)
-
-    return False
+            return
 
 
-# Table Field's Value Validator
-def isValueValid(table: str, field: str, value):
-    """
-    NOTE: Emails are Validated through the 'isEmailValid' Function, not with this Function
-    """
-
-    if not checkTableValue(table, field, value):
-        raise ValueError(table, field, value)
+# Place Name Validator
+def isPlaceNameValid(address: str):
+    if not isAddressStr(address, True, False):
+        raise PlaceError(address)
+    else:
+        return

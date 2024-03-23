@@ -2,8 +2,8 @@ from .database import *
 
 
 # Functions that Returns Some Generic Table-related Strings
-def getCoords(lat: str, long: str) -> str:
-    return f"{lat},{long}"
+def getCoords(lat: float, lon: float) -> str:
+    return f"{lat}\n{lon}"
 
 
 # Building Table Class
@@ -28,12 +28,12 @@ class BuildingTable(SpecializationTable):
             fields=sql.SQL(",").join(
                 [
                     sql.Identifier(BUILDING_ADDRESS_DESCRIPTION),
+                    sql.Identifier(BUILDING_FK_CITY_AREA),
                     sql.Identifier(BUILDING_NAME),
                     sql.Identifier(BUILDING_EMAIL),
                     sql.Identifier(BUILDING_PHONE),
                     sql.Identifier(BUILDING_GPS_LATITUDE),
                     sql.Identifier(BUILDING_GPS_LONGITUDE),
-                    sql.Identifier(BUILDING_FK_CITY_AREA),
                 ]
             ),
         )
@@ -67,20 +67,20 @@ class BuildingTable(SpecializationTable):
 
         # Execute Query
         try:
-            self.c.execute(
+            self._c.execute(
                 query,
                 [
                     b.addressDescription,
+                    b.areaId,
                     b.buildingName,
                     b.email,
                     b.phone,
                     b.gpsLatitude,
                     b.gpsLongitude,
-                    b.areaId,
                 ],
             )
             console.print(
-                insertedRow(b.name, self._tableName),
+                insertedRow(b.buildingName, self._parentTableName),
                 style="success",
             )
         except Exception as err:
@@ -130,7 +130,7 @@ class WarehouseTable(BuildingTable):
             # Add Row to Rich Table
             table.add_row(
                 str(w.buildingId),
-                w.name,
+                w.buildingName,
                 getCoords(w.gpsLatitude, w.gpsLongitude),
                 w.addressDescription,
                 str(w.phone),
@@ -144,30 +144,31 @@ class WarehouseTable(BuildingTable):
     # Get Insert Query
     def __getInsertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({field}) VALUES (%s)").format(
-            parentTableName=sql.Identifier(self._tableName),
-            field=sql.SQL(sql.Identifier(WAREHOUSE_ID)),
+            tableName=sql.Identifier(self._tableName),
+            field=sql.Identifier(WAREHOUSE_ID),
         )
 
     # Insert Warehouse to Table
     def add(self, w: Warehouse) -> None:
         # Get Warehouse Insert Query
-        warehouseQuery = self.__getInsertQuery
+        warehouseQuery = self.__getInsertQuery()
 
         # Get Building object from Warehouse
         b = Building.fromWarehouse(w)
 
         # Insert Building to Building Table
-        BuildingTable._add(b)
+        BuildingTable._add(self, b)
 
         # Get Building ID
-        buildingId = BuildingTable._find(BUILDING_FK_CITY_AREA, w.buildingName)
+        b = BuildingTable._find(self, b.areaId, b.buildingName)
 
         # Execute Query to Insert Warehouse
         try:
-            self.c.execute(
+            self._c.execute(
                 warehouseQuery,
-                [buildingId],
+                [b.buildingId],
             )
+
             console.print(
                 insertedRow(w.buildingName, self._tableName),
                 style="success",
@@ -177,7 +178,7 @@ class WarehouseTable(BuildingTable):
 
     # Filter Items from Warehouse Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not SpecializationTable._get(self, field, value):
+        if not SpecializationTable._getTable(self, field, value):
             return False
 
         # Print Items
@@ -194,8 +195,14 @@ class WarehouseTable(BuildingTable):
 
     # Modify Row from Warehouse Table
     def modify(self, warehouseId: int, field: str, value) -> None:
-        SpecializationTable._modify(self, WAREHOUSE_ID, warehouseId, field, value)
+        """
+        NOTE: There's No Own Warehouse Field that can be Modified, Only the Ones Inherited from its Parent Table
+        """
+
+        SpecializationTable._modifyParentTable(
+            self, BUILDING_ID, warehouseId, field, value
+        )
 
     # Remove Row from Warehouse Table
     def remove(self, warehouseId: int) -> None:
-        SpecializationTable._remove(self, WAREHOUSE_ID, warehouseId)
+        SpecializationTable._remove(self, WAREHOUSE_ID, BUILDING_ID, warehouseId)

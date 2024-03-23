@@ -74,7 +74,7 @@ class CountryTable(BasicTable):
         return True
 
     # Find Country from Country Table
-    def _find(self, field: str, value) -> Country | None:
+    def find(self, field: str, value) -> Country | None:
         """
         Returns Country Object if it was Found. Otherwise, False
 
@@ -82,15 +82,11 @@ class CountryTable(BasicTable):
         """
 
         # Get Country
-        if not self.get(field, value):
+        if not self.get(field, value, False):
             return None
 
         # Get Country Object from Item Fetched
         return Country.fromItemFetched(self._items[0])
-
-    @classmethod
-    def find(cls, field:str, value):
-        return cls._find(cls, field, value)
 
     # Get All Items from Country Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -201,7 +197,7 @@ class ProvinceTable(BasicTable):
         return True
 
     # Find Province from Province Table
-    def _find(self, countryId: int, provinceName: str) -> Province | None:
+    def find(self, countryId: int, provinceName: str) -> Province | None:
         """
         Returns Province Object if it was Found. Otherwise, False
         """
@@ -214,10 +210,6 @@ class ProvinceTable(BasicTable):
 
         # Get Province Object from Item Fetched
         return Province.fromItemFetched(self._items[0])
-
-    @classmethod
-    def find(cls, countryId:int, provinceName:str):
-        return cls._find(cls, countryId, provinceName)
 
     # Get All Items from Province Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -321,7 +313,7 @@ class RegionTable(BasicTable):
         return True
 
     # Find Region from Region Table
-    def _find(self, provinceId: int, regionName: str) -> Region | None:
+    def find(self, provinceId: int, regionName: str) -> Region | None:
         """
         Returns Region Object if it was Found. Otherwise, False
         """
@@ -334,10 +326,6 @@ class RegionTable(BasicTable):
 
         # Get Region Object from Item Fetched
         return Region.fromItemFetched(self._items[0])
-
-    @classmethod
-    def find(cls, provinceId:int, regionName:str):
-        return cls._find(cls, provinceId, regionName)
 
     # Get All Items from Region Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -438,7 +426,7 @@ class CityTable(BasicTable):
         return True
 
     # Find City from City Table
-    def _find(self, regionId: int, cityName: str) -> City | None:
+    def find(self, regionId: int, cityName: str) -> City | None:
         """
         Returns City Object if it was Found. Otherwise, False
         """
@@ -449,10 +437,6 @@ class CityTable(BasicTable):
 
         # Get City Object from Item Fetched
         return City.fromItemFetched(self._items[0])
-
-    @classmethod
-    def find(cls, regionId:int, cityName:str):
-        return cls._find(cls, regionId, cityName)
 
     # Get All Items from City Table
     def all(self, orderBy: str, desc: bool) -> None:
@@ -554,7 +538,7 @@ class CityAreaTable(BasicTable):
         return True
 
     # Find City Area from City Area Table
-    def _find(self, cityId: int, areaName: str) -> City | None:
+    def find(self, cityId: int, areaName: str) -> City | None:
         """
         Returns City Area Object if it was Found. Otherwise, False
         """
@@ -567,10 +551,6 @@ class CityAreaTable(BasicTable):
 
         # Get City Area Object from Item Fetched
         return CityArea.fromItemFetched(self._items[0])
-
-    @classmethod
-    def find(cls, cityId: int, areaName:str):
-        return cls._find(cls, cityId, areaName)
 
     # Get All Items from City Area Table
     def all(self, orderBy: str, desc: bool) -> None:

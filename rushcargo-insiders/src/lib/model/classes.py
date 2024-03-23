@@ -143,61 +143,63 @@ class CityArea:
 # Warehouse Class
 class Warehouse:
     # Public Fields
-    warehouseId: int = None
+    buildingId: int = None
     buildingName: str = None
     areaId: int = None
     phone: int = None
     email: str = None
     addressDescription: str = None
-    gpsLatitude: int = None
-    gpsLongitude: int = None
+    gpsLatitude: float = None
+    gpsLongitude: float = None
 
     # Constructor
     def __init__(
         self,
-        addressDescription: str,
         buildingName: str,
+        gpsLatitude: float,
+        gpsLongitude: float,
         email: str,
-        gpsLatitude: int,
-        gpsLongitude: int,
         phone: int,
         areaId: int,
-        warehouseId: int = None,
+        addressDescription: str,
+        buildingId: int = None,
     ):
-        self.addressDescription = addressDescription
         self.buildingName = buildingName
-        self.email = email
         self.gpsLatitude = gpsLatitude
         self.gpsLongitude = gpsLongitude
+        self.email = email
         self.phone = phone
         self.areaId = areaId
-        self.warehouseId = warehouseId
+        self.addressDescription = addressDescription
+        self.buildingId = buildingId
 
     @classmethod
     def fromItemFetched(cls, item: tuple):
         """
         Initialize Warehouse from Query Item Fetched
         """
+
         (
-            addressDescription,
-            buildingName,
+            _,  # Warehouse ID, Same as Building ID
+            buildingId,
+            areaId,
             email,
+            phone,
             gpsLatitude,
             gpsLongitude,
-            phone,
-            areaId,
-            warehouseId,
+            addressDescription,
+            buildingName,
         ) = item
 
         return cls(
-            addressDescription,
             buildingName,
-            email,
             gpsLatitude,
             gpsLongitude,
+            email,
             phone,
             areaId,
-            warehouseId,
+            addressDescription,
+            buildingId,
         )
 
 
@@ -224,9 +226,27 @@ class Branch:
         """
         Initialize Branch from Query Item Fetched
         """
-        ruteDistance, branchId, warehouseConnection = item
+        (
+            buildingId,
+            areaId,
+            email,
+            phone,
+            gpsLatitude,
+            gpsLongitude,
+            addressDescription,
+            buildingName,
+        ) = item
 
-        return cls(ruteDistance, branchId, warehouseConnection)
+        return cls(
+            buildingName,
+            gpsLatitude,
+            gpsLongitude,
+            addressDescription,
+            phone,
+            email,
+            areaId,
+            buildingId,
+        )
 
 
 # Building Class
@@ -235,30 +255,30 @@ class Building:
     buildingId: int = None
     buildingName: str = None
     areaId: int = None
+    addressDescription: str = None
+    gpsLatitude: float = None
+    gpsLongitude: float = None
     phone: int = None
     email: str = None
-    addressDescription: str = None
-    gpsLatitude: int = None
-    gpsLongitude: int = None
 
     # Constructor
     def __init__(
         self,
-        addressDescription: str,
         buildingName: str,
-        email: str,
-        gpsLatitude: int,
-        gpsLongitude: int,
+        gpsLatitude: float,
+        gpsLongitude: float,
+        addressDescription: str,
         phone: int,
+        email: str,
         areaId: int,
         buildingId: int = None,
     ):
-        self.addressDescription = addressDescription
         self.buildingName = buildingName
-        self.email = email
         self.gpsLatitude = gpsLatitude
         self.gpsLongitude = gpsLongitude
+        self.addressDescription = addressDescription
         self.phone = phone
+        self.email = email
         self.areaId = areaId
         self.buildingId = buildingId
 
@@ -268,23 +288,23 @@ class Building:
         Initialize Building from Query Item Fetched
         """
         (
-            addressDescription,
-            buildingName,
+            buildingId,
+            areaId,
             email,
+            phone,
             gpsLatitude,
             gpsLongitude,
-            phone,
-            areaId,
-            buildingId,
+            addressDescription,
+            buildingName,
         ) = item
 
         return cls(
-            addressDescription,
             buildingName,
-            email,
             gpsLatitude,
             gpsLongitude,
+            addressDescription,
             phone,
+            email,
             areaId,
             buildingId,
         )
@@ -296,12 +316,12 @@ class Building:
         """
 
         return cls(
-            w.addressDescription,
             w.buildingName,
-            w.email,
             w.gpsLatitude,
             w.gpsLongitude,
+            w.addressDescription,
             w.phone,
+            w.email,
             w.areaId,
-            w.warehouseId,
+            w.buildingId,
         )

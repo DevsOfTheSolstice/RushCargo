@@ -13,6 +13,7 @@ from .exceptions import *
 # Set Custom Theme
 console = Console(theme=THEME)
 
+
 # Message Printed when there was Nothing Fetched from Query
 def noCoincidenceFetched() -> None:
     console.print("No Results Fetched", style="warning")
@@ -49,6 +50,7 @@ def removeRow(tableName: str, idField: int, idValue: int) -> str:
     return (
         f"Row with '{idField}' '{idValue}' Successfully Removed from {tableName} Table"
     )
+
 
 # Get Table with Default values
 def getTable(tableName: str, nItems: int) -> Table:
@@ -415,19 +417,37 @@ class SpecializationTable:
         except Exception as err:
             raise (err)
 
-    # Modify Row from Table
-    def _modify(self, idField: str, idValue: int, field: str, value) -> None:
-        # Get Query to Modify the Given Row
-        query = sql.SQL(
-            "UPDATE {tableName} child INNER JOIN {parentTableName} parent ON child.{tablePKFKName} = parent.{parentTablePKName} SET {field} = (%s) WHERE {id} = (%s)"
+    # Get Query to Modify Row from Specialization Table
+    def __getModifyTableQuery(self, idField: str, field: str) -> str:
+        return sql.SQL(
+            "UPDATE {tableName} SET {field} = (%s) WHERE {id} = (%s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
-            parentTableName=sql.Identifier(self._parentTableName),
-            tablePKFKName=sql.Identifier(self._tablePKFKName),
-            parentTablePKName=sql.Identifier(self._parentTablePKName),
             field=sql.Identifier(field),
             id=sql.Identifier(idField),
         )
+
+    # Get Query to Modify Row from Specialization's Parent Table
+    def __getModifyParentTableQuery(self, parentIdField: str, parentField: str) -> str:
+        return sql.SQL(
+            "UPDATE {parentTableName} SET {field} = (%s) WHERE {id} = (%s)"
+        ).format(
+            parentTableName=sql.Identifier(self._parentTableName),
+            field=sql.Identifier(parentField),
+            id=sql.Identifier(parentIdField),
+        )
+
+    # Modify Row
+    def __modify(
+        self, parentTable: bool, idField: str, idValue: int, field: str, value
+    ) -> None:
+        query = None
+
+        # Check if the User wants to Modify the Row from the Parent Table
+        if parentTable:
+            query = self.__getModifyParentTableQuery(idField, field)
+        else:
+            query = self.__getModifyTableQuery(idField, field)
 
         # Execute Query
         try:
@@ -438,6 +458,18 @@ class SpecializationTable:
             )
         except Exception as err:
             raise err
+
+    # Modify Row from Specialization Table
+    def _modifyTable(
+        self,idField: str, idValue: int, field: str, value
+    ) -> None:
+        return self.__modify(self._tableName, idField, idValue, field, value)
+
+    # Modify Row from Specialization's Parent Table
+    def _modifyParentTable(
+        self,idField: str, idValue: int, field: str, value
+    ) -> None:
+        return self.__modify(self._tableName, idField, idValue, field, value)
 
     # Filter Items
     def __get(self, parentTable: bool, field: str, value) -> bool:

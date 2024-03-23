@@ -30,7 +30,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             }
 
             let username: String = app.lock().unwrap().input.0.value().to_string();
-            let password: String = app.lock().unwrap().input.0.value().to_string();
+            let password: String = app.lock().unwrap().input.1.value().to_string();
 
             if let Some(res) = sqlx::query("SELECT * FROM users WHERE username = $1")
                 .bind(&username)

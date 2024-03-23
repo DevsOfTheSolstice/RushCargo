@@ -28,7 +28,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             app.lock().unwrap().next_list_item(list_type);
             Ok(())
         }
-        Event::SelectAction(list_type) => {
+        Event::SelectListItem(list_type) => {
             let mut app_lock = app.lock().unwrap();
             let (list_state, actions) = match list_type {
                 ListType::Title => (&app_lock.list.state.0, &app_lock.list.actions.title),

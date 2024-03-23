@@ -7,7 +7,7 @@ use crate::{
     HELP_TEXT,
     event::{Event, InputBlacklist},
     model::{
-        common::InputMode,
+        common::{Screen, SubScreen, InputMode},
         app::App,
     }
 };
@@ -34,6 +34,41 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                 else { app_lock.input_mode = InputMode::Editing(0) }
             }
             Ok(())
+        },
+        Event::SwitchAction => {
+            let mut app_lock = app.lock().unwrap();
+
+            match app_lock.active_screen {
+                Screen::Client(SubScreen::ClientMain) => {
+                    match app_lock.action_sel {
+                        Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
+                        None | _ => app_lock.action_sel = Some(0),
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        },
+        Event::SelectAction => {
+            let mut app_lock = app.lock().unwrap();
+
+            let subscreen = 
+                match &app_lock.active_screen {
+                    Screen::Client(sub) => Some(sub),
+                    _ => None
+                };
+
+            match subscreen {
+                Some(SubScreen::ClientMain) => {
+                    match app_lock.action_sel {
+                        Some(0) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockers)),
+                        Some(1) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientSentPackages)),
+                        _ => {}
+                    }
+                }
+                _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app_lock.active_screen, subscreen)
+            }
+            Ok(()) 
         },
         Event::KeyInput(key_event, blacklist) => {
             let mut app_lock = app.lock().unwrap();

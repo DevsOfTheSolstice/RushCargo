@@ -16,6 +16,7 @@ use crate::{
 pub struct App {
     pub input: InputFields,
     pub input_mode: InputMode,
+    pub action_sel: Option<u8>,
     pub failed_logins: u8,
     pub timeout: HashMap<TimeoutType, Timer>,
     pub settings: SettingsData,
@@ -39,6 +40,7 @@ impl App {
         App {
             input: InputFields(Input::default(), Input::default()),
             input_mode: InputMode::Normal,
+            action_sel: None,
             failed_logins: 0,
             timeout: HashMap::new(),
             settings: settings.unwrap(),
@@ -78,8 +80,14 @@ impl App {
                 self.failed_logins = 0;
                 self.user = None;
             }
-            Screen::Client(_) => {
+            Screen::Client(SubScreen::ClientMain) => {
                 self.active_screen = Screen::Client(SubScreen::ClientMain);
+            }
+            Screen::Client(SubScreen::ClientLockers) => {
+                self.active_screen = Screen::Client(SubScreen::ClientLockers);
+            }
+            Screen::Client(SubScreen::ClientSentPackages) => {
+                self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
             }
             Screen::Trucker => todo!(),
         }
@@ -99,6 +107,9 @@ impl App {
                 self.input.0.reset();
                 self.input.1.reset();
                 self.input_mode = InputMode::Normal;
+            }
+            Some(Screen::Client(SubScreen::ClientMain)) => {
+                self.action_sel = None;
             }
             Some(Screen::Client(_)) => {}
             Some(Screen::Trucker) => {}

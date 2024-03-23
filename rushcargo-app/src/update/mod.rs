@@ -14,10 +14,10 @@ use crate::{
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
-        Event::SwitchInput | Event::EnterScreen(_)
+        Event::SwitchInput | Event::SwitchAction | Event::EnterScreen(_)
         => common::update(app, pool, event).await,
 
-        Event::PrevListItem(_) | Event::NextListItem(_) | Event::SelectAction(_)
+        Event::PrevListItem(_) | Event::NextListItem(_) | Event::SelectListItem(_)
         => list::update(app, pool, event).await,
 
         Event::TryLogin

@@ -45,10 +45,12 @@ pub enum Event {
     TimeoutTick(TimeoutType),
     KeyInput(KeyEvent, InputBlacklist),
     SwitchInput,
+    SwitchAction,
+    SelectAction,
 
     NextListItem(ListType),
     PrevListItem(ListType),
-    SelectAction(ListType),
+    SelectListItem(ListType),
 
     TryLogin,
 }

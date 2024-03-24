@@ -109,7 +109,6 @@ impl App {
             }
             Screen::Client(SubScreen::ClientSentPackages) => {
                 self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
-
             }
             Screen::Trucker => todo!(),
         }

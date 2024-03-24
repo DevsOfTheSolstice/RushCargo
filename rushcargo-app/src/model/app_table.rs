@@ -47,7 +47,6 @@ impl App {
                 self.table.state.select(Some(i));
             }
             TableType::LockerPackages => {
-                //let client = self.get_client_mut();
                 let i = match self.table.state.selected() {
                     Some(i) => {
                         if i >= self.packages.as_ref().unwrap().viewing_packages.len() - 1 {
@@ -87,7 +86,24 @@ impl App {
                 };
                 self.table.state.select(Some(i));
             }
-            TableType::LockerPackages => todo!()
+            TableType::LockerPackages => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i == 0 {
+                            if let Ok(()) = self.get_packages_prev(table_type, pool).await {
+                                7 - 1
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i - 1
+                        }
+                    }
+                    None => 0
+                };
+                self.table.state.select(Some(i));
+                self.packages.as_mut().unwrap().active_package = Some(self.packages.as_ref().unwrap().viewing_packages[i].clone());
+            }
         }
     }
     pub async fn get_packages_next(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
@@ -135,6 +151,52 @@ impl App {
             .collect::<Vec<Package>>();
         
         self.packages.as_mut().unwrap().viewing_packages_idx += rows_num as i64;
+
+        Ok(())
+    }
+    pub async fn get_packages_prev(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
+        let query: Query<'_, Postgres, _> = match table_type {
+            TableType::LockerPackages => {
+                match self.active_screen {
+                    Screen::Client(SubScreen::ClientLockerPackages) => {
+                        let client = self.get_client_ref();
+                        let base_query =
+                            "
+                                SELECT * FROM package
+                                INNER JOIN package_description AS description
+                                ON package.tracking_number=description.tracking_number
+                                WHERE delivered=true AND locker_id=$1
+                                LIMIT 7
+                                OFFSET $2 - 7 * 2
+                            ";
+
+                        let query: Query<'_, Postgres, _> =
+                            sqlx::query(base_query)
+                            .bind(client.active_locker.as_ref().unwrap().get_id())
+                            .bind(self.packages.as_ref().unwrap().viewing_packages_idx);
+
+                        query
+                    }
+                    _ => panic!()
+                }
+            }
+            _ => panic!()
+        };
+
+        let rows =
+            query
+            .fetch_all(pool)
+            .await?;
+
+        if rows.is_empty() { return Err(anyhow!("")) }
+
+        self.packages.as_mut().unwrap().viewing_packages_idx -= self.get_packages_ref().viewing_packages.len() as i64;
+
+        self.packages.as_mut().unwrap().viewing_packages =
+            rows
+            .into_iter()
+            .map(|row| Package::from_row(&row).expect("could not build package from row in get_packages_next"))
+            .collect::<Vec<Package>>();
 
         Ok(())
     }

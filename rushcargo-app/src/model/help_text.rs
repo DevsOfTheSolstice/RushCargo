@@ -7,15 +7,15 @@ impl HelpText {
     pub const fn default() -> Self {
         HelpText{
             login: LoginHelpText {
-                main: "Press `TAB` to switch input.",
+                main: "(Tab) switch input | (Esc) back.",
                 login_failed: "Login failed.",
                 login_failed_lock: "Login failed. - Try again in: ",
             },
             client: ClientHelpText {
-                main: "Press `TAB` to switch actions, or `Esc` to go back.",
-                lockers: "Select a locker.",
-                locker_packages: "Select a package.",
-                sent_packages: "Select a package.",
+                main: "(Tab) switch actions | (Esc) back.",
+                lockers: "(Enter) select locker | (⬆) move up | (⬇) move down | (Esc) back",
+                locker_packages: "(Enter) add to shipping order | (⬆) move up | (⬇) move down | (Esc) back",
+                sent_packages: "Select a package."
             },
         }
     }

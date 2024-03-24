@@ -2,7 +2,6 @@ import os
 from email_validator import validate_email, EmailNotValidError
 
 from .constants import TABLE_TERRITORY_CMDS, TABLE_BUILDING_CMDS
-
 from .exceptions import FieldValueError, PlaceError
 
 

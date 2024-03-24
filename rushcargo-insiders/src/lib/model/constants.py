@@ -27,22 +27,23 @@ THEME = Theme(
 BOX_STYLE = box.ROUNDED
 
 # Number of Characters to Print per Column for Common Table Attributes
-ID_NCHAR = 10
+ID_NCHAR = 12
 DESCRIPTION_NCHAR = 15
 CONTACT_NCHAR = 10
 
 # ... for Location-related Tables
-LOCATION_NAME_NCHAR = 15
-COORDINATE_NCHAR = 8
+LOCATION_NAME_NCHAR = 20
+COORDINATE_NCHAR = 10
+DISTANCE_NCHAR = 10
 
 # ... for Warehouse-related Attributes
-WAREHOUSE_NCHAR = 10
+WAREHOUSE_NCHAR = 14
 
 # ... for Forwarder-related Attributes
-FORWARDER_NCHAR = 20
+FORWARDER_NCHAR = 16
 
 # ... for Country Table Attributes
-PHONE_PREFIX_NCHAR = 15
+PHONE_PREFIX_NCHAR = 13
 
 # Country Table Columns
 COUNTRY_TABLENAME = "country"
@@ -96,5 +97,5 @@ WAREHOUSE_ID = "warehouse_id"
 # Branch ...
 BRANCH_TABLENAME = "branch"
 BRANCH_ID = "branch_id"
-BRANCH_RUTE_DISTANCE = "rute_distance"
+BRANCH_ROUTE_DISTANCE = "route_distance"
 BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"

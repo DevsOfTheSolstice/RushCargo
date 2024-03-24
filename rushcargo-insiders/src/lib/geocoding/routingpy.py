@@ -7,8 +7,11 @@ from .constants import (
     NOMINATIM_LATITUDE,
     NOMINATIM_LONGITUDE,
 )
-
 from .exceptions import RouteNotFound
+from ..model.database import user, ORSApiKey
+
+# RoutingPy Geocoder
+routingPyGeocoder = None
 
 
 # RoutingPy Geocoder Class
@@ -32,15 +35,15 @@ class RoutingPyGeocoder:
         try:
             # Get List of Coordinates
             coords = [
-                [coords1[NOMINATIM_LONGITUDE], coords1[NOMINATIM_LATITUDE]],
-                [coords2[NOMINATIM_LONGITUDE], coords2[NOMINATIM_LATITUDE]],
+                [str(coords1[NOMINATIM_LONGITUDE]), str(coords1[NOMINATIM_LATITUDE])],
+                [str(coords2[NOMINATIM_LONGITUDE]), str(coords2[NOMINATIM_LATITUDE])],
             ]
 
             # Get Client Directions
             route = self._geolocator.directions(
                 locations=coords,
                 profile=ORS_PROFILE_DRIVING,
-                preferences=ORS_PREF_FASTEST,
+                preference=ORS_PREF_FASTEST,
             )
 
             # Get Distance in Meters
@@ -52,3 +55,7 @@ class RoutingPyGeocoder:
 
 def initRoutingPyGeocoder(ORSApiKey: str, user: str) -> RoutingPyGeocoder:
     return RoutingPyGeocoder(ORSApiKey, ORS_USER_AGENT, user)
+
+
+# Initialize RoutingPy Geocoder
+routingPyGeocoder = initRoutingPyGeocoder(ORSApiKey, user)

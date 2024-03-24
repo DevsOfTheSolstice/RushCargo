@@ -2,7 +2,6 @@ import argparse
 import textwrap
 import sys
 
-
 from lib.controller.events import EventHandler
 
 from lib.io.constants import *

@@ -1,9 +1,8 @@
 from psycopg import sql
 from rich.table import Table
 
-from .database import Database, console
-
 from .constants import BOX_STYLE
+from .database import Database, console
 from .exceptions import LenError
 
 

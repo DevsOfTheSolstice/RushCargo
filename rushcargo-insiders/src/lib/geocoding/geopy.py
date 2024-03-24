@@ -3,8 +3,6 @@ from geopy.geocoders import Nominatim
 from .constants import *
 from .exceptions import LocationError, PlaceNotFound
 
-from ..model.constants import CITY_AREA_ID
-
 from ..controller.constants import (
     DICT_CITY_AREA_NAME,
     DICT_CITY_AREA_ID,
@@ -13,6 +11,12 @@ from ..controller.constants import (
     DICT_PROVINCE_NAME,
     DICT_COUNTRY_NAME,
 )
+
+from ..model.database import user
+from ..model.constants import CITY_AREA_ID
+
+# GeoPy Geocoder
+geoPyGeocoder = None
 
 
 # GeoPy Geocoder Class
@@ -25,7 +29,7 @@ class GeoPyGeocoder:
         try:
             # Initialize Geolocator
             self._geolocator = Nominatim(user_agent=f"{userAgent}-{user}", timeout=5)
-        
+
         except Exception as err:
             raise err
 
@@ -34,17 +38,22 @@ class GeoPyGeocoder:
         return locationRaw[NOMINATIM_NAME]
 
     # Get Country Name
-    def getCountry(self, search: str) -> str | None:
+    def getCountry(self, country: str) -> str | None:
         try:
             # Get Country Location
-            geopyLocation = self._geolocator.geocode(search)
+            geopyLocation = self._geolocator.geocode(country)
+
+            # Check Location
+            if geopyLocation == None:
+                raise LocationError(country, NOMINATIM_COUNTRY)
 
             # Check if it's a Country
             if geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_COUNTRY:
                 return self.__getName(geopyLocation.raw)
-            
-            raise LocationError(search, NOMINATIM_COUNTRY)
-        
+
+            # Invalid Location
+            raise LocationError(country, NOMINATIM_COUNTRY)
+
         except Exception as err:
             raise err
 
@@ -56,15 +65,20 @@ class GeoPyGeocoder:
                 ", ".join([province, location[DICT_COUNTRY_NAME]])
             )
 
+            # Check Location
+            if geopyLocation == None:
+                raise LocationError(province, NOMINATIM_PROVINCE)
+
             # Check if it's a Province
             if (
                 geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
                 or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE_ALT
             ):
                 return self.__getName(geopyLocation.raw)
-            
+
+            # Invalid Location
             raise LocationError(province, NOMINATIM_PROVINCE)
-            
+
         except Exception as err:
             raise err
 
@@ -82,15 +96,20 @@ class GeoPyGeocoder:
                 )
             )
 
+            # Check Location
+            if geopyLocation == None:
+                raise LocationError(region, NOMINATIM_REGION)
+
             # Check if it's a Region
             if (
                 geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION
                 or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION_ALT
             ):
                 return self.__getName(geopyLocation.raw)
-            
+
+            # Invalid Location
             raise LocationError(region, NOMINATIM_REGION)
-        
+
         except Exception as err:
             raise err
 
@@ -109,12 +128,17 @@ class GeoPyGeocoder:
                 )
             )
 
+            # Check Location
+            if geopyLocation == None:
+                raise LocationError(city, NOMINATIM_CITY)
+
             # Check if it's a City
             if geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY:
                 return self.__getName(geopyLocation.raw)
 
+            # Invalid Location
             raise LocationError(city, NOMINATIM_CITY)
-        
+
         except Exception as err:
             raise err
 
@@ -134,10 +158,15 @@ class GeoPyGeocoder:
                 )
             )
 
+            # Check Location
+            if geopyLocation == None:
+                raise LocationError(cityArea, NOMINATIM_CITY_AREA)
+
             # Check if it's a City Area
             if geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA:
                 return self.__getName(geopyLocation.raw)
 
+            # Invalid Location
             raise LocationError(cityArea, NOMINATIM_CITY_AREA)
 
         except Exception as err:
@@ -177,9 +206,13 @@ class GeoPyGeocoder:
             return coords
 
         except Exception as err:
-            return err
+            raise err
 
 
 # Initialize GeoPy Geocoder
 def initGeoPyGeocoder(user: str) -> GeoPyGeocoder:
     return GeoPyGeocoder(NOMINATIM_USER_AGENT, user)
+
+
+# Initialize Geocoders
+geoPyGeocoder = initGeoPyGeocoder(user)

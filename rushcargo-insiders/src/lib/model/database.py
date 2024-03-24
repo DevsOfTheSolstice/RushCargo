@@ -17,6 +17,11 @@ from .constants import (
 # Set Custom Theme
 console = Console(theme=THEME)
 
+# Database Connection Fields
+db = None
+user = None
+ORSApiKey = None
+
 
 # Default Database Class
 class Database:
@@ -99,3 +104,7 @@ def initDb() -> tuple[Database, str, str, str]:
 
     # Initialize Database Object
     return Database(dbname, user, password, host, port), user, ORSApiKey
+
+
+# Initialize Database Connection
+db, user, ORSApiKey = initDb()

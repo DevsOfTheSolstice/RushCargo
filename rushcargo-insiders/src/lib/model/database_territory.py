@@ -1,16 +1,14 @@
 from psycopg import sql
 
 from .classes import Country, Province, Region, City, CityArea
-
 from .constants import *
-
+from .database import Database, console
 from .database_tables import (
     BasicTable,
     noCoincidenceFetched,
     insertedRow,
     getTable,
 )
-from .database import Database, console
 
 
 # Country Table Class
@@ -26,11 +24,6 @@ class CountryTable(BasicTable):
 
         # Number of Items
         nItems = len(self._items)
-
-        # No Results
-        if nItems == 0:
-            noCoincidenceFetched()
-            return
 
         # Initialize Rich Table
         table = getTable("Country", nItems)
@@ -73,13 +66,15 @@ class CountryTable(BasicTable):
                 insertedRow(c.name, self._tableName),
                 style="success",
             )
-            
+
         except Exception as err:
             raise err
 
     # Filter Items from Country Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -127,15 +122,10 @@ class ProvinceTable(BasicTable):
 
     # Print Items
     def __print(self) -> None:
-        r = None
+        p = None
 
         # Number of Items
         nItems = len(self._items)
-
-        # No Results
-        if nItems == 0:
-            noCoincidenceFetched()
-            return
 
         # Initialize Rich Table
         table = getTable("Province", nItems)
@@ -195,6 +185,8 @@ class ProvinceTable(BasicTable):
     # Filter Items from Province Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -205,6 +197,8 @@ class ProvinceTable(BasicTable):
     # Filter Items with Multiple Conditions from Province Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
         if not BasicTable._getMult(self, fields, values):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -252,15 +246,10 @@ class RegionTable(BasicTable):
 
     # Print Items
     def __print(self) -> None:
-        s = None
+        r = None
 
         # Number of Items
         nItems = len(self._items)
-
-        # No Results
-        if nItems == 0:
-            noCoincidenceFetched()
-            return
 
         # Initialize Rich Table
         table = getTable("Region", nItems)
@@ -274,11 +263,11 @@ class RegionTable(BasicTable):
         # Loop Over Items
         for item in self._items:
             # Intialize Region from Item Fetched
-            s = Region.fromItemFetched(item)
+            r = Region.fromItemFetched(item)
 
             # Add Row to Rich Table
             table.add_row(
-                str(s.regionId), s.name, str(s.provinceId), str(s.warehouseId)
+                str(r.regionId), r.name, str(r.provinceId), str(r.warehouseId)
             )
 
         # Print Table
@@ -312,6 +301,8 @@ class RegionTable(BasicTable):
     # Filter Items from Region Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -322,6 +313,8 @@ class RegionTable(BasicTable):
     # Filter Items with Multiple Conditions from Region Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
         if not BasicTable._getMult(self, fields, values):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -369,15 +362,10 @@ class CityTable(BasicTable):
 
     # Print Items
     def __print(self) -> None:
-        s = None
+        c = None
 
         # Number of Items
         nItems = len(self._items)
-
-        # No Results
-        if nItems == 0:
-            noCoincidenceFetched()
-            return
 
         # Initialize Rich Table
         table = getTable("City", nItems)
@@ -426,6 +414,8 @@ class CityTable(BasicTable):
     # Filter Items from City Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -436,6 +426,8 @@ class CityTable(BasicTable):
     # Filter Items with Multiple Conditions from City Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
         if not BasicTable._getMult(self, fields, values):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -486,11 +478,6 @@ class CityAreaTable(BasicTable):
         # Number of Items
         nItems = len(self._items)
 
-        # No Results
-        if nItems == 0:
-            noCoincidenceFetched()
-            return
-
         # Initialize Rich Table
         table = getTable("City", nItems)
 
@@ -539,6 +526,8 @@ class CityAreaTable(BasicTable):
     # Filter Items from City Areas Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
         if not BasicTable._get(self, field, value):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items
@@ -549,6 +538,8 @@ class CityAreaTable(BasicTable):
     # Filter Items with Multiple Conditions from City Areas Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
         if not BasicTable._getMult(self, fields, values):
+            if printItems:
+                noCoincidenceFetched()
             return False
 
         # Print Items

@@ -7,3 +7,34 @@ class RowNotFound(Exception):
         super().__init__(
             f"'{value}' Not Found at Column '{field}' in '{tableName}' Table\n"
         )
+
+
+class BuildingFound(Exception):
+    """
+    Exception Raised when there's Already a Building with the Same Name at the Given City Area
+    """
+
+    def __init__(self, buildingName: str, cityAreaId: int):
+        super().__init__(
+            f"There's Already a Building Named as '{buildingName}' at City Area ID '{cityAreaId}'\n"
+        )
+
+
+class WarehouseNotFound(Exception):
+    """
+    Exception Raised when there a Branch couldn't be Registered because there's no Warehouse for the Given City Area ID
+    """
+
+    def __init__(self, cityAreaId: int):
+        super().__init__(
+            f"Branch couldn't be Registered. There's no a Warehouse at City Area ID '{cityAreaId}'\n"
+        )
+
+
+class InvalidWarehouse(Exception):
+    """
+    Exception Raised when the Warehouse City Area is not the Same as the Given City Area ID
+    """
+
+    def __init__(self, cityAreaId: int):
+        super().__init__(f"Warehouse is not at City Area ID '{cityAreaId}'\n")

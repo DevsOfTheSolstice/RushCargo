@@ -140,115 +140,6 @@ class CityArea:
         return cls(areaName, areaDescription, cityId, areaId)
 
 
-# Warehouse Class
-class Warehouse:
-    # Public Fields
-    buildingId: int = None
-    buildingName: str = None
-    areaId: int = None
-    phone: int = None
-    email: str = None
-    addressDescription: str = None
-    gpsLatitude: float = None
-    gpsLongitude: float = None
-
-    # Constructor
-    def __init__(
-        self,
-        buildingName: str,
-        gpsLatitude: float,
-        gpsLongitude: float,
-        email: str,
-        phone: int,
-        areaId: int,
-        addressDescription: str,
-        buildingId: int = None,
-    ):
-        self.buildingName = buildingName
-        self.gpsLatitude = gpsLatitude
-        self.gpsLongitude = gpsLongitude
-        self.email = email
-        self.phone = phone
-        self.areaId = areaId
-        self.addressDescription = addressDescription
-        self.buildingId = buildingId
-
-    @classmethod
-    def fromItemFetched(cls, item: tuple):
-        """
-        Initialize Warehouse from Query Item Fetched
-        """
-
-        (
-            _,  # Warehouse ID, Same as Building ID
-            buildingId,
-            areaId,
-            email,
-            phone,
-            gpsLatitude,
-            gpsLongitude,
-            addressDescription,
-            buildingName,
-        ) = item
-
-        return cls(
-            buildingName,
-            gpsLatitude,
-            gpsLongitude,
-            email,
-            phone,
-            areaId,
-            addressDescription,
-            buildingId,
-        )
-
-
-# Branch Class
-class Branch:
-    # Public Fields
-    branchId: int = None
-    warehouseConnection: int = None
-    ruteDistance: float = None
-
-    # Constructor
-    def __init__(
-        self,
-        ruteDistance: float,
-        branchId: int,
-        warehouseConnection: int,
-    ):
-        self.ruteDistance = ruteDistance
-        self.branchId = branchId
-        self.warehouseConnection = warehouseConnection
-
-    @classmethod
-    def fromItemFetched(cls, item: tuple):
-        """
-        Initialize Branch from Query Item Fetched
-        """
-        (
-            buildingId,
-            areaId,
-            email,
-            phone,
-            gpsLatitude,
-            gpsLongitude,
-            addressDescription,
-            buildingName,
-        ) = item
-
-        return cls(
-            buildingName,
-            gpsLatitude,
-            gpsLongitude,
-            addressDescription,
-            phone,
-            email,
-            areaId,
-            buildingId,
-        )
-
-
 # Building Class
 class Building:
     # Public Fields
@@ -309,19 +200,127 @@ class Building:
             buildingId,
         )
 
+
+# Warehouse Class
+class Warehouse(Building):
+    # Constructor
+    def __init__(
+        self,
+        buildingName: str,
+        gpsLatitude: float,
+        gpsLongitude: float,
+        email: str,
+        phone: int,
+        areaId: int,
+        addressDescription: str,
+        buildingId: int = None,
+    ):
+        # Initialize Building Class
+        super().__init__(
+            buildingName,
+            gpsLatitude,
+            gpsLongitude,
+            addressDescription,
+            phone,
+            email,
+            areaId,
+            buildingId,
+        )
+
     @classmethod
-    def fromWarehouse(cls, w: Warehouse):
+    def fromItemFetched(cls, item: tuple):
         """
-        Initialize Building from Warehouse Object
+        Initialize Warehouse from Query Item Fetched
         """
 
+        (
+            _,  # Warehouse ID, Same as Building ID
+            buildingId,
+            areaId,
+            email,
+            phone,
+            gpsLatitude,
+            gpsLongitude,
+            addressDescription,
+            buildingName,
+        ) = item
+
         return cls(
-            w.buildingName,
-            w.gpsLatitude,
-            w.gpsLongitude,
-            w.addressDescription,
-            w.phone,
-            w.email,
-            w.areaId,
-            w.buildingId,
+            buildingName,
+            gpsLatitude,
+            gpsLongitude,
+            email,
+            phone,
+            areaId,
+            addressDescription,
+            buildingId,
+        )
+
+
+# Branch Class
+class Branch(Building):
+    # Public Fields
+    branchId: int = None
+    warehouseConnection: int = None
+    routeDistance: float = None
+
+    # Constructor
+    def __init__(
+        self,
+        buildingName: str,
+        gpsLatitude: float,
+        gpsLongitude: float,
+        email: str,
+        phone: int,
+        areaId: int,
+        addressDescription: str,
+        warehouseConnection: int,
+        routeDistance: int,
+        buildingId: int = None,
+    ):
+        # Initialize Building Class
+        super().__init__(
+            buildingName,
+            gpsLatitude,
+            gpsLongitude,
+            addressDescription,
+            phone,
+            email,
+            areaId,
+            buildingId,
+        )
+        self.warehouseConnection = warehouseConnection
+        self.routeDistance = routeDistance
+
+    @classmethod
+    def fromItemFetched(cls, item: tuple):
+        """
+        Initialize Branch from Query Item Fetched
+        """
+
+        (
+            _,  # Branch ID, Same as Building ID
+            warehouseConnection,
+            routeDistance,
+            buildingId,
+            areaId,
+            email,
+            phone,
+            gpsLatitude,
+            gpsLongitude,
+            addressDescription,
+            buildingName,
+        ) = item
+
+        return cls(
+            buildingName,
+            gpsLatitude,
+            gpsLongitude,
+            email,
+            phone,
+            areaId,
+            addressDescription,
+            warehouseConnection,
+            routeDistance,
+            buildingId,
         )

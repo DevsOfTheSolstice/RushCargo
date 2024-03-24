@@ -4,6 +4,8 @@ from rich.logging import RichHandler
 
 from .constants import *
 
+from .exceptions import RowNotFound
+
 from ..io.constants import (
     ADD,
     RM,
@@ -18,13 +20,15 @@ from ..io.validator import *
 
 from ..geocoding.geopy import (
     initGeoPyGeocoder,
-    NOMINATIM_USER_AGENT,
     NOMINATIM_LATITUDE,
     NOMINATIM_LONGITUDE,
 )
+from ..geocoding.routingpy import initRoutingPyGeocoder
 
 from ..local_database.database import GeoPyDatabase, GeoPyTables
 
+from ..model.database import initDb, Database
+from ..model.database_tables import *
 from ..model.database_territory import *
 from ..model.database_building import *
 
@@ -44,7 +48,8 @@ territoryEventHandler = None
 buildingEventHandler = None
 
 # Geocoders
-geopyGeocoder = None
+geoPyGeocoder = None
+routingPyGeocoder = None
 
 # GeoPy Local Database
 localdb = None
@@ -56,6 +61,9 @@ class EventHandler:
     # Database Connection
     __db = None
     __user = None
+
+    # API Keys
+    __ORSApiKey = None
 
     # All Handler Messages
     _allSortByMsg = "How do you want to Sort it?"
@@ -80,7 +88,7 @@ class EventHandler:
     # Constructor
     def __init__(self):
         # Initialize Database Connection
-        self.__db, self.__user = initDb()
+        self.__db, self.__user, self.__ORSApiKey = initDb()
 
     # Main Event Handler
     def handler(self, action: str, tableGroup: str, table: str) -> None:
@@ -94,7 +102,7 @@ class EventHandler:
                     # Initialize Territory Event Handler Classes
                     if territoryEventHandler == None:
                         territoryEventHandler = TerritoryEventHandler(
-                            self.__db, self.__user
+                            self.__db, self.__user, self.__ORSApiKey
                         )
 
                     # Check if it's a Territory Table
@@ -116,11 +124,11 @@ class EventHandler:
 
                 # Ask to Change Action
                 if Confirm.ask("\nDo you want to Continue with this Command?"):
-                    # Clear Screen
+                    # Clear Terminal
                     clear()
                     continue
 
-                # Clear Screen
+                # Clear Terminal
                 clear()
 
                 # Get Event Handler Arguments
@@ -134,7 +142,7 @@ class EventHandler:
                 action, tableGroup, table = arguments
 
         except KeyboardInterrupt:
-            # Program End
+            # End Program
             console.print("\nExiting...", style="warning")
             return
 
@@ -156,9 +164,9 @@ class TerritoryEventHandler(EventHandler):
     _getCityAreaMsg = "Enter City Area Name"
 
     # Constructor
-    def __init__(self, db: Database, user: str):
+    def __init__(self, db: Database, user: str, ORSApiKey: str):
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
         global tables
 
@@ -170,7 +178,8 @@ class TerritoryEventHandler(EventHandler):
         self._cityAreaTable = CityAreaTable(db)
 
         # Initialize Geocoders
-        geopyGeocoder = initGeoPyGeocoder(NOMINATIM_USER_AGENT, user)
+        geoPyGeocoder = initGeoPyGeocoder(user)
+        routingPyGeocoder = initRoutingPyGeocoder(ORSApiKey, user)
 
         # Initialize GeoPy Local Database
         localdb = GeoPyDatabase()
@@ -184,7 +193,7 @@ class TerritoryEventHandler(EventHandler):
     # Get Country ID and Name
     def getCountryId(self) -> dict | None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
 
         while True:
@@ -209,7 +218,7 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get Country Name from GeoPy API based on the Name Provided
                 try:
-                    countryName = geopyGeocoder.getCountry(countrySearch)
+                    countryName = geoPyGeocoder.getCountry(countrySearch)
                 except Exception as err:
                     console.print(err, style="warning")
                     continue
@@ -238,7 +247,7 @@ class TerritoryEventHandler(EventHandler):
     # Get Province ID based on its Name and the Country ID where it's Located
     def getProvinceId(self) -> dict | None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
 
         data = self.getCountryId()
@@ -264,7 +273,7 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get Province Name from GeoPy API based on the Name Provided
                 try:
-                    provinceName = geopyGeocoder.getProvince(data, provinceSearch)
+                    provinceName = geoPyGeocoder.getProvince(data, provinceSearch)
                 except Exception as err:
                     console.print(err, style="warning")
                     continue
@@ -301,7 +310,7 @@ class TerritoryEventHandler(EventHandler):
     # Get Region ID based on its Name and the Province ID where it's Located
     def getRegionId(self) -> dict | None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
 
         data = self.getProvinceId()
@@ -327,7 +336,7 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get Region Name from GeoPy API based on the Name Provided
                 try:
-                    regionName = geopyGeocoder.getRegion(data, regionSearch)
+                    regionName = geoPyGeocoder.getRegion(data, regionSearch)
                 except Exception as err:
                     console.print(err, style="warning")
                     continue
@@ -362,7 +371,7 @@ class TerritoryEventHandler(EventHandler):
     # Get City ID based on its Name and the Region ID where it's Located
     def getCityId(self) -> dict | None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
 
         data = self.getRegionId()
@@ -388,7 +397,7 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get City Name from GeoPy API based on the Name Provided
                 try:
-                    cityName = geopyGeocoder.getCity(
+                    cityName = geoPyGeocoder.getCity(
                         data,
                         citySearch,
                     )
@@ -426,7 +435,7 @@ class TerritoryEventHandler(EventHandler):
     # Get City Area ID based on its Name and the City ID where it's Located
     def getCityAreaId(self) -> dict | None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
 
         data = self.getCityId()
@@ -452,7 +461,7 @@ class TerritoryEventHandler(EventHandler):
             else:
                 # Get City Area Name from GeoPy API based on the Name Provided
                 try:
-                    areaName = geopyGeocoder.getCityArea(
+                    areaName = geoPyGeocoder.getCityArea(
                         data,
                         areaSearch,
                     )
@@ -490,8 +499,9 @@ class TerritoryEventHandler(EventHandler):
     # Get Place Coordinates
     def getPlaceCoordinates(self, msg: str) -> dict | None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
 
+        # Get City Area ID
         data = self.getCityAreaId()
 
         while True:
@@ -503,7 +513,7 @@ class TerritoryEventHandler(EventHandler):
                 isPlaceNameValid(placeSearch)
 
                 # Get Place Coordinates from GeoPy API based on the Data Provided
-                return geopyGeocoder.getPlaceCoordinates(data, placeSearch)
+                return geoPyGeocoder.getPlaceCoordinates(data, placeSearch)
 
             # Handle LocationError Exception
             except Exception as err:
@@ -857,7 +867,7 @@ class TerritoryEventHandler(EventHandler):
     # Add Row to Table Handler
     def _addHandler(self, table: str) -> None:
         # Global Variables
-        global geopyGeocoder
+        global geoPyGeocoder
         global localdb
 
         # Location Dictionary
@@ -882,7 +892,7 @@ class TerritoryEventHandler(EventHandler):
                     countryName = tables.getCountryName(countryNameId)
                 else:
                     # Get Country Name from GeoPy API based on the Name Provided
-                    countryName = geopyGeocoder.getCountry(countrySearch)
+                    countryName = geoPyGeocoder.getCountry(countrySearch)
 
                     # Store Country Search in Local Database
                     tables.addCountry(countrySearch, countryName)
@@ -898,7 +908,8 @@ class TerritoryEventHandler(EventHandler):
             elif table == PROVINCE_TABLENAME:
                 # Asks for Province Fields
                 if data == None:
-                    data = self._getCountryId()
+                    data = self.getCountryId()
+
                 provinceSearch = Prompt.ask(self._getProvinceMsg)
 
                 # Check Province Name
@@ -916,7 +927,7 @@ class TerritoryEventHandler(EventHandler):
                     provinceName = tables.getProvinceName(provinceNameId)
                 else:
                     # Get Province Name from GeoPy API based on the Name Provided
-                    provinceName = geopyGeocoder.getProvince(data, provinceSearch)
+                    provinceName = geoPyGeocoder.getProvince(data, provinceSearch)
 
                     # Store Province Search in Local Database
                     tables.addProvince(
@@ -939,7 +950,8 @@ class TerritoryEventHandler(EventHandler):
             elif table == REGION_TABLENAME:
                 # Asks for Region Fields
                 if data == None:
-                    data = self._getProvinceId()
+                    data = self.getProvinceId()
+
                 regionSearch = Prompt.ask(self._getRegionMsg)
 
                 # Check Region Name
@@ -957,7 +969,7 @@ class TerritoryEventHandler(EventHandler):
                     regionName = tables.getRegionName(regionNameId)
                 else:
                     # Get Region Name from GeoPy API based on the Name Provided
-                    regionName = geopyGeocoder.getRegion(data, regionSearch)
+                    regionName = geoPyGeocoder.getRegion(data, regionSearch)
 
                     # Store Region Search in Local Database
                     tables.addRegion(
@@ -978,7 +990,8 @@ class TerritoryEventHandler(EventHandler):
             elif table == CITY_TABLENAME:
                 # Asks for City Fields
                 if data == None:
-                    data = self._getRegionId()
+                    data = self.getRegionId()
+
                 citySearch = Prompt.ask(self._getCityMsg)
 
                 # Check City Name
@@ -996,7 +1009,7 @@ class TerritoryEventHandler(EventHandler):
                     cityName = tables.getCityName(cityNameId)
                 else:
                     # Get City Name from GeoPy API based on the Name Provided
-                    cityName = geopyGeocoder.getCity(data, citySearch)
+                    cityName = geoPyGeocoder.getCity(data, citySearch)
 
                     # Store City Search in Local Database
                     tables.addCity(data[DICT_REGION_NAME_ID], citySearch, cityName)
@@ -1015,7 +1028,8 @@ class TerritoryEventHandler(EventHandler):
             elif table == CITY_AREA_TABLENAME:
                 # Asks for City Area Fields
                 if data == None:
-                    data = self._getCityId()
+                    data = self.getCityId()
+
                 areaSearch = Prompt.ask(self._getCityAreaMsg)
                 areaDescription = Prompt.ask("Enter City Area Description")
 
@@ -1033,7 +1047,7 @@ class TerritoryEventHandler(EventHandler):
                     areaName = tables.getCityAreaName(areaNameId)
                 else:
                     # Get City Area Name from GeoPy API based on the Name Provided
-                    areaName = geopyGeocoder.getCityArea(data, areaSearch)
+                    areaName = geoPyGeocoder.getCityArea(data, areaSearch)
 
                     # Store City Area Search in Local Database
                     tables.addCityArea(data[DICT_CITY_NAME_ID], areaSearch, areaName)
@@ -1301,6 +1315,7 @@ class BuildingEventHandler(EventHandler):
                     coords = territoryEventHandler.getPlaceCoordinates(
                         "Enter Place Name Near to Warehouse"
                     )
+
                 warehouseName = Prompt.ask("Enter Warehouse Name")
                 warehousePhone = Prompt.ask("Enter Warehouse Phone Number")
                 warehouseEmail = Prompt.ask("Enter Warehouse Email")

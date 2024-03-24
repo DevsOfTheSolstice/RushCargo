@@ -1,6 +1,14 @@
 from rich import box
 from rich.theme import Theme
 
+# Environment Variables
+ENV_HOST = "HOST"
+ENV_PORT = "PORT"
+ENV_DBNAME = "DBNAME"
+ENV_USER = "USER"
+ENV_PASSWORD = "PASSWORD"
+ENV_ORS_API_KEY = "ORS_API_KEY"
+
 # Theme Styles
 THEME = Theme(
     {

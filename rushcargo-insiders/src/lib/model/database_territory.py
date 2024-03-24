@@ -1,4 +1,16 @@
-from .database import *
+from psycopg import sql
+
+from .classes import Country, Province, Region, City, CityArea
+
+from .constants import *
+
+from .database_tables import (
+    BasicTable,
+    noCoincidenceFetched,
+    insertedRow,
+    getTable,
+)
+from .database import Database, console
 
 
 # Country Table Class
@@ -6,7 +18,7 @@ class CountryTable(BasicTable):
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
-        super().__init__(COUNTRY_TABLENAME, database)
+        super().__init__(COUNTRY_TABLENAME, COUNTRY_ID, database)
 
     # Print Items
     def __print(self) -> None:
@@ -39,8 +51,8 @@ class CountryTable(BasicTable):
         # Print Table
         console.print(table)
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns Country Insert Query
+    def __insertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -51,15 +63,17 @@ class CountryTable(BasicTable):
     # Insert Country to Table
     def add(self, c: Country) -> None:
         # Get Query
-        query = self.__getInsertQuery()
+        query = self.__insertQuery()
 
         # Execute Query
         try:
             self._c.execute(query, [c.name, c.phonePrefix])
+
             console.print(
                 insertedRow(c.name, self._tableName),
                 style="success",
             )
+            
         except Exception as err:
             raise err
 
@@ -97,11 +111,11 @@ class CountryTable(BasicTable):
 
     # Modify Row from Country Table
     def modify(self, countryId: int, field: str, value) -> None:
-        BasicTable._modify(self, COUNTRY_ID, countryId, field, value)
+        BasicTable._modify(self, countryId, field, value)
 
     # Remove Row from Country Table
     def remove(self, countryId: int) -> None:
-        BasicTable._remove(self, COUNTRY_ID, countryId)
+        BasicTable._remove(self, countryId)
 
 
 # Province Table Class
@@ -109,7 +123,7 @@ class ProvinceTable(BasicTable):
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
-        super().__init__(PROVINCE_TABLENAME, database)
+        super().__init__(PROVINCE_TABLENAME, PROVINCE_ID, database)
 
     # Print Items
     def __print(self) -> None:
@@ -152,8 +166,8 @@ class ProvinceTable(BasicTable):
         # Print Table
         console.print(table)
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns Province Insert Query
+    def __insertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -164,15 +178,17 @@ class ProvinceTable(BasicTable):
     # Insert Province to Table
     def add(self, p: Province) -> None:
         # Get Query
-        query = self.__getInsertQuery()
+        query = self.__insertQuery()
 
         # Execute Query
         try:
             self._c.execute(query, [p.countryId, p.name])
+
             console.print(
                 insertedRow(p.name, self._tableName),
                 style="success",
             )
+
         except Exception as err:
             raise err
 
@@ -220,11 +236,11 @@ class ProvinceTable(BasicTable):
 
     # Modify Row from Province Table
     def modify(self, provinceId: int, field: str, value) -> None:
-        BasicTable._modify(self, PROVINCE_ID, provinceId, field, value)
+        BasicTable._modify(self, provinceId, field, value)
 
     # Remove Row from Province Table
     def remove(self, provinceId: int) -> None:
-        BasicTable._remove(self, PROVINCE_ID, provinceId)
+        BasicTable._remove(self, provinceId)
 
 
 # Region Table Class
@@ -232,7 +248,7 @@ class RegionTable(BasicTable):
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
-        super().__init__(REGION_TABLENAME, database)
+        super().__init__(REGION_TABLENAME, REGION_ID, database)
 
     # Print Items
     def __print(self) -> None:
@@ -268,8 +284,8 @@ class RegionTable(BasicTable):
         # Print Table
         console.print(table)
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns Region Insert Query
+    def __insertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -280,7 +296,7 @@ class RegionTable(BasicTable):
     # Insert Region to Table
     def add(self, r: Region) -> None:
         # Get Query
-        query = self.__getInsertQuery()
+        query = self.__insertQuery()
 
         # Execute Query
         try:
@@ -289,6 +305,7 @@ class RegionTable(BasicTable):
                 insertedRow(r.name, self._tableName),
                 style="success",
             )
+
         except Exception as err:
             raise err
 
@@ -336,11 +353,11 @@ class RegionTable(BasicTable):
 
     # Modify Row from Region Table
     def modify(self, regionId: int, field: str, value) -> None:
-        BasicTable._modify(self, REGION_ID, regionId, field, value)
+        BasicTable._modify(self, regionId, field, value)
 
     # Remove Row from Region Table
     def remove(self, regionId: int) -> None:
-        BasicTable._remove(self, REGION_ID, regionId)
+        BasicTable._remove(self, regionId)
 
 
 # City Table Class
@@ -348,7 +365,7 @@ class CityTable(BasicTable):
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
-        super().__init__(CITY_TABLENAME, database)
+        super().__init__(CITY_TABLENAME, CITY_ID, database)
 
     # Print Items
     def __print(self) -> None:
@@ -381,8 +398,8 @@ class CityTable(BasicTable):
         # Print Table
         console.print(table)
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns City Insert Query
+    def __insertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -393,7 +410,7 @@ class CityTable(BasicTable):
     # Insert City to Table
     def add(self, c: City) -> None:
         # Get Query
-        query = self.__getInsertQuery()
+        query = self.__insertQuery()
 
         # Execute Query
         try:
@@ -402,6 +419,7 @@ class CityTable(BasicTable):
                 insertedRow(c.name, self._tableName),
                 style="success",
             )
+
         except Exception as err:
             raise err
 
@@ -447,11 +465,11 @@ class CityTable(BasicTable):
 
     # Modify Row from City Table
     def modify(self, cityId: int, field: str, value) -> None:
-        BasicTable._modify(self, CITY_ID, cityId, field, value)
+        BasicTable._modify(self, cityId, field, value)
 
     # Remove Row from City Table
     def remove(self, cityId: int) -> None:
-        BasicTable._remove(self, CITY_ID, cityId)
+        BasicTable._remove(self, cityId)
 
 
 # City Area Table Class
@@ -459,7 +477,7 @@ class CityAreaTable(BasicTable):
     # Constructor
     def __init__(self, database: Database):
         # Initialize Basic Table Class
-        super().__init__(CITY_AREA_TABLENAME, database)
+        super().__init__(CITY_AREA_TABLENAME, CITY_AREA_ID, database)
 
     # Print Items
     def __print(self) -> None:
@@ -493,8 +511,8 @@ class CityAreaTable(BasicTable):
         # Print Table
         console.print(table)
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns City Area Insert Query
+    def __insertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -505,7 +523,7 @@ class CityAreaTable(BasicTable):
     # Insert City Area to Table
     def add(self, a: CityArea) -> None:
         # Get Query
-        query = self.__getInsertQuery()
+        query = self.__insertQuery()
 
         # Execute Query
         try:
@@ -514,6 +532,7 @@ class CityAreaTable(BasicTable):
                 insertedRow(a.areaName, self._tableName),
                 style="success",
             )
+
         except Exception as err:
             raise err
 
@@ -561,8 +580,8 @@ class CityAreaTable(BasicTable):
 
     # Modify Row from City Area Table
     def modify(self, areaId: int, field: str, value) -> None:
-        BasicTable._modify(self, CITY_AREA_ID, areaId, field, value)
+        BasicTable._modify(self, areaId, field, value)
 
     # Remove Row from City Area Table
     def remove(self, areaId: int) -> None:
-        BasicTable._remove(self, CITY_AREA_ID, areaId)
+        BasicTable._remove(self, areaId)

@@ -1,4 +1,16 @@
-from .database import *
+from psycopg import sql
+
+from .classes import Building, Warehouse, Branch
+
+from .constants import *
+
+from .database_tables import (
+    SpecializationTable,
+    noCoincidenceFetched,
+    insertedRow,
+    getTable,
+)
+from .database import Database, console
 
 
 # Functions that Returns Some Generic Table-related Strings
@@ -19,8 +31,8 @@ class BuildingTable(SpecializationTable):
             database,
         )
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns Building Insert Query
+    def __insertQuery(self):
         return sql.SQL(
             "INSERT INTO {parentTableName} ({fields}) VALUES (%s,%s, %s, %s, %s, %s, %s)"
         ).format(
@@ -60,10 +72,10 @@ class BuildingTable(SpecializationTable):
         # Get Building Object from Item Fetched
         return Building.fromItemFetched(self._items[0])
 
-    # Insert Building to Table
+    # Insert Building to Building Table
     def _add(self, b: Building) -> None:
-        # Get Query
-        query = self.__getInsertQuery()
+        # Get Query to Insert Building to Building Table
+        query = self.__insertQuery()
 
         # Execute Query
         try:
@@ -79,10 +91,12 @@ class BuildingTable(SpecializationTable):
                     b.gpsLongitude,
                 ],
             )
+
             console.print(
                 insertedRow(b.buildingName, self._parentTableName),
                 style="success",
             )
+
         except Exception as err:
             raise err
 
@@ -91,7 +105,7 @@ class BuildingTable(SpecializationTable):
 class WarehouseTable(BuildingTable):
     # Constructor
     def __init__(self, database: Database):
-        # Initialize Basic Table Class
+        # Initialize Building Table Class
         super().__init__(
             WAREHOUSE_TABLENAME,
             WAREHOUSE_ID,
@@ -141,17 +155,17 @@ class WarehouseTable(BuildingTable):
         # Print Table
         console.print(table)
 
-    # Get Insert Query
-    def __getInsertQuery(self):
+    # Returns Warehouse Insert Query
+    def __insertQuery(self):
         return sql.SQL("INSERT INTO {tableName} ({field}) VALUES (%s)").format(
             tableName=sql.Identifier(self._tableName),
-            field=sql.Identifier(WAREHOUSE_ID),
+            field=sql.Identifier(self._tablePKFKName),
         )
 
-    # Insert Warehouse to Table
+    # Insert Warehouse to Warehouse Table
     def add(self, w: Warehouse) -> None:
         # Get Warehouse Insert Query
-        warehouseQuery = self.__getInsertQuery()
+        warehouseQuery = self.__insertQuery()
 
         # Get Building object from Warehouse
         b = Building.fromWarehouse(w)
@@ -173,6 +187,7 @@ class WarehouseTable(BuildingTable):
                 insertedRow(w.buildingName, self._tableName),
                 style="success",
             )
+            
         except Exception as err:
             raise err
 
@@ -199,10 +214,130 @@ class WarehouseTable(BuildingTable):
         NOTE: There's No Own Warehouse Field that can be Modified, Only the Ones Inherited from its Parent Table
         """
 
-        SpecializationTable._modifyParentTable(
-            self, BUILDING_ID, warehouseId, field, value
-        )
+        # Modify Building Table Row Column
+        SpecializationTable._modifyParentTable(self, warehouseId, field, value)
 
     # Remove Row from Warehouse Table
     def remove(self, warehouseId: int) -> None:
-        SpecializationTable._remove(self, WAREHOUSE_ID, BUILDING_ID, warehouseId)
+        SpecializationTable._remove(self, warehouseId)
+
+
+# Branch Table Class
+class BranchTable(BuildingTable):
+    # Constructor
+    def __init__(self, database: Database):
+        # Initialize Building Table Class
+        super().__init__(
+            BRANCH_TABLENAME,
+            BRANCH_ID,
+            database,
+        )
+
+    # Print Items
+    def __print(self) -> None:
+        w = None
+
+        # Number of Items
+        nItems = len(self._items)
+
+        # No Results
+        if nItems == 0:
+            noCoincidenceFetched()
+            return
+
+        # Initialize Rich Table
+        table = getTable("Warehouse", nItems)
+
+        # Add Table Columns
+        table.add_column("ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
+        table.add_column("Coords", justify="left", max_width=COORDINATE_NCHAR)
+        table.add_column("Description", justify="left", max_width=DESCRIPTION_NCHAR)
+        table.add_column("Phone", justify="left", max_width=CONTACT_NCHAR)
+        table.add_column("Email", justify="left", max_width=CONTACT_NCHAR)
+        table.add_column("City Area ID", justify="left", max_width=ID_NCHAR)
+
+        # Loop Over Items
+        for item in self._items:
+            # Intialize Warehouse from Item Fetched
+            w = Warehouse.fromItemFetched(item)
+
+            # Add Row to Rich Table
+            table.add_row(
+                str(w.buildingId),
+                w.buildingName,
+                getCoords(w.gpsLatitude, w.gpsLongitude),
+                w.addressDescription,
+                str(w.phone),
+                w.email,
+                str(w.areaId),
+            )
+
+        # Print Table
+        console.print(table)
+
+    # Returns Warehouse Insert Query
+    def __insertQuery(self):
+        return sql.SQL("INSERT INTO {tableName} ({field}) VALUES (%s)").format(
+            tableName=sql.Identifier(self._tableName),
+            field=sql.Identifier(self._tablePKFKName),
+        )
+
+    # Insert Warehouse to Warehouse Table
+    def add(self, w: Warehouse) -> None:
+        # Get Warehouse Insert Query
+        warehouseQuery = self.__insertQuery()
+
+        # Get Building object from Warehouse
+        b = Building.fromWarehouse(w)
+
+        # Insert Building to Building Table
+        BuildingTable._add(self, b)
+
+        # Get Building ID
+        b = BuildingTable._find(self, b.areaId, b.buildingName)
+
+        # Execute Query to Insert Warehouse
+        try:
+            self._c.execute(
+                warehouseQuery,
+                [b.buildingId],
+            )
+
+            console.print(
+                insertedRow(w.buildingName, self._tableName),
+                style="success",
+            )
+
+        except Exception as err:
+            raise err
+
+    # Filter Items from Warehouse Table
+    def get(self, field: str, value, printItems: bool = True) -> bool:
+        if not SpecializationTable._getTable(self, field, value):
+            return False
+
+        # Print Items
+        if printItems:
+            self.__print()
+        return True
+
+    # Get All Items from Warehouse Table
+    def all(self, orderBy: str, desc: bool) -> None:
+        SpecializationTable._all(self, orderBy, desc)
+
+        # Print Items
+        self.__print()
+
+    # Modify Row from Warehouse Table
+    def modify(self, warehouseId: int, field: str, value) -> None:
+        """
+        NOTE: There's No Own Warehouse Field that can be Modified, Only the Ones Inherited from its Parent Table
+        """
+
+        # Modify Building Table Row Column
+        SpecializationTable._modifyParentTable(self, warehouseId, field, value)
+
+    # Remove Row from Warehouse Table
+    def remove(self, warehouseId: int) -> None:
+        SpecializationTable._remove(self, warehouseId)

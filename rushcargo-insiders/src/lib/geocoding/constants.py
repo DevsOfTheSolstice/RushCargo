@@ -15,3 +15,9 @@ NOMINATIM_BUILDING = "building"
 
 NOMINATIM_LATITUDE = "lat"
 NOMINATIM_LONGITUDE = "lon"
+
+# Open Routine Service RoutinePy Fields
+ORS_USER_AGENT = "rushcargo-insiders"
+
+ORS_PROFILE_DRIVING = "driving-car"
+ORS_PREF_FASTEST = "fastest"

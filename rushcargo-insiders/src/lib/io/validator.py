@@ -3,7 +3,7 @@ from email_validator import validate_email, EmailNotValidError
 
 from .constants import TABLE_TERRITORY_CMDS, TABLE_BUILDING_CMDS
 
-from ..model.exceptions import FieldValueError, PlaceError
+from .exceptions import FieldValueError, PlaceError
 
 
 # Clear Function
@@ -94,6 +94,7 @@ def isEmailValid(email: str) -> str:
 
         # Get Email Normalized Form
         return validatedEmail.email
+
     except EmailNotValidError as err:
         raise err
 
@@ -109,19 +110,17 @@ def isAddressValid(table: str, field: str, address: str):
     if table in TABLE_TERRITORY_CMDS:
         if not territoryAddressValidator(address):
             raise FieldValueError(table, field, address)
-        else:
-            return
+
+        return
 
     elif table == TABLE_BUILDING_CMDS:
         if not buildingAddressValidator(address):
             raise FieldValueError(table, field, address)
-        else:
-            return
+
+        return
 
 
 # Place Name Validator
 def isPlaceNameValid(address: str):
     if not isAddressStr(address, True, False):
         raise PlaceError(address)
-    else:
-        return

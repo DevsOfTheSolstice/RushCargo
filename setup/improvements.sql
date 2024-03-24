@@ -297,13 +297,19 @@ ADD COLUMN shipping_number BIGINT;
 ALTER TABLE Package
 RENAME COLUMN nombre_usuario to username;
 
---33
 ALTER TABLE Package
 DROP COLUMN locker_id;
 
 ALTER TABLE Package
 ADD COLUMN locker_id BIGINT
 FOREIGN KEY (locker_id) REFERENCES Locker(locker_id);
+
+--33
+ALTER TABLE Shipping_Guide
+ADD COLUMN locker_sender BIGINT,
+ADD COLUMN locker_receiver BIGINT,
+FOREIGN KEY (locker_sender) REFERENCES Locker(locker_id),
+FOREIGN KEY (locker_receiver) REFERENCES Locker(locker_id);
 
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;

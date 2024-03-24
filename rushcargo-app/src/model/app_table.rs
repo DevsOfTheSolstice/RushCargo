@@ -1,12 +1,16 @@
 use ratatui::widgets::TableState;
-use sqlx::PgPool;
+use sqlx::{FromRow, query::Query, Postgres, PgPool};
+use anyhow::{Result, anyhow};
 use super::{
-    app::App, common::User,
+    app::App,
+    common::{User, Screen, SubScreen},
+    common_obj::Package
 };
 
 #[derive(Debug)]
 pub enum TableType {
     Lockers,
+    LockerPackages,
 }
 
 pub struct TableData {
@@ -25,14 +29,9 @@ impl App {
     pub async fn next_table_item(&mut self, table_type: TableType, pool: &PgPool) {
         match table_type {
             TableType::Lockers => {
-                let client = self.user.as_mut().map(|u|
-                    match u {
-                        User::Client(client) => client,
-                        _ => panic!()
-                    }).unwrap();
-
                 let i = match self.table.state.selected() {
                     Some(i) => {
+                        let client = self.get_client_mut();
                         if i >= client.viewing_lockers.as_ref().unwrap().len() - 1 {
                             if let Ok(()) = client.get_lockers_next(pool).await {
                                 0
@@ -47,19 +46,33 @@ impl App {
                 };
                 self.table.state.select(Some(i));
             }
+            TableType::LockerPackages => {
+                //let client = self.get_client_mut();
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i >= self.packages.as_ref().unwrap().viewing_packages.len() - 1 {
+                            if let Ok(()) = self.get_packages_next(table_type, pool).await {
+                                0
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i + 1
+                        }
+                    }
+                    None => 0
+                };
+                self.table.state.select(Some(i));
+                self.packages.as_mut().unwrap().active_package = Some(self.packages.as_ref().unwrap().viewing_packages[i].clone());
+            }
         }
     }
     pub async fn prev_table_item(&mut self, table_type: TableType, pool: &PgPool) {
         match table_type {
             TableType::Lockers => {
-                let client = self.user.as_mut().map(|u|
-                    match u {
-                        User::Client(client) => client,
-                        _ => panic!()
-                    }).unwrap();
-
                 let i = match self.table.state.selected() {
                     Some(i) => {
+                        let client = self.get_client_mut();
                         if i == 0 {
                             if let Ok(()) = client.get_lockers_prev(pool).await {
                                 7 - 1
@@ -74,6 +87,55 @@ impl App {
                 };
                 self.table.state.select(Some(i));
             }
+            TableType::LockerPackages => todo!()
         }
+    }
+    pub async fn get_packages_next(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
+        let query: Query<'_, Postgres, _> = match table_type {
+            TableType::LockerPackages => {
+                match self.active_screen {
+                    Screen::Client(SubScreen::ClientLockerPackages) => {
+                        let client = self.get_client_ref();
+                        let base_query =
+                            "
+                                SELECT * FROM package
+                                INNER JOIN package_description AS description
+                                ON package.tracking_number=description.tracking_number
+                                WHERE delivered=true AND locker_id=$1
+                                LIMIT 7
+                                OFFSET $2
+                            ";
+
+                        let query: Query<'_, Postgres, _> =
+                            sqlx::query(base_query)
+                            .bind(client.active_locker.as_ref().unwrap().get_id())
+                            .bind(self.packages.as_ref().unwrap().viewing_packages_idx);
+
+                        query
+                    }
+                    _ => panic!()
+                }
+            }
+            _ => panic!()
+        };
+
+        let rows =
+            query
+            .fetch_all(pool)
+            .await?;
+
+        if rows.is_empty() { return Err(anyhow!("")) }
+
+        let rows_num = rows.len();
+
+        self.packages.as_mut().unwrap().viewing_packages =
+            rows
+            .into_iter()
+            .map(|row| Package::from_row(&row).expect("could not build package from row in get_packages_next"))
+            .collect::<Vec<Package>>();
+        
+        self.packages.as_mut().unwrap().viewing_packages_idx += rows_num as i64;
+
+        Ok(())
     }
 }

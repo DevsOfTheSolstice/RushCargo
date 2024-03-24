@@ -1,6 +1,9 @@
 use std::time::{Duration, Instant};
 use tui_input::Input;
-use super::client::ClientData;
+use super::{
+    client::ClientData,
+    common_obj::Package,
+};
 
 #[derive(Debug, Clone)]
 pub enum Screen {
@@ -42,17 +45,6 @@ pub enum User {
     Client(ClientData),
 }
 
-#[derive(Debug)]
-pub enum UserType {
-    NaturalClient,
-    LegalClient,
-    Trucker,
-    Motorcyclist,
-    OrderAdmin,
-    ClientAdmin,
-    PackageAdmin,
-}
-
 pub enum InputMode {
     Normal,
     /// The value represents the InputField being edited
@@ -72,4 +64,11 @@ pub struct Timer {
     pub counter: u8,
     pub tick_rate: Duration,
     pub last_update: Instant,
+}
+
+pub struct PackageData {
+    pub viewing_packages: Vec<Package>,
+    pub viewing_packages_idx: i64,
+    pub selected_packages: Option<Vec<Package>>,
+    pub active_package: Option<Package>,
 }

@@ -8,7 +8,7 @@ use crate::{
     HELP_TEXT,
     event::{Event, InputBlacklist},
     model::{
-        common::{User, Popup, UserType, TimeoutType},
+        common::{User, Popup, TimeoutType},
         client::{ClientData, Client},
         app::App,
     }

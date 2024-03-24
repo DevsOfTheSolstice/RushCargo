@@ -8,8 +8,9 @@ use crate::{
     HELP_TEXT,
     model::{
         app_list::ListData,
-        app_table::TableData,
-        common::{User, SubScreen, Popup, UserType, InputFields, InputMode, Screen, TimeoutType, Timer},
+        app_table::{TableData, TableType},
+        client::ClientData,
+        common::{User, SubScreen, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
     }
@@ -25,6 +26,7 @@ pub struct App {
     pub title: Option<Box<TitleData>>,
     pub list: ListData,
     pub table: TableData,
+    pub packages: Option<PackageData>,
     pub user: Option<User>,
     prev_screen: Option<Screen>,
     pub active_screen: Screen,
@@ -50,6 +52,7 @@ impl App {
             title: None,
             list: ListData::default(),
             table: TableData::default(),
+            packages: None,
             user: None,
             prev_screen: None,
             active_screen: Screen::Login,
@@ -64,7 +67,7 @@ impl App {
 impl App {
     pub async fn enter_screen(&mut self, screen: &Screen, pool: &Pool<Postgres>) {
         self.should_clear_screen = true;
-        self.cleanup();
+        self.cleanup(screen);
         match screen {
             Screen::Title => {
                 let title = TitleData::from_file();
@@ -89,12 +92,20 @@ impl App {
             }
             Screen::Client(SubScreen::ClientLockers) => {
                 self.active_screen = Screen::Client(SubScreen::ClientLockers);
-                if let Some(User::Client(client)) = &mut self.user {
-                    client.get_lockers_next(pool).await.expect("could not get initial lockers");
-                }
+                let client = self.get_client_mut();
+                client.get_lockers_next(pool).await.expect("could not get initial lockers");
             }
             Screen::Client(SubScreen::ClientLockerPackages) => {
                 self.active_screen = Screen::Client(SubScreen::ClientLockerPackages);
+                self.packages = Some(
+                    PackageData {
+                        viewing_packages: Vec::new(),
+                        viewing_packages_idx: 0,
+                        selected_packages: None,
+                        active_package: None,
+                    }
+                );
+                self.get_packages_next(TableType::LockerPackages, pool).await.expect("could not get initial packages");
             }
             Screen::Client(SubScreen::ClientSentPackages) => {
                 self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
@@ -104,7 +115,7 @@ impl App {
         }
     }
 
-    fn cleanup(&mut self) {
+    fn cleanup(&mut self, next_screen: &Screen) {
         match self.prev_screen {
             Some(Screen::Title) => {
                 self.title = None;
@@ -127,12 +138,17 @@ impl App {
                     client.viewing_lockers = None;
                     client.viewing_lockers_idx = 0;
                 }
+                self.table.state.select(None);
+            }
+            Some(Screen::Client(SubScreen::ClientLockerPackages)) => {
+                self.packages = None;
+                self.table.state.select(None);
             }
             Some(Screen::Client(_)) => {}
             Some(Screen::Trucker) => {}
             None => {}
         }
-        self.prev_screen = Some(self.active_screen.clone());
+        self.prev_screen = Some(next_screen.clone());
     }
 
     /// The timeout tick rate here should be equal or greater to the EventHandler tick rate.
@@ -174,5 +190,24 @@ impl App {
                 self.timeout.remove(&timeout_type);
             }
         }
+    }
+    pub fn get_client_ref(&self) -> &ClientData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Client(client) => client,
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_client_mut(&mut self) -> &mut ClientData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Client(client) => client,
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_packages_ref(&self) -> &PackageData {
+        self.packages.as_ref().unwrap()
     }
 }

@@ -59,6 +59,17 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 _ => Ok(())
             }
         }
+        SubScreen::ClientLockerPackages => {
+            match key_event.code {
+                KeyCode::Esc => {
+                    sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientLockers)))
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    sender.send(Event::NextTableItem(TableType::LockerPackages))
+                }
+                _ => Ok(())
+            }
+        }
         SubScreen::ClientSentPackages => {
             match key_event.code {
                 KeyCode::Esc => {

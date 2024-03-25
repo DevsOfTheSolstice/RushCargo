@@ -163,9 +163,14 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .enumerate()
                 .map(|(i, package)| {
                     Row::new(vec![
-                        Text::from("☐"),
+                        match &app_lock.get_packages_ref().selected_packages {
+                            Some(selected_packages) if selected_packages.contains(package) => {
+                                Text::styled("☑", Style::default().fg(Color::Yellow))
+                            }
+                            _ => Text::from("☐")
+                        },
                         Text::from((app_lock.get_packages_ref().viewing_packages_idx + 1 - (app_lock.get_packages_ref().viewing_packages.len() - i) as i64).to_string()),
-                        Text::from(wrap(18, package.content.clone())),
+                        Text::from(wrap_text(18, package.content.clone())),
                     ])
                     .height(2)
                 })
@@ -175,7 +180,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .column_spacing(3)
                 .header(header.bottom_margin(1))
                 .highlight_style(Style::default().fg(Color::LightYellow).add_modifier(Modifier::REVERSED))
-                .highlight_symbol(" ▶ ")
+                .highlight_symbol(vec![Line::raw(" █ "), Line::raw(" █ ")])//" ▶  ")
                 .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
                 .block(Block::default().borders(Borders::ALL).border_type(BorderType::Plain));
 
@@ -237,27 +242,7 @@ fn dimensions_string(val: Decimal) -> String {
     }
 }
 
-/*fn wrap<'a>(width: usize, text: &'a str) -> Vec<Line<'a>> {
-    let mut ret: Vec<Line<'a>> = Vec::new();
-    let mut remaining_text = text;
-
-    while remaining_text.len() > width {
-        /*let line_text = if remaining_text.len() <= 10 {
-            text
-        } else {
-            &text[..10]
-        };*/
-
-        ret.push(Line::raw(&remaining_text[0..width]));
-        remaining_text = &remaining_text[width..];
-    }
-
-    ret.push(Line::raw(remaining_text));
-
-    ret
-}*/
-
-fn wrap(width: usize, text: String) -> Vec<Line<'static>> {
+fn wrap_text(width: usize, text: String) -> Vec<Line<'static>> {
     let mut ret: Vec<Line> = Vec::new();
     let remaining_text = text.split_whitespace();
 

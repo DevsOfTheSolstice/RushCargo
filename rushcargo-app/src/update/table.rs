@@ -46,7 +46,23 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                         app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockerPackages), pool).await;
                     }
                 }
-                TableType::LockerPackages => todo!()
+                TableType::LockerPackages => {
+                    let packages = app_lock.packages.as_mut().unwrap();
+                    if let Some(active_package) = &packages.active_package {
+                        match &mut packages.selected_packages {
+                            Some(selected_packages) => {
+                                if selected_packages.contains(&active_package) {
+                                    selected_packages.remove(
+                                        selected_packages.iter().position(|x| *x == *active_package
+                                    ).expect("package not found in selection"));
+                                } else {
+                                    selected_packages.push(active_package.clone());
+                                }
+                            }
+                            None => packages.selected_packages = Some(Vec::from([active_package.clone()]))
+                        }
+                    }
+                }
             }
             Ok(())
         }

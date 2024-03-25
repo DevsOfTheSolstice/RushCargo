@@ -12,7 +12,7 @@ use time::{PrimitiveDateTime, Time, Date};
 use rust_decimal::Decimal;
 use anyhow::{Result, Error, anyhow};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Package {
     pub tracking_num: i64,
     pub admin_verification: String,

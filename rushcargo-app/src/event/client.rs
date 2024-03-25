@@ -70,6 +70,9 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 KeyCode::Up | KeyCode::Char('k') => {
                     sender.send(Event::PrevTableItem(TableType::LockerPackages))
                 }
+                KeyCode::Enter => {
+                    sender.send(Event::SelectTableItem(TableType::LockerPackages))
+                }
                 _ => Ok(())
             }
         }

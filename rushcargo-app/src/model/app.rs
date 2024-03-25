@@ -29,9 +29,9 @@ pub struct App {
     pub packages: Option<PackageData>,
     pub user: Option<User>,
     prev_screen: Option<Screen>,
+    prev_popup: Option<Popup>,
     pub active_screen: Screen,
     pub active_popup: Option<Popup>,
-    pub hold_popup: bool,
     pub should_clear_screen: bool,
     pub should_quit: bool,
 }
@@ -55,9 +55,9 @@ impl App {
             packages: None,
             user: None,
             prev_screen: None,
+            prev_popup: None,
             active_screen: Screen::Login,
             active_popup: None,
-            hold_popup: false,
             should_clear_screen: false,
             should_quit: false,
         }
@@ -67,36 +67,28 @@ impl App {
 impl App {
     pub async fn enter_screen(&mut self, screen: &Screen, pool: &Pool<Postgres>) {
         self.should_clear_screen = true;
-        self.cleanup(screen);
+        self.cleanup_screen(screen);
+        self.active_screen = screen.clone();
+
         match screen {
             Screen::Title => {
                 let title = TitleData::from_file();
                 if let Err(e) = title {
                     panic!("Error on title data build: {}", e);
                 }
-                self.active_screen = Screen::Title;
                 self.title = Some(Box::new(title.unwrap()));
                 self.add_timeout(10, 0, TimeoutType::CubeTick);
             }
-            Screen::Settings => {
-                self.active_screen = Screen::Settings;
-            }
             Screen::Login => {
-                self.active_screen = Screen::Login;
                 self.input_mode = InputMode::Editing(0);
                 self.failed_logins = 0;
                 self.user = None;
             }
-            Screen::Client(SubScreen::ClientMain) => {
-                self.active_screen = Screen::Client(SubScreen::ClientMain);
-            }
             Screen::Client(SubScreen::ClientLockers) => {
-                self.active_screen = Screen::Client(SubScreen::ClientLockers);
                 let client = self.get_client_mut();
                 client.get_lockers_next(pool).await.expect("could not get initial lockers");
             }
             Screen::Client(SubScreen::ClientLockerPackages) => {
-                self.active_screen = Screen::Client(SubScreen::ClientLockerPackages);
                 self.packages = Some(
                     PackageData {
                         viewing_packages: Vec::new(),
@@ -107,14 +99,11 @@ impl App {
                 );
                 self.get_packages_next(TableType::LockerPackages, pool).await.expect("could not get initial packages");
             }
-            Screen::Client(SubScreen::ClientSentPackages) => {
-                self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
-            }
-            Screen::Trucker => todo!(),
+            _ => {}
         }
     }
 
-    fn cleanup(&mut self, next_screen: &Screen) {
+    fn cleanup_screen(&mut self, next_screen: &Screen) {
         match self.prev_screen {
             Some(Screen::Title) => {
                 self.title = None;
@@ -148,6 +137,25 @@ impl App {
             None => {}
         }
         self.prev_screen = Some(next_screen.clone());
+    }
+
+    pub fn enter_popup(&mut self, popup: &Popup) {
+        self.cleanup_popup(popup);
+        self.active_popup = Some(popup.clone());
+
+        match popup {
+            Popup::None => {
+                self.active_popup = None;
+            }
+            _ => {}
+        }
+    }
+
+    fn cleanup_popup(&mut self, next_popup: &Popup) {
+        match self.prev_popup {
+            _ => {}
+        }
+        self.prev_popup = Some(next_popup.clone());
     }
 
     /// The timeout tick rate here should be equal or greater to the EventHandler tick rate.

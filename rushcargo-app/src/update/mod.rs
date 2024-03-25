@@ -2,6 +2,7 @@ mod common;
 mod list;
 mod table;
 mod login;
+mod client;
 
 use std::sync::{Arc, Mutex};
 use sqlx::{Pool, Postgres};
@@ -26,6 +27,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
 
         Event::TryLogin
         => login::update(app, pool, event).await,
+
+        Event::PlaceOrder
+        => client::update(app, pool, event).await,
 
         Event::Resize
         => Ok(()),

@@ -58,6 +58,8 @@ pub enum Event {
     SelectTableItem(TableType),
 
     TryLogin,
+
+    PlaceOrder,
 }
 
 #[derive(Debug)]
@@ -125,10 +127,6 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 // Events common to all screens.
                 match key_event.code {
                     KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
-                    _ if app_lock.hold_popup => {
-                        sender.send(Event::Cleanup).expect(SENDER_ERR);
-                        Ok(())
-                    },
                     _ => Ok(())
                 }.expect(SENDER_ERR);
             }

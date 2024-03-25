@@ -36,8 +36,17 @@ impl std::fmt::Display for Screen {
     }
 }
 
+#[derive(Clone)]
 pub enum Popup {
+    None,
+
     LoginSuccessful,
+
+    ClientOrderMain,
+    ClientOrderUserLocker,
+    ClientOrderUserBranch,
+    ClientOrderUserDelivery,
+    ClientInputPayment,
 }
 
 #[derive(Debug)]

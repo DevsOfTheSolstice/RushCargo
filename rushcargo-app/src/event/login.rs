@@ -26,7 +26,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                     User::Client(_) => sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain))),
                     _ => todo!("enter screen of user type: {:?}", user_type),
                 }.expect(SENDER_ERR);
-                app_lock.active_popup = None;
+                app_lock.enter_popup(&Popup::None);
             }
         }
         None => {
@@ -37,5 +37,6 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 _ => sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))
             }.expect(SENDER_ERR);
         }
+        _ => {}
     }
 }

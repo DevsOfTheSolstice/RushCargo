@@ -63,7 +63,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                     match app_lock.action_sel {
                         Some(0) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockers), pool).await,
                         Some(1) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientSentPackages), pool).await,
-                        _ => panic!()
+                        _ => {}
                     }
                 }
                 _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app_lock.active_screen, subscreen)

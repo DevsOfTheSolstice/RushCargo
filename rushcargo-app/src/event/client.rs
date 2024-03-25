@@ -60,21 +60,39 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
             }
         }
         SubScreen::ClientLockerPackages => {
-            match key_event.code {
-                KeyCode::Esc => {
-                    sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientLockers)))
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    sender.send(Event::NextTableItem(TableType::LockerPackages))
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    sender.send(Event::PrevTableItem(TableType::LockerPackages))
-                }
-                KeyCode::Enter => {
-                    sender.send(Event::SelectTableItem(TableType::LockerPackages))
-                }
+            match app_lock.active_popup {
+                None =>
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientLockers)))
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            sender.send(Event::NextTableItem(TableType::LockerPackages))
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            sender.send(Event::PrevTableItem(TableType::LockerPackages))
+                        }
+                        KeyCode::Char('s') => {
+                            sender.send(Event::SelectTableItem(TableType::LockerPackages))
+                        }
+                        KeyCode::Enter => {
+                            sender.send(Event::PlaceOrder)
+                        }
+                        _ => Ok(())
+                    }
+                Some(Popup::ClientOrderMain) =>
+                    match key_event.code {
+                        KeyCode::Tab => {
+                            sender.send(Event::SwitchAction)
+                        }
+                        KeyCode::Enter => {
+                            sender.send(Event::SelectAction)
+                        }
+                        _ => Ok(())
+                    }
                 _ => Ok(())
             }
+            
         }
         SubScreen::ClientSentPackages => {
             match key_event.code {

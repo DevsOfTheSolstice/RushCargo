@@ -14,7 +14,7 @@ impl HelpText {
             client: ClientHelpText {
                 main: "(Tab) switch actions | (Esc) back.",
                 lockers: "(Enter) select locker | (⬆) move up | (⬇) move down | (Esc) back",
-                locker_packages: "(Enter) add to shipping order | (⬆) move up | (⬇) move down | (Esc) back",
+                locker_packages: "(s) select package | (⬆) move up | (⬇) move down | (Enter) place order",
                 sent_packages: "Select a package."
             },
         }

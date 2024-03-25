@@ -20,4 +20,8 @@ ADD CONSTRAINT uq_city_city_area UNIQUE (city_id, area_name);
 
 -- Make Unique Building Name per City Area
 ALTER TABLE Building
-ADD CONSTRAINT uq_city_area_building UNIQUE (area_id, building_name)
+ADD CONSTRAINT uq_city_area_building UNIQUE (area_id, building_name);
+
+-- Make Unique the Warehouse Connections
+ALTER TABLE Warehouse_Connection
+ADD CONSTRAINT uq_connection_warehouse_connection UNIQUE (warehouse_from_id, warehouse_to_id);

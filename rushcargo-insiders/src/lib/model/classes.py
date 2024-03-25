@@ -29,6 +29,7 @@ class Province:
     provinceId: int = None
     airForwarderId: int = None
     oceanForwarderId: int = None
+    warehouseId: int = None
 
     # Constructor
     def __init__(
@@ -38,21 +39,27 @@ class Province:
         provinceId: int = None,
         airForwarderId: int = None,
         oceanForwarderId: int = None,
+        warehouseId: int = None,
     ):
         self.name = name
         self.countryId = countryId
         self.provinceId = provinceId
         self.airForwarderId = airForwarderId
         self.oceanForwarderId = oceanForwarderId
+        self.warehouseId = warehouseId
 
     @classmethod
     def fromItemFetched(cls, item: tuple):
         """
         Initialize Province from Query Item Fetched
         """
-        provinceId, countryId, name, airForwarderId, oceanForwarderId = item
+        provinceId, countryId, name, airForwarderId, oceanForwarderId, warehouseId = (
+            item
+        )
 
-        return cls(name, countryId, provinceId, airForwarderId, oceanForwarderId)
+        return cls(
+            name, countryId, provinceId, airForwarderId, oceanForwarderId, warehouseId
+        )
 
 
 # Region Class
@@ -92,21 +99,29 @@ class City:
     name: str = None
     regionId: int = None
     cityId: int = None
+    warehouseId: int = None
 
     # Constructor
-    def __init__(self, name: str, regionId: int, cityId: int = None):
+    def __init__(
+        self,
+        name: str,
+        regionId: int,
+        cityId: int = None,
+        warehouseId: int = None,
+    ):
         self.name = name
         self.regionId = regionId
         self.cityId = cityId
+        self.warehouseId = warehouseId
 
     @classmethod
     def fromItemFetched(cls, item: tuple):
         """
         Initialize City from Query Item Fetched
         """
-        cityId, name, regionId = item
+        cityId, name, regionId, warehouseId = item
 
-        return cls(name, regionId, cityId)
+        return cls(name, regionId, cityId, warehouseId)
 
 
 # City Area Class
@@ -116,6 +131,7 @@ class CityArea:
     areaDescription: str = None
     cityId: int = None
     areaId: int = None
+    warehouseId: int = None
 
     # Constructor
     def __init__(
@@ -124,20 +140,22 @@ class CityArea:
         areaDescription: str,
         cityId: int,
         areaId: int = None,
+        warehouseId: int = None,
     ):
         self.areaName = areaName
         self.areaDescription = areaDescription
         self.cityId = cityId
         self.areaId = areaId
+        self.warehouseId = warehouseId
 
     @classmethod
     def fromItemFetched(cls, item: tuple):
         """
         Initialize City Area from Query Item Fetched
         """
-        areaId, areaName, areaDescription, cityId = item
+        areaId, areaName, areaDescription, cityId, warehouseId = item
 
-        return cls(areaName, areaDescription, cityId, areaId)
+        return cls(areaName, areaDescription, cityId, areaId, warehouseId)
 
 
 # Building Class
@@ -255,6 +273,37 @@ class Warehouse(Building):
             addressDescription,
             buildingId,
         )
+
+
+# Warehouse Connection Class
+class WarehouseConnection:
+    # Public Fields
+    warehouseConnId: int = None
+    warehouseFromId: int = None
+    warehouseToId: int = None
+    routeDistance: int = None
+
+    # Constructor
+    def __init__(
+        self,
+        warehouseFromId: int,
+        warehouseToId: int,
+        routeDistance: int,
+        warehouseConnId: int = None,
+    ):
+        self.warehouseFromId = warehouseFromId
+        self.warehouseToId = warehouseToId
+        self.routeDistance = routeDistance
+        self.warehouseConnId = warehouseConnId
+
+    @classmethod
+    def fromItemFetched(cls, item: tuple):
+        """
+        Initialize Warehouse Connection from Query Item Fetched
+        """
+        warehouseFromId, warehouseToId, routeDistance, warehouseConnId = item
+
+        return cls(warehouseFromId, warehouseToId, routeDistance, warehouseConnId)
 
 
 # Branch Class

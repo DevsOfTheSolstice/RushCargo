@@ -55,3 +55,6 @@ MOD_NOTHING_MSG = "Nothing to Modify"
 
 # Remove Handler Messages
 RM_CONFIRM_MSG = "\nIs this the Row you want to Remove?"
+
+# Program Exting Message
+END_MSG = "\nExiting..."

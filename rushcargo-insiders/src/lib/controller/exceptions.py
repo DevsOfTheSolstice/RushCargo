@@ -15,10 +15,10 @@ class InvalidLocation(Exception):
     """
 
     def __init__(
-        self, locationName: str, parentLocationName: str, parentLocationId: int
+        self, locationName: str, parentLocationTableName: str, parentLocationId: int
     ):
         super().__init__(
-            f"There's No '{locationName}' Referencing to '{parentLocationName}' Table Row of ID '{parentLocationId}'\n"
+            f"There's No '{locationName}' Referencing to '{parentLocationTableName}' Table Row of ID '{parentLocationId}'\n"
         )
 
 

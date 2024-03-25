@@ -5,6 +5,7 @@ from ..model.constants import (
     CITY_TABLENAME,
     CITY_AREA_TABLENAME,
     WAREHOUSE_TABLENAME,
+    WAREHOUSE_CONN_TABLENAME,
     BRANCH_TABLENAME,
 )
 

@@ -138,6 +138,7 @@ class ProvinceTable(BasicTable):
         table.add_column(
             "Ocean Forwarder ID", justify="left", max_width=FORWARDER_NCHAR
         )
+        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -151,6 +152,7 @@ class ProvinceTable(BasicTable):
                 str(p.countryId),
                 str(p.airForwarderId),
                 str(p.oceanForwarderId),
+                str(p.warehouseId)
             )
 
         # Print Table
@@ -374,6 +376,7 @@ class CityTable(BasicTable):
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
         table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -381,7 +384,7 @@ class CityTable(BasicTable):
             c = City.fromItemFetched(item)
 
             # Add Row to Rich Table
-            table.add_row(str(c.cityId), c.name, str(c.regionId))
+            table.add_row(str(c.cityId), c.name, str(c.regionId), str(c.warehouseId))
 
         # Print Table
         console.print(table)
@@ -455,7 +458,7 @@ class CityTable(BasicTable):
         """
 
         # Get City
-        if not self.get(CITY_ID, cityId, False):
+        if not self.get(self._tablePKName, cityId, False):
             return None
 
         # Get City Object from Item Fetched
@@ -499,6 +502,7 @@ class CityAreaTable(BasicTable):
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
         table.add_column("Description", justify="left", max_width=DESCRIPTION_NCHAR)
         table.add_column("City ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
         # Loop Over Items
         for item in self._items:
@@ -506,7 +510,7 @@ class CityAreaTable(BasicTable):
             a = CityArea.fromItemFetched(item)
 
             # Add Row to Rich Table
-            table.add_row(str(a.areaId), a.areaName, a.areaDescription, str(a.cityId))
+            table.add_row(str(a.areaId), a.areaName, a.areaDescription, str(a.cityId), str(a.warehouseId))
 
         # Print Table
         console.print(table)
@@ -581,8 +585,8 @@ class CityAreaTable(BasicTable):
         Returns City Area Object if it was Found. Otherwise, False
         """
 
-        # Get City Area 
-        if not self.get(CITY_AREA_ID, areaId, False):
+        # Get City Area
+        if not self.get(self._tablePKName, areaId, False):
             return None
 
         # Get City Area Object from Item Fetched

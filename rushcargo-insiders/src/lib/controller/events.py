@@ -2,6 +2,7 @@ from rich.prompt import Confirm
 import logging
 from rich.logging import RichHandler
 
+from .constants import END_MSG
 from .locationEvents import LocationEventHandler
 
 from ..io.arguments import getEventHandlerArguments
@@ -66,5 +67,5 @@ class EventHandler:
 
         except KeyboardInterrupt:
             # End Program
-            console.print("\nExiting...", style="warning")
+            console.print(END_MSG, style="warning")
             return

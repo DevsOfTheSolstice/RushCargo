@@ -3,12 +3,13 @@ import textwrap
 import sys
 
 from lib.controller.events import EventHandler
+from lib.controller.events import END_MSG
 
 from lib.io.constants import *
 from lib.io.arguments import getEventHandlerArguments
 from lib.io.validator import clear
 
-from lib.model.database import initDb
+from lib.model.database import initDb, console
 
 from lib.terminal.constants import TITLE_MSG, WELCOME_MSG
 
@@ -63,18 +64,23 @@ if __name__ == "__main__":
         # Clear Terminal
         clear()
 
-        # Get Event Handler Arguments
-        arguments = getEventHandlerArguments()
+        try:
+            # Get Event Handler Arguments
+            arguments = getEventHandlerArguments()
 
-        if arguments != None:
-            # Get Arguments
-            action, tableGroup, table = arguments
+            if arguments != None:
+                # Get Arguments
+                action, tableGroup, table = arguments
 
-            # Initialize Database Connection
-            db, user, ORSApiKey = initDb()
+                # Initialize Database Connection
+                db, user, ORSApiKey = initDb()
 
-            # Initialize Event Handler
-            e = EventHandler(db, user, ORSApiKey)
+                # Initialize Event Handler
+                e = EventHandler(db, user, ORSApiKey)
 
-            # Call Main Event Handler
-            e.handler(action, tableGroup, table)
+                # Call Main Event Handler
+                e.handler(action, tableGroup, table)
+
+        except KeyboardInterrupt:
+            # End Program
+            console.print(END_MSG, style="warning")

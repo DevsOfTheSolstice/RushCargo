@@ -311,6 +311,20 @@ ADD COLUMN locker_receiver BIGINT,
 FOREIGN KEY (locker_sender) REFERENCES Locker(locker_id),
 FOREIGN KEY (locker_receiver) REFERENCES Locker(locker_id);
 
+--34
+ALTER TABLE Warehouse_connection
+DROP CONSTRAINT IF EXISTS warehouse_connection_warehouse1_id_fkey,
+DROP CONSTRAINT IF EXISTS warehouse_connection_warehouse2_id_fkey,
+DROP COLUMN warehouse1_id,
+DROP COLUMN warehouse2_id;
+
+ALTER TABLE Warehouse_connection
+ADD COLUMN warehouse1_id BIGINT,
+ADD COLUMN warehouse2_id BIGINT,
+ADD CONSTRAINT warehouse_connection_warehouse1_id_fkey FOREIGN KEY (warehouse1_id) REFERENCES warehouse(warehouse_id),
+ADD CONSTRAINT warehouse_connection_warehouse2_id_fkey FOREIGN KEY (warehouse2_id) REFERENCES Warehouse(warehouse_id);
+
+
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;

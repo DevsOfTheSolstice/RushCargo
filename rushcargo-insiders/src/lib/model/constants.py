@@ -58,6 +58,7 @@ PROVINCE_NAME = "province_name"
 PROVINCE_FK_COUNTRY = "country_id"
 PROVINCE_FK_AIR_FORWARDER = "main_air_freight_forwarder"
 PROVINCE_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
+PROVINCE_FK_WAREHOUSE = "main_warehouse"
 
 # Region ...
 REGION_TABLENAME = "region"
@@ -71,6 +72,7 @@ CITY_TABLENAME = "city"
 CITY_ID = "city_id"
 CITY_NAME = "city_name"
 CITY_FK_REGION = "region_id"
+CITY_FK_WAREHOUSE = "main_warehouse"
 
 # City Area ...
 CITY_AREA_TABLENAME = "city_area"
@@ -78,6 +80,7 @@ CITY_AREA_ID = "area_id"
 CITY_AREA_NAME = "area_name"
 CITY_AREA_DESCRIPTION = "area_description"
 CITY_AREA_FK_CITY = "city_id"
+CITY_AREA_FK_WAREHOUSE = "main_warehouse"
 
 # Building ...
 BUILDING_TABLENAME = "building"
@@ -93,6 +96,13 @@ BUILDING_FK_CITY_AREA = "area_id"
 # Warehouse ...
 WAREHOUSE_TABLENAME = "warehouse"
 WAREHOUSE_ID = "warehouse_id"
+
+# Warehouse Connection
+WAREHOUSE_CONN_TABLENAME = "warehouse_connection"
+WAREHOUSE_CONN_ID = "connection_id"
+WAREHOUSE_CONN_WAREHOUSE_FROM_ID = "warehouse_from_id"
+WAREHOUSE_CONN_WAREHOUSE_TO_ID = "warehouse_to_id"
+WAREHOUSE_CONN_ROUTE_DISTANCE = "route_distance"
 
 # Branch ...
 BRANCH_TABLENAME = "branch"

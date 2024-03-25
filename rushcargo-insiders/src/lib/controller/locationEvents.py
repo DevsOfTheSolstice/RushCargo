@@ -41,6 +41,7 @@ class LocationEventHandler:
     _cityTable = None
     _cityAreaTable = None
     _warehouseTable = None
+    _warehouseConnTable = None
     _branchTable = None
 
     # GeoPy Local Database
@@ -67,6 +68,7 @@ class LocationEventHandler:
         self._cityTable = CityTable(db)
         self._cityAreaTable = CityAreaTable(db)
         self._warehouseTable = WarehouseTable(db)
+        self._warehouseConnTable = WarehouseConnectionTable(db)
         self._branchTable = BranchTable(db)
 
         # Initialize GeoPy Local Database
@@ -169,8 +171,8 @@ class LocationEventHandler:
 
         return value
 
-    # Returns Warehouse Connection ID and Route Distance
-    def __getWarehouseConnection(
+    # Returns Warehouse Connection ID and Route Distance from a Given Branch
+    def __getBranchWarehouseConnection(
         self, areaId: int, location: dict
     ) -> None | tuple[int, int]:
         # Clear Terminal
@@ -211,6 +213,30 @@ class LocationEventHandler:
         )
 
         return warehouseId, routeDistance
+
+    # Returns Warehouse ID from a Given City Area
+    def __getCityAreaWarehouse(self, areaId: int) -> int | None:
+        # Print Warehouses at the Given City Area
+        if not self._warehouseTable.get(BUILDING_FK_CITY_AREA, areaId):
+            raise WarehouseNotFound(areaId)
+
+        while True:
+            try:
+                # Select Main Warehouse for the Given Region
+                warehouseId = IntPrompt.ask("Select the Warehouse")
+
+                # Get Warehouse Object
+                warehouse = self._warehouseTable.find(warehouseId)
+
+                # Check if Warehouse ID Exists and is in the Given City Area
+                if warehouse == None or warehouse.areaId != areaId:
+                    raise InvalidWarehouse(areaId)
+
+                return warehouseId
+
+            except Exception as err:
+                console.print(err, style="warning")
+                continue
 
     # Get Country ID and Name
     def getCountryId(self) -> dict | None:
@@ -386,6 +412,35 @@ class LocationEventHandler:
 
         return location
 
+    # Get Region ID from a Given Province ID
+    def __buildingRegionId(self, provinceId: int) -> None | int:
+        # Clear Terminal
+        clear()
+
+        # Print Regions at the Given Province
+        if not self._regionTable.get(REGION_FK_PROVINCE, provinceId):
+            raise RowNotFound(REGION_TABLENAME, REGION_FK_PROVINCE, provinceId)
+
+        while True:
+            try:
+                # Select Region ID from the Given Province
+                regionId = IntPrompt.ask("\nSelect Building Region ID")
+
+                # Get Region Object
+                region = self._regionTable.find(regionId)
+
+                # Check if Region ID Exists and is in the Given Province
+                if region == None:
+                    raise RowNotFound(REGION_TABLENAME, REGION_ID, regionId)
+                elif region.provinceId != provinceId:
+                    raise InvalidLocation(region.name, PROVINCE_TABLENAME, provinceId)
+
+                return regionId
+
+            except Exception as err:
+                console.print(err, style="warning")
+                continue
+
     # Get City ID based on its Name and the Region ID where it's Located
     def getCityId(self) -> dict | None:
         # Get Region ID
@@ -451,8 +506,6 @@ class LocationEventHandler:
 
     # Get City ID from a Given Region ID
     def __buildingCityId(self, regionId: int) -> None | int:
-        cityId = None
-
         # Clear Terminal
         clear()
 
@@ -474,13 +527,11 @@ class LocationEventHandler:
                 elif city.regionId != regionId:
                     raise InvalidLocation(city.name, REGION_TABLENAME, regionId)
 
-                break
+                return cityId
 
             except Exception as err:
                 console.print(err, style="warning")
                 continue
-
-        return cityId
 
     # Get City Area ID based on its Name and the City ID where it's Located
     def getCityAreaId(self) -> dict | None:
@@ -547,8 +598,6 @@ class LocationEventHandler:
 
     # Get City ID Area from a Given City ID
     def __buildingCityAreaId(self, cityId: int) -> None | int:
-        areaId = None
-
         # Clear Terminal
         clear()
 
@@ -570,13 +619,11 @@ class LocationEventHandler:
                 elif area.cityId != cityId:
                     raise InvalidLocation(area.areaName, CITY_TABLENAME, cityId)
 
-                break
+                return areaId
 
             except Exception as err:
                 console.print(err, style="warning")
                 continue
-
-        return areaId
 
     # Get Place Coordinates
     def getPlaceCoordinates(self, msg: str) -> dict | None:
@@ -633,6 +680,7 @@ class LocationEventHandler:
                     PROVINCE_NAME,
                     PROVINCE_FK_AIR_FORWARDER,
                     PROVINCE_FK_OCEAN_FORWARDER,
+                    PROVINCE_FK_WAREHOUSE,
                 ],
             )
 
@@ -664,7 +712,7 @@ class LocationEventHandler:
             # Ask the Sort Order
             sortBy = Prompt.ask(
                 ALL_SORT_BY_MSG,
-                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME],
+                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
             )
 
             # Clear Terminal
@@ -677,7 +725,12 @@ class LocationEventHandler:
             # Ask the Sort Order
             sortBy = Prompt.ask(
                 ALL_SORT_BY_MSG,
-                choices=[CITY_AREA_ID, CITY_AREA_FK_CITY, CITY_AREA_NAME],
+                choices=[
+                    CITY_AREA_ID,
+                    CITY_AREA_FK_CITY,
+                    CITY_AREA_NAME,
+                    CITY_AREA_FK_WAREHOUSE,
+                ],
             )
 
             # Clear Terminal
@@ -755,6 +808,7 @@ class LocationEventHandler:
                     PROVINCE_NAME,
                     PROVINCE_FK_AIR_FORWARDER,
                     PROVINCE_FK_OCEAN_FORWARDER,
+                    PROVINCE_FK_WAREHOUSE,
                 ],
             )
 
@@ -806,7 +860,7 @@ class LocationEventHandler:
             # Asks for Field to Compare
             field = Prompt.ask(
                 GET_FIELD_MSG,
-                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME],
+                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
             )
 
             # Prompt to Ask the Value to be Compared
@@ -829,7 +883,12 @@ class LocationEventHandler:
             # Asks for Field to Compare
             field = Prompt.ask(
                 GET_FIELD_MSG,
-                choices=[CITY_AREA_ID, CITY_AREA_FK_CITY, CITY_AREA_NAME],
+                choices=[
+                    CITY_AREA_ID,
+                    CITY_AREA_FK_CITY,
+                    CITY_AREA_NAME,
+                    CITY_AREA_FK_WAREHOUSE,
+                ],
             )
 
             # Prompt to Ask the Value to be Compared
@@ -961,7 +1020,11 @@ class LocationEventHandler:
             # Ask for Field to Modify
             field = Prompt.ask(
                 MOD_FIELD_MSG,
-                choices=[PROVINCE_FK_AIR_FORWARDER, PROVINCE_FK_OCEAN_FORWARDER],
+                choices=[
+                    PROVINCE_FK_AIR_FORWARDER,
+                    PROVINCE_FK_OCEAN_FORWARDER,
+                    PROVINCE_FK_WAREHOUSE,
+                ],
             )
 
             # Prompt to Ask the New Value
@@ -971,7 +1034,26 @@ class LocationEventHandler:
             ):
                 value = str(IntPrompt.ask(MOD_VALUE_MSG))
 
-            # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
+                # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
+
+            elif field == PROVINCE_FK_WAREHOUSE:
+                # Select Main City Area ID
+                regionId = self.__buildingRegionId(provinceId)
+                cityId = self.__buildingCityId(regionId)
+                areaId = self.__buildingCityAreaId(cityId)
+
+                # Clear Terminal
+                clear()
+
+                # Get Main Warehouse for the Given City Area
+                warehouseId = self.__getCityAreaWarehouse(areaId)
+
+                # TO DEVELOP: Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
+
+                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Country Warehouse and all the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
+
+                # Assign warehouseId to value
+                value = warehouseId
 
             # Modify Province
             self._provinceTable.modify(provinceId, field, value)
@@ -1007,36 +1089,61 @@ class LocationEventHandler:
                 # Clear Terminal
                 clear()
 
-                # Print Warehouses at the Given City Area
-                if not self._warehouseTable.get(BUILDING_FK_CITY_AREA, areaId):
-                    raise WarehouseNotFound(areaId)
+                # Get Main Warehouse for the Given City Area
+                warehouseId = self.__getCityAreaWarehouse(areaId)
 
-                while True:
-                    try:
-                        # Select Main Warehouse for the Given Region
-                        warehouseId = IntPrompt.ask("Select the Warehouse")
+                # TO DEVELOP: Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
 
-                        # Get Warehouse Object
-                        warehouse = self._warehouseTable.find(warehouseId)
+                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Province Warehouse, all the Main Region Warehouses at the Given Province and all the Main City Warehouses at the Given Region
 
-                        # Check if Warehouse ID Exists and is in the Given City Area
-                        if warehouse == None or warehouse.areaId != areaId:
-                            raise InvalidWarehouse(areaId)
+                # Assign warehouseId to value
+                value = warehouseId
 
-                        # Assign warehouseId to value
-                        value = warehouseId
-
-                        break
-
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Modify Region
-                self._regionTable.modify(regionId, field, value)
+            # Modify Region
+            self._regionTable.modify(regionId, field, value)
 
         elif tableName == CITY_TABLENAME:
-            console.print(MOD_NOTHING_MSG, style="warning")
+            # Ask for City ID to Modify
+            cityId = IntPrompt.ask("\nEnter City ID to Modify")
+
+            # Clear Terminal
+            clear()
+
+            # Print Fetched Results
+            if not self._cityTable.get(CITY_ID, cityId):
+                noCoincidenceFetched()
+                return
+
+            # Ask for Confirmation
+            if not Confirm.ask(MOD_CONFIRM_MSG):
+                return
+
+            # Ask for Field to Modify
+            field = Prompt.ask(
+                MOD_FIELD_MSG,
+                choices=[CITY_FK_WAREHOUSE],
+            )
+
+            # Prompt to Ask the New Value
+            if field == CITY_FK_WAREHOUSE:
+                # Select Main City Area ID
+                areaId = self.__buildingCityAreaId(cityId)
+
+                # Clear Terminal
+                clear()
+
+                # Get Main Warehouse for the Given City Area
+                warehouseId = self.__getCityAreaWarehouse(areaId)
+
+                # TO DEVELOP: Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the Main City Area Warehouses at the Given City
+
+                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the Main City Area Warehouses at the Given City
+
+                # Assign warehouseId to value
+                value = warehouseId
+
+            # Modify City
+            self._cityTable.modify(regionId, field, value)
 
         elif tableName == CITY_AREA_TABLENAME:
             # Ask for City Area ID to Modify
@@ -1066,6 +1173,24 @@ class LocationEventHandler:
 
                 # Check City Area Description
                 isAddressValid(tableName, field, value)
+
+            # Prompt to Ask the New Value
+            elif field == CITY_AREA_FK_WAREHOUSE:
+                # Clear Terminal
+                clear()
+
+                # Get Main Warehouse for the Given City Area
+                warehouseId = self.__getCityAreaWarehouse(areaId)
+
+                # TO DEVELOP: Drop Old Warehouse Connections with the Main City Warehouse, all the Main City Area Warehouses at the Same City, and all the Warehouses at the Given City Area
+
+                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main City Warehouse, all the Main City Area Warehouses at the Given City and all the Warehouses at the Given City Area
+
+                # Assign warehouseId to value
+                value = warehouseId
+
+            # Modify City
+            self._cityTable.modify(regionId, field, value)
 
             # Modify City Area
             self._cityAreaTable.modify(areaId, field, value)
@@ -1146,7 +1271,7 @@ class LocationEventHandler:
                 }
 
                 # Get New Warehouse Connection ID and Route Distance
-                warehouseId, routeDistance = self.__getWarehouseConnection(
+                warehouseId, routeDistance = self.__getBranchWarehouseConnection(
                     areaId, location
                 )
 
@@ -1409,7 +1534,7 @@ class LocationEventHandler:
 
                 elif tableName == BRANCH_TABLENAME:
                     # Get New Warehouse Connection ID and Route Distance
-                    warehouseId, routeDistance = self.__getWarehouseConnection(
+                    warehouseId, routeDistance = self.__getBranchWarehouseConnection(
                         areaId, location
                     )
 

@@ -223,6 +223,19 @@ class ProvinceTable(BasicTable):
         # Get Province Object from Item Fetched
         return Province.fromItemFetched(self._items[0])
 
+    # Find Province from Province Table with the Province ID
+    def find(self, provinceId: int) -> Province | None:
+        """
+        Returns Province Object if it was Found. Otherwise, False
+        """
+
+        # Get Province
+        if not self.get(self._tablePKName, provinceId, False):
+            return None
+
+        # Get Province Object from Item Fetched
+        return Province.fromItemFetched(self._items[0])
+
     # Get All Items from Province Table
     def all(self, orderBy: str, desc: bool) -> None:
         BasicTable._all(self, orderBy, desc)
@@ -334,6 +347,19 @@ class RegionTable(BasicTable):
         if not self.getMult(
             [REGION_FK_PROVINCE, REGION_NAME], [provinceId, regionName], False
         ):
+            return None
+
+        # Get Region Object from Item Fetched
+        return Region.fromItemFetched(self._items[0])
+
+    # Find Region from Region Table with the Region ID
+    def find(self, regionId: int) -> Region | None:
+        """
+        Returns Region Object if it was Found. Otherwise, False
+        """
+
+        # Get Region
+        if not self.get(self._tablePKName, regionId, False):
             return None
 
         # Get Region Object from Item Fetched

@@ -30,6 +30,7 @@ from ..local_database.database import GeoPyDatabase, GeoPyTables
 from ..model.database_tables import uniqueInsertedMult, uniqueInserted
 from ..model.database_territory import *
 from ..model.database_building import *
+from ..model.database_warehouse_conn import *
 
 
 # Location Table-related Event Handler
@@ -1048,7 +1049,12 @@ class LocationEventHandler:
                 # Get Main Warehouse for the Given City Area
                 warehouseId = self.__getCityAreaWarehouse(areaId)
 
-                # TO DEVELOP: Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
+                # Get Current Province Main Warehouse ID
+                currWarehouse = self._provinceTable.find(provinceId)
+                currWarehouseId = currWarehouse.warehouseId
+
+                # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
+                self._warehouseConnTable.removeProvinceMainWarehouse(provinceId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Country Warehouse and all the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
 
@@ -1092,7 +1098,12 @@ class LocationEventHandler:
                 # Get Main Warehouse for the Given City Area
                 warehouseId = self.__getCityAreaWarehouse(areaId)
 
+                # Get Current Region Main Warehouse ID
+                currWarehouse = self._regionTable.find(regionId)
+                currWarehouseId = currWarehouse.warehouseId
+
                 # TO DEVELOP: Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
+                self._warehouseConnTable.removeRegionMainWarehouse(regionId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Province Warehouse, all the Main Region Warehouses at the Given Province and all the Main City Warehouses at the Given Region
 
@@ -1135,7 +1146,12 @@ class LocationEventHandler:
                 # Get Main Warehouse for the Given City Area
                 warehouseId = self.__getCityAreaWarehouse(areaId)
 
+                # Get Current City Main Warehouse ID
+                currWarehouse = self._cityTable.find(cityId)
+                currWarehouseId = currWarehouse.warehouseId
+
                 # TO DEVELOP: Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the Main City Area Warehouses at the Given City
+                self._warehouseConnTable.removeCityMainWarehouse(cityId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the Main City Area Warehouses at the Given City
 
@@ -1182,7 +1198,12 @@ class LocationEventHandler:
                 # Get Main Warehouse for the Given City Area
                 warehouseId = self.__getCityAreaWarehouse(areaId)
 
+                # Get Current City Area Main Warehouse ID
+                currWarehouse = self._cityAreaTable.find(areaId)
+                currWarehouseId = currWarehouse.warehouseId
+
                 # TO DEVELOP: Drop Old Warehouse Connections with the Main City Warehouse, all the Main City Area Warehouses at the Same City, and all the Warehouses at the Given City Area
+                self._warehouseConnTable.removeCityAreaMainWarehouse(areaId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main City Warehouse, all the Main City Area Warehouses at the Given City and all the Warehouses at the Given City Area
 
@@ -1532,6 +1553,8 @@ class LocationEventHandler:
                         )
                     )
 
+                    # TO DEVELOP: Add Warehouse Connections or set it as Main
+
                 elif tableName == BRANCH_TABLENAME:
                     # Get New Warehouse Connection ID and Route Distance
                     warehouseId, routeDistance = self.__getBranchWarehouseConnection(
@@ -1664,6 +1687,8 @@ class LocationEventHandler:
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
+
+            # TO DEVELOP: Remove Warehouse Connections
 
             self._warehouseTable.remove(warehouseId)
 

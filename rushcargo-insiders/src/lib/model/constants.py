@@ -109,3 +109,15 @@ BRANCH_TABLENAME = "branch"
 BRANCH_ID = "branch_id"
 BRANCH_ROUTE_DISTANCE = "route_distance"
 BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
+
+# Country Warehouse Receivers ...
+COUNTRY_WAREHOUSES_RECEIVERS_VIEWNAME = "country_warehouses_receivers"
+RECEIVERS = "receivers"
+RECEIVERS_WAREHOUSE_ID = "warehouse_id"
+RECEIVERS_WAREHOUSE_CONN_ID = "connection_id"
+
+# Country Warehouse Senders ...
+COUNTRY_WAREHOUSES_SENDERS_VIEWNAME = "country_warehouses_senders"
+SENDERS = "senders"
+SENDERS_WAREHOUSE_ID = "warehouse_id"
+SENDERS_WAREHOUSE_CONN_ID = "connection_id"

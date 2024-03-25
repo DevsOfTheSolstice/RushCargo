@@ -104,7 +104,3 @@ def initDb() -> tuple[Database, str, str, str]:
 
     # Initialize Database Object
     return Database(dbname, user, password, host, port), user, ORSApiKey
-
-
-# Initialize Database Connection
-db, user, ORSApiKey = initDb()

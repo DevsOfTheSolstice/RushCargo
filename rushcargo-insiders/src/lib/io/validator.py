@@ -1,7 +1,7 @@
 import os
 from email_validator import validate_email, EmailNotValidError
 
-from .constants import TABLE_TERRITORY_CMDS, TABLE_BUILDING_CMDS
+from .constants import *
 from .exceptions import FieldValueError, PlaceError
 
 
@@ -106,17 +106,14 @@ def isPhoneValid(table: str, field: str, phone: str):
 
 # Table Address Validator
 def isAddressValid(table: str, field: str, address: str):
-    if table in TABLE_TERRITORY_CMDS:
-        if not territoryAddressValidator(address):
-            raise FieldValueError(table, field, address)
-
-        return
-
-    elif table == TABLE_BUILDING_CMDS:
+    if table == WAREHOUSE_TABLENAME or table == BRANCH_TABLENAME:
         if not buildingAddressValidator(address):
             raise FieldValueError(table, field, address)
 
-        return
+    elif not territoryAddressValidator(address):
+        raise FieldValueError(table, field, address)
+
+    return
 
 
 # Place Name Validator

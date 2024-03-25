@@ -8,10 +8,6 @@ from .constants import (
     NOMINATIM_LONGITUDE,
 )
 from .exceptions import RouteNotFound
-from ..model.database import user, ORSApiKey
-
-# RoutingPy Geocoder
-routingPyGeocoder = None
 
 
 # RoutingPy Geocoder Class
@@ -20,11 +16,11 @@ class RoutingPyGeocoder:
     _geolocator = None
 
     # Constructor
-    def __init__(self, ORSApiKey: str, userAgent: str, user: str):
+    def __init__(self, ORSApiKey: str, user: str):
         try:
             # Initialize Geolocator
             self._geolocator = ORS(
-                api_key=ORSApiKey, user_agent=f"{userAgent}-{user}", timeout=5
+                api_key=ORSApiKey, user_agent=f"{ORS_USER_AGENT}-{user}", timeout=5
             )
 
         except Exception as err:
@@ -51,11 +47,3 @@ class RoutingPyGeocoder:
 
         except Exception as err:
             raise RouteNotFound(coords1, coords2)
-
-
-def initRoutingPyGeocoder(ORSApiKey: str, user: str) -> RoutingPyGeocoder:
-    return RoutingPyGeocoder(ORSApiKey, ORS_USER_AGENT, user)
-
-
-# Initialize RoutingPy Geocoder
-routingPyGeocoder = initRoutingPyGeocoder(ORSApiKey, user)

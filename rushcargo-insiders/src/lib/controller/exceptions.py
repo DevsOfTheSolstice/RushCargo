@@ -9,6 +9,19 @@ class RowNotFound(Exception):
         )
 
 
+class InvalidLocation(Exception):
+    """
+    Exception Raised when the Location is not Located in a Given Parent Territory
+    """
+
+    def __init__(
+        self, locationName: str, parentLocationName: str, parentLocationId: int
+    ):
+        super().__init__(
+            f"There's No '{locationName}' Referencing to '{parentLocationName}' Table Row of ID '{parentLocationId}'\n"
+        )
+
+
 class BuildingFound(Exception):
     """
     Exception Raised when there's Already a Building with the Same Name at the Given City Area
@@ -16,7 +29,7 @@ class BuildingFound(Exception):
 
     def __init__(self, buildingName: str, cityAreaId: int):
         super().__init__(
-            f"There's Already a Building Named as '{buildingName}' at City Area ID '{cityAreaId}'\n"
+            f"There's Already a Building Named as '{buildingName}' at City Area of ID '{cityAreaId}'\n"
         )
 
 

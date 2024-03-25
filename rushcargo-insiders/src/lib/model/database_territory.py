@@ -206,8 +206,8 @@ class ProvinceTable(BasicTable):
             self.__print()
         return True
 
-    # Find Province from Province Table
-    def find(self, countryId: int, provinceName: str) -> Province | None:
+    # Find Province from Province Table with the Province Name and the Country ID where it's Located
+    def findMult(self, countryId: int, provinceName: str) -> Province | None:
         """
         Returns Province Object if it was Found. Otherwise, False
         """
@@ -322,8 +322,8 @@ class RegionTable(BasicTable):
             self.__print()
         return True
 
-    # Find Region from Region Table
-    def find(self, provinceId: int, regionName: str) -> Region | None:
+    # Find Region from Region Table with the Region Name and the Province ID where it's Located
+    def findMult(self, provinceId: int, regionName: str) -> Region | None:
         """
         Returns Region Object if it was Found. Otherwise, False
         """
@@ -435,14 +435,27 @@ class CityTable(BasicTable):
             self.__print()
         return True
 
-    # Find City from City Table
-    def find(self, regionId: int, cityName: str) -> City | None:
+    # Find City from City Table with the City Name and the Region ID where it's Located
+    def findMult(self, regionId: int, cityName: str) -> City | None:
         """
         Returns City Object if it was Found. Otherwise, False
         """
 
         # Get City
         if not self.getMult([CITY_FK_REGION, CITY_NAME], [regionId, cityName], False):
+            return None
+
+        # Get City Object from Item Fetched
+        return City.fromItemFetched(self._items[0])
+
+    # Find City from City Table with the City ID
+    def find(self, cityId:int) -> City | None:
+        """
+        Returns City Object if it was Found. Otherwise, False
+        """
+
+        # Get City
+        if not self.get(CITY_ID, cityId, False):
             return None
 
         # Get City Object from Item Fetched
@@ -547,8 +560,8 @@ class CityAreaTable(BasicTable):
             self.__print()
         return True
 
-    # Find City Area from City Area Table
-    def find(self, cityId: int, areaName: str) -> City | None:
+    # Find City Area from City Area Table with the City Area Name and the City ID where it's Located
+    def findMult(self, cityId: int, areaName: str) -> City | None:
         """
         Returns City Area Object if it was Found. Otherwise, False
         """
@@ -557,6 +570,19 @@ class CityAreaTable(BasicTable):
         if not self.getMult(
             [CITY_AREA_FK_CITY, CITY_AREA_NAME], [cityId, areaName], False
         ):
+            return None
+
+        # Get City Area Object from Item Fetched
+        return CityArea.fromItemFetched(self._items[0])
+
+    # Find City Area from City Area Table with the City Area ID
+    def find(self, areaId: int) -> CityArea | None:
+        """
+        Returns City Area Object if it was Found. Otherwise, False
+        """
+
+        # Get City Area 
+        if not self.get(CITY_AREA_ID, areaId, False):
             return None
 
         # Get City Area Object from Item Fetched

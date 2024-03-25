@@ -12,12 +12,7 @@ from ..controller.constants import (
     DICT_COUNTRY_NAME,
 )
 
-from ..model.database import user
 from ..model.constants import CITY_AREA_ID
-
-# GeoPy Geocoder
-geoPyGeocoder = None
-
 
 # GeoPy Geocoder Class
 class GeoPyGeocoder:
@@ -25,10 +20,10 @@ class GeoPyGeocoder:
     _geolocator = None
 
     # Constructor
-    def __init__(self, userAgent: str, user: str):
+    def __init__(self, user: str):
         try:
             # Initialize Geolocator
-            self._geolocator = Nominatim(user_agent=f"{userAgent}-{user}", timeout=5)
+            self._geolocator = Nominatim(user_agent=f"{NOMINATIM_USER_AGENT}-{user}", timeout=5)
 
         except Exception as err:
             raise err
@@ -208,11 +203,3 @@ class GeoPyGeocoder:
         except Exception as err:
             raise err
 
-
-# Initialize GeoPy Geocoder
-def initGeoPyGeocoder(user: str) -> GeoPyGeocoder:
-    return GeoPyGeocoder(NOMINATIM_USER_AGENT, user)
-
-
-# Initialize Geocoders
-geoPyGeocoder = initGeoPyGeocoder(user)

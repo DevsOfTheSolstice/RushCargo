@@ -32,10 +32,7 @@ def getEventHandlerArguments() -> None | tuple[str, str, str]:
     table = None
 
     # Ask for Table to Work with
-    if tableGroup == TABLE_TERRITORY_CMD:
-        table = Prompt.ask(tableMsg, choices=TABLE_TERRITORY_CMDS)
-
-    elif tableGroup == TABLE_BUILDING_CMD:
-        table = Prompt.ask(tableMsg, choices=TABLE_BUILDING_CMDS)
+    if tableGroup == TABLE_LOCATION_CMD:
+        table = Prompt.ask(tableMsg, choices=TABLE_LOCATION_CMDS)
 
     return action, tableGroup, table

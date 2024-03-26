@@ -17,11 +17,11 @@ impl HelpText {
                 locker_packages: "(s) select package | (⬆) move up | (⬇) move down | (Enter) place order",
                 order_main: "(Tab) select action",
                 order_locker: "(Tab) switch input | (Enter) next | (Esc) back",
-                order_locker_popup_normal: "Input the recipient's information.",
+                order_locker_popup_normal: "",//Input the recipient's information.",
                 order_locker_popup_invalid: "Invalid username or locker ID.",
-                order_locker_popup_same_as_active: "The packages are already in this locker.",
-                order_locker_popup_locker_weight_err: "Weight too big for locker. Remaining: ",
-                order_locker_popup_locker_count_err: "There are already 5 packages in the locker.",
+                order_locker_popup_same_as_active: "The packages are already there.",
+                order_locker_popup_locker_weight_err: "Weight exceeded. Max: ",
+                order_locker_popup_locker_count_err: "Package limit (5) exceeded..",
                 sent_packages: "Select a package."
             },
         }

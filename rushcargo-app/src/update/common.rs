@@ -99,6 +99,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             Ok(()) 
         },
         Event::TryGetUserLocker(username, locker_id) => {
+            if username.is_empty() || locker_id.is_empty() { return Ok(()); }
+
             let locker_id = locker_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
             if let Some(res) =
                 sqlx::query("SELECT * FROM locker WHERE locker_id=$1")
@@ -137,7 +139,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 .bind(locker_id)
                                 .fetch_one(pool)
                                 .await?
-                                .get::<Decimal, _>("weight_sum");
+                                .try_get::<Decimal, _>("weight_sum")
+                                .unwrap_or(Decimal::new(0, 0));
                             
                             let selected_packages_weight =
                                 client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
@@ -149,7 +152,6 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             {
                                 client_data.send_to_locker_err = Some(GetLockerErr::WeightTooBig(Decimal::new(500000, 0) - locker_packages_weight));
                             }
-
 
                             let locker_row =
                                 sqlx::query(
@@ -173,16 +175,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         }
                         _ => {}
                     }
+                    return Ok(());
                 }
             }
-            else {
-                let mut app_lock = app.lock().unwrap();
-                match &mut app_lock.user {
-                    Some(User::Client(client_data)) => {
-                        client_data.send_to_locker_err = Some(GetLockerErr::Invalid);
-                    }
-                    _ => {}
+            let mut app_lock = app.lock().unwrap();
+            match &mut app_lock.user {
+                Some(User::Client(client_data)) => {
+                    client_data.send_to_locker_err = Some(GetLockerErr::Invalid);
                 }
+                _ => {}
             }
             Ok(())
         },

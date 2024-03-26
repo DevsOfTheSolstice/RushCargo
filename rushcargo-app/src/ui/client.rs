@@ -9,8 +9,12 @@ use rust_decimal::Decimal;
 use std::sync::{Arc, Mutex};
 use crate::{
     model::{
-        app::App, client::Client, common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User}, help_text
-    }, ui::common_fn::{
+        help_text,
+        common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User},
+        client::GetLockerErr,
+        app::App, client::Client,
+    },
+    ui::common_fn::{
         centered_rect, clear_chunks, percent_x, percent_y
     }, HELP_TEXT
 };
@@ -96,13 +100,14 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .split(chunks[1].inner(&Margin::new(6, 0)));
 
             let header =
-                Row::new(vec!["#", "Country", "Packages"])
+                Row::new(vec!["#", "Country", "Packages", "Locker ID"])
                 .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
             
             let widths = [
                 Constraint::Length(3),
                 Constraint::Length(10),
                 Constraint::Length(8),
+                Constraint::Length(10),
             ];
 
             let rows: Vec<Row> =
@@ -114,6 +119,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         (client.viewing_lockers_idx + 1 - (client.viewing_lockers.as_ref().unwrap().len() - i) as i64).to_string(),
                         locker.country.name.clone(),
                         locker.package_count.to_string(),
+                        locker.get_id().to_string(),
                     ])
                 })
                 .collect();
@@ -313,7 +319,18 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         }
                     }
 
-                    let popup_help = Paragraph::new(HELP_TEXT.client.order_locker_popup_normal).centered();
+                    let err_style = Style::default().fg(Color::Red);
+
+                    let popup_help = Paragraph::new(
+                        match app_lock.get_client_ref().send_to_locker_err {
+                            None => Line::raw(HELP_TEXT.client.order_locker_popup_normal.to_string()),
+                            Some(GetLockerErr::Invalid) => Line::styled(HELP_TEXT.client.order_locker_popup_invalid.to_string(), err_style),
+                            Some(GetLockerErr::SameAsActive) => Line::styled(HELP_TEXT.client.order_locker_popup_same_as_active.to_string(), err_style),
+                            Some(GetLockerErr::TooManyPackages) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_count_err.to_string(), err_style),
+                            Some(GetLockerErr::WeightTooBig(max_weight)) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_weight_err.to_string() + &max_weight.to_string(), err_style)
+                        }
+                    ).centered();
+
                     f.render_widget(popup_help, input_chunks[3]);
 
                     let name_block = Block::default()

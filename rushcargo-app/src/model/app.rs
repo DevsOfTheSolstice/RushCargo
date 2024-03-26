@@ -161,6 +161,7 @@ impl App {
             Some(Popup::ClientOrderLocker) => {
                 self.input.0.reset();
                 self.input.1.reset();
+                self.get_client_mut().send_to_locker_err = None;
                 self.input_mode = InputMode::Normal;
             }
             _ => {}

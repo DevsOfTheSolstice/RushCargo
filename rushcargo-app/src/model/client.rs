@@ -15,6 +15,7 @@ pub struct ClientData {
     pub viewing_lockers: Option<Vec<Locker>>,
     pub viewing_lockers_idx: i64,
     pub active_locker: Option<Locker>,
+    pub send_to_locker: Option<Locker>,
 }
 
 impl ClientData {

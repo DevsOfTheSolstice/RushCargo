@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Pool, Postgres};
+use sqlx::PgPool;
 use ratatui::widgets::ListItem;
 use ratatui::prelude::Style;
 use std::io::Write;
@@ -18,7 +18,7 @@ use crate::{
     }
 };
 
-pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
+pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
         Event::PrevListItem(list_type) => {
             app.lock().unwrap().prev_list_item(list_type);

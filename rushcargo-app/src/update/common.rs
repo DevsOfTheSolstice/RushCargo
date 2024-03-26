@@ -1,18 +1,19 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Pool, Postgres};
-use anyhow::Result;
+use sqlx::{Row, FromRow, PgPool};
+use anyhow::{Result, anyhow};
 use crate::{
     HELP_TEXT,
     event::{Event, InputBlacklist},
     model::{
-        common::{Screen, Popup, SubScreen, InputMode},
+        common::{Screen, Popup, SubScreen, User, InputMode},
+        common_obj::Locker,
         app::App,
     }
 };
 
-pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
+pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
         Event::Quit => {
             app.lock().unwrap().should_quit = true;
@@ -92,6 +93,44 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                 _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app_lock.active_screen, subscreen)
             }
             Ok(()) 
+        },
+        Event::TryGetUserLocker(username, locker_id) => {
+            let locker_id = locker_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
+            if let Some(res) =
+                sqlx::query("SELECT * FROM locker WHERE locker_id=$1")
+                    .bind(locker_id)
+                    .fetch_optional(pool)
+                    .await?
+            {
+                if username == res.get::<String, _>("client") {
+                    let mut app_lock = app.lock().unwrap();
+                    match &mut app_lock.user {
+                        Some(User::Client(client_data)) => {
+                            let locker_row =
+                                sqlx::query(
+                                "
+                                    SELECT locker.*, country.*, warehouse.*,
+                                    COUNT(package.tracking_number) AS package_count FROM locker
+                                    LEFT JOIN package ON locker.locker_id=package.locker_id
+                                    INNER JOIN country ON locker.country_id=country.country_id
+                                    INNER JOIN warehouse ON locker.warehouse_id=warehouse.warehouse_id
+                                    WHERE locker.locker_id=$1
+                                    GROUP BY locker.locker_id, country.country_id, warehouse.warehouse_id
+                                    ORDER BY package_count DESC
+                                ")
+                                .bind(locker_id)
+                                .fetch_one(pool)
+                                .await?;
+
+                            client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
+
+                            app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Ok(())
         },
         Event::KeyInput(key_event, blacklist) => {
             let mut app_lock = app.lock().unwrap();

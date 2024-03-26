@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 use tui_input::Input;
 use super::{
     client::ClientData,
-    common_obj::Package,
+    common_obj::{Package, Locker},
 };
 
 #[derive(Debug, Clone)]
@@ -80,4 +80,8 @@ pub struct PackageData {
     pub viewing_packages_idx: i64,
     pub selected_packages: Option<Vec<Package>>,
     pub active_package: Option<Package>,
+}
+
+pub struct SendData {
+    pub locker: Option<Locker>,
 }

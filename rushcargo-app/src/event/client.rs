@@ -103,6 +103,12 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                         KeyCode::Tab => {
                             sender.send(Event::SwitchInput)
                         }
+                        KeyCode::Enter => {
+                            sender.send(Event::TryGetUserLocker(
+                                app_lock.input.0.value().to_string(),
+                                app_lock.input.1.value().to_string()
+                            ))
+                        }
                         _ => {
                             if let InputMode::Editing(0) = app_lock.input_mode {
                                 sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))

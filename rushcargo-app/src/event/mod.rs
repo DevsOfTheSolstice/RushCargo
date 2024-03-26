@@ -43,7 +43,6 @@ pub enum Event {
     EnterScreen(Screen),
     EnterPopup(Option<Popup>),
     Resize,
-    Cleanup,
     TimeoutTick(TimeoutType),
     KeyInput(KeyEvent, InputBlacklist),
     SwitchInput,
@@ -60,7 +59,7 @@ pub enum Event {
 
     TryLogin,
 
-    PlaceOrder,
+    TryGetUserLocker(String, String),
 }
 
 #[derive(Debug)]

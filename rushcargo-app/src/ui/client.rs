@@ -344,6 +344,9 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
                     f.render_widget(input, input_chunks[2]);
                 }
+                Some(Popup::ClientInputPayment) => {
+                    todo!("client input payment popup ui");
+                }
                 _ => {}
             }
         }

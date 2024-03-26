@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Row, Pool, Postgres};
+use sqlx::{Row, PgPool};
 use bcrypt::verify;
 use anyhow::Result;
 use crate::{
@@ -22,7 +22,7 @@ static USER_SEARCH_QUERIES: [&str; 5] = [
     "SELECT * FROM root_user WHERE username = $1"
 ];
 
-pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
+pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
         Event::TryLogin => {
             if app.lock().unwrap().failed_logins == 3 {
@@ -64,6 +64,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                                                 viewing_lockers: None,
                                                 viewing_lockers_idx: 0,
                                                 active_locker: None,
+                                                send_to_locker: None,
                                             }
                                         ))
                                     }

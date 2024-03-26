@@ -59,10 +59,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                             + ((app_lock.input.0.visual_cursor()).max(name_scroll) - name_scroll) as u16
                             + "* Username: ".len() as u16
                             + 1,
-                        chunks[1].y + 1,
+                            chunks[1].y + 1,
                         );
         } else {
-            name_style = password_style.fg(Color::DarkGray);
+            name_style = name_style.fg(Color::DarkGray);
             f.set_cursor(chunks[2].x
                             + ((app_lock.input.1.visual_cursor()).max(password_scroll) - password_scroll) as u16
                             + "* Password: ".len() as u16
@@ -102,12 +102,12 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
     let help_text = {
         if app_lock.failed_logins == 3 {
-            Text::from(format!("{}{}", HELP_TEXT.login.login_failed_lock, app_lock.timeout.get(&TimeoutType::Login).unwrap().counter))
+            Line::styled(format!("{}{}", HELP_TEXT.login.login_failed_lock, app_lock.timeout.get(&TimeoutType::Login).unwrap().counter), Style::default().fg(Color::Red))
         }
         else if app_lock.failed_logins > 0 {
-            Text::from(HELP_TEXT.login.login_failed)
+            Line::styled(HELP_TEXT.login.login_failed, Style::default().fg(Color::Red))
         } else {
-            Text::from(HELP_TEXT.login.main)
+            Line::raw(HELP_TEXT.login.main)
         }
     };
     let help_block = Block::default();

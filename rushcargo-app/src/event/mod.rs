@@ -22,7 +22,7 @@ use crate::model::{
     app::App,
     app_list::ListType,
     app_table::TableType,
-    common::{Screen, TimeoutType}
+    common::{Screen, Popup, TimeoutType}
 };
 
 const SENDER_ERR: &'static str = "could not send terminal event";
@@ -41,6 +41,7 @@ pub enum InputBlacklist {
 pub enum Event {
     Quit,
     EnterScreen(Screen),
+    EnterPopup(Option<Popup>),
     Resize,
     Cleanup,
     TimeoutTick(TimeoutType),

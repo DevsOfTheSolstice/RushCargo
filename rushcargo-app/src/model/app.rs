@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use sqlx::{Row, Pool, Postgres};
+use sqlx::{Row, Pool, Postgres, PgPool};
 use anyhow::{Result, anyhow};
 use ratatui::widgets::{List, ListState};
 use std::time::{Duration, Instant};
@@ -65,12 +65,12 @@ impl App {
 }
 
 impl App {
-    pub async fn enter_screen(&mut self, screen: &Screen, pool: &Pool<Postgres>) {
+    pub async fn enter_screen(&mut self, screen: Screen, pool: &PgPool) {
         self.should_clear_screen = true;
-        self.cleanup_screen(screen);
-        self.active_screen = screen.clone();
+        self.cleanup_screen(&screen);
+        self.active_screen = screen;
 
-        match screen {
+        match self.active_screen {
             Screen::Title => {
                 let title = TitleData::from_file();
                 if let Err(e) = title {
@@ -81,8 +81,10 @@ impl App {
             }
             Screen::Login => {
                 self.input_mode = InputMode::Editing(0);
-                self.failed_logins = 0;
                 self.user = None;
+            }
+            Screen::Client(SubScreen::ClientMain) => {
+                self.failed_logins = 0;
             }
             Screen::Client(SubScreen::ClientLockers) => {
                 let client = self.get_client_mut();
@@ -139,23 +141,31 @@ impl App {
         self.prev_screen = Some(next_screen.clone());
     }
 
-    pub fn enter_popup(&mut self, popup: &Popup) {
-        self.cleanup_popup(popup);
-        self.active_popup = Some(popup.clone());
+    pub async fn enter_popup(&mut self, popup: Option<Popup>, pool: &PgPool) {
+        self.cleanup_popup(&popup);
+        self.active_popup = popup;
 
-        match popup {
-            Popup::None => {
-                self.active_popup = None;
+        match self.active_popup {
+            Some(Popup::ClientOrderLocker) => {
+                self.input_mode = InputMode::Editing(0); 
             }
             _ => {}
         }
     }
 
-    fn cleanup_popup(&mut self, next_popup: &Popup) {
+    fn cleanup_popup(&mut self, next_popup: &Option<Popup>) {
         match self.prev_popup {
+            Some(Popup::ClientOrderMain) => {
+                self.action_sel = None;
+            }
+            Some(Popup::ClientOrderLocker) => {
+                self.input.0.reset();
+                self.input.1.reset();
+                self.input_mode = InputMode::Normal;
+            }
             _ => {}
         }
-        self.prev_popup = Some(next_popup.clone());
+        self.prev_popup = next_popup.clone();
     }
 
     /// The timeout tick rate here should be equal or greater to the EventHandler tick rate.

@@ -16,7 +16,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::SwitchAction | Event::SelectAction |
-        Event::EnterScreen(_)
+        Event::EnterScreen(_) | Event::EnterPopup(_)
         => common::update(app, pool, event).await,
 
         Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)

@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
     let mut tui = Tui::new(terminal, events);
     tui.enter()?;
 
-    app_arc.lock().unwrap().enter_screen(&Screen::Title, &pool).await;
+    app_arc.lock().unwrap().enter_screen(Screen::Login, &pool).await;
 
     tui.draw(&mut app_arc)?;
 

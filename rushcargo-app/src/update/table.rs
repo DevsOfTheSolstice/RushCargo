@@ -43,7 +43,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                     if let Some(selection) = app_lock.table.state.selected().clone() {
                         let client = app_lock.get_client_mut();
                         client.active_locker = Some(client.viewing_lockers.as_ref().unwrap()[selection].clone());
-                        app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockerPackages), pool).await;
+                        app_lock.enter_screen(Screen::Client(SubScreen::ClientLockerPackages), pool).await;
                     }
                 }
                 TableType::LockerPackages => {

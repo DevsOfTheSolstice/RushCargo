@@ -17,26 +17,26 @@ use crate::{
 };
 
 pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mutex<App>>) {
-    let mut app_lock = app.lock().unwrap();
+    let app_lock = app.lock().unwrap();
 
     match app_lock.active_popup {
         Some(Popup::LoginSuccessful) => {
             if let Some(user_type) = &app_lock.user {
                 match user_type {
-                    User::Client(_) => sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain))),
+                    User::Client(_) => sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain))).expect(SENDER_ERR),
                     _ => todo!("enter screen of user type: {:?}", user_type),
-                }.expect(SENDER_ERR);
-                app_lock.enter_popup(&Popup::None);
-            }
-        }
+                };
+                sender.send(Event::EnterPopup(None))
+            } else { panic!() }
+        },
         None => {
             match key_event.code {
                 KeyCode::Esc => sender.send(Event::EnterScreen(Screen::Title)),
                 KeyCode::Enter => sender.send(Event::TryLogin),
                 KeyCode::Tab => sender.send(Event::SwitchInput),
                 _ => sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))
-            }.expect(SENDER_ERR);
+            }
         }
-        _ => {}
-    }
+        _ => Ok(())
+    }.expect(SENDER_ERR)
 }

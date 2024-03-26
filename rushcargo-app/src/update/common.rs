@@ -7,7 +7,7 @@ use crate::{
     HELP_TEXT,
     event::{Event, InputBlacklist},
     model::{
-        common::{Screen, SubScreen, InputMode},
+        common::{Screen, Popup, SubScreen, InputMode},
         app::App,
     }
 };
@@ -23,7 +23,11 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             Ok(())
         }
         Event::EnterScreen(screen) => {
-            app.lock().unwrap().enter_screen(&screen, pool).await;
+            app.lock().unwrap().enter_screen(screen, pool).await;
+            Ok(())
+        },
+        Event::EnterPopup(popup) => {
+            app.lock().unwrap().enter_popup(popup, pool).await;
             Ok(())
         },
         Event::SwitchInput => {
@@ -42,7 +46,18 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                 Screen::Client(SubScreen::ClientMain) => {
                     match app_lock.action_sel {
                         Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
-                        None | _ => app_lock.action_sel = Some(0),
+                        _ => app_lock.action_sel = Some(0),
+                    }
+                }
+                Screen::Client(SubScreen::ClientLockerPackages) => {
+                    match app_lock.active_popup {
+                        Some(Popup::ClientOrderMain) => {
+                            match app_lock.action_sel {
+                                Some(val) if val < 2 => app_lock.action_sel = Some(val + 1),
+                                _ => app_lock.action_sel = Some(0),
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 _ => {}
@@ -61,8 +76,16 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             match subscreen {
                 Some(SubScreen::ClientMain) => {
                     match app_lock.action_sel {
-                        Some(0) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientLockers), pool).await,
-                        Some(1) => app_lock.enter_screen(&Screen::Client(SubScreen::ClientSentPackages), pool).await,
+                        Some(0) => app_lock.enter_screen(Screen::Client(SubScreen::ClientLockers), pool).await,
+                        Some(1) => app_lock.enter_screen(Screen::Client(SubScreen::ClientSentPackages), pool).await,
+                        _ => {}
+                    }
+                }
+                Some(SubScreen::ClientLockerPackages) => {
+                    match app_lock.action_sel {
+                        Some(0) => app_lock.enter_popup(Some(Popup::ClientOrderLocker), pool).await,
+                        Some(1) => app_lock.enter_popup(Some(Popup::ClientOrderBranch), pool).await,
+                        Some(2) => app_lock.enter_popup(Some(Popup::ClientOrderDelivery), pool).await,
                         _ => {}
                     }
                 }

@@ -74,8 +74,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                                     _ => panic!("Unexpected i value in TryLogin event.")
                                 };
                             
-                            //app_lock.active_popup = Some(Popup::LoginSuccessful);
-                            app_lock.enter_popup(&Popup::LoginSuccessful);
+                            app_lock.enter_popup(Some(Popup::LoginSuccessful), pool).await;
                             return Ok(());
                         }
                     }

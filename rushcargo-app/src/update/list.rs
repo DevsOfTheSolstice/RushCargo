@@ -41,8 +41,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                 match list_type {
                     ListType::Title => {
                         match *action {
-                            "Login" => app_lock.enter_screen(&Screen::Login, pool).await,
-                            "Settings" => app_lock.enter_screen(&Screen::Settings, pool).await,
+                            "Login" => app_lock.enter_screen(Screen::Login, pool).await,
+                            "Settings" => app_lock.enter_screen(Screen::Settings, pool).await,
                             "Quit" => app_lock.should_quit = true,
                             _ => {}
                         }

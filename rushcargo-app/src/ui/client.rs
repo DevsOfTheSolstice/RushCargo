@@ -8,18 +8,11 @@ use ratatui::{
 use rust_decimal::Decimal;
 use std::sync::{Arc, Mutex};
 use crate::{
-    HELP_TEXT,
     model::{
-        common::{User, Screen, SubScreen, Popup, InputMode, TimeoutType},
-        client::Client,
-        app::App,
-    },
-    ui::common_fn::{
-        centered_rect,
-        percent_x,
-        percent_y,
-        clear_chunks,
-    }
+        app::App, client::Client, common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User}, help_text
+    }, ui::common_fn::{
+        centered_rect, clear_chunks, percent_x, percent_y
+    }, HELP_TEXT
 };
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
@@ -69,22 +62,23 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     chunks[1]
                 ));
 
-            let action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
+            let unsel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
+            let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
             let lockers_action = 
                 if let Some(0) = app_lock.action_sel {
-                    Paragraph::new("View lockers").centered().block(action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    Paragraph::new("View lockers").centered().block(sel_action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 } else {
-                    Paragraph::new("View lockers").centered().block(action_block.clone()).style(Style::default().fg(Color::DarkGray))
+                    Paragraph::new("View lockers").centered().block(unsel_action_block.clone()).style(Style::default().fg(Color::DarkGray))
                 };
 
             f.render_widget(lockers_action, actions_chunks[0]);
  
             let sent_packages_action  =
                 if let Some(1) = app_lock.action_sel {
-                    Paragraph::new("View sent packages").centered().block(action_block).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    Paragraph::new("View sent packages").centered().block(sel_action_block).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 } else {
-                    Paragraph::new("View sent packages").centered().block(action_block).style(Style::default().fg(Color::DarkGray))
+                    Paragraph::new("View sent packages").centered().block(unsel_action_block).style(Style::default().fg(Color::DarkGray))
                 };
 
             f.render_widget(sent_packages_action, actions_chunks[1]);
@@ -135,8 +129,6 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             f.render_stateful_widget(lockers_table, lockers_table_area[0], &mut app_lock.table.state);
         }
         Screen::Client(SubScreen::ClientLockerPackages) => {
-            let help = Paragraph::new(HELP_TEXT.client.locker_packages).block(help_block);
-            f.render_widget(help, chunks[2]);
 
             let packages_chunks = Layout::default()
                 .direction(Direction::Horizontal)
@@ -224,6 +216,135 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 ]);
 
                 f.render_widget(package_description, package_view_chunks[1]);
+            }
+
+            match app_lock.active_popup {
+                None => {
+                    let help = Paragraph::new(HELP_TEXT.client.locker_packages).block(help_block);
+                    f.render_widget(help, chunks[2]);
+                }
+                Some(Popup::ClientOrderMain) => {
+                    let help = Paragraph::new(HELP_TEXT.client.order_main).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+
+                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let actions_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Percentage(100),
+                            Constraint::Min(2),
+                            Constraint::Min(1),
+                            Constraint::Min(2),
+                            Constraint::Min(1),
+                            Constraint::Min(2),
+                        ])
+                        .split(popup_area.inner(&Margin::new(1, 1)));
+                    
+                    let sel_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+                    let unsel_style = Style::default().fg(Color::White);
+
+                    let locker_action = Paragraph::new("Send sel. packages to locker")
+                        .style(if let Some(0) = app_lock.action_sel { sel_style } else { unsel_style })
+                        .centered();
+
+                    let branch_action = Paragraph::new("Send sel. packages to branch")
+                        .style(if let Some(1) = app_lock.action_sel { sel_style } else { unsel_style })
+                        .centered();
+
+                    let delivery_action = Paragraph::new("Send sel. packages as delivery")
+                        .style(if let Some(2) = app_lock.action_sel { sel_style } else { unsel_style })
+                        .centered();
+
+                    f.render_widget(locker_action, actions_chunks[1]);
+                    f.render_widget(branch_action, actions_chunks[3]);
+                    f.render_widget(delivery_action, actions_chunks[5]);
+                }
+                Some(Popup::ClientOrderLocker) => {
+                    let help = Paragraph::new(HELP_TEXT.client.order_locker).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+
+                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick).title(Line::styled("Recipient", Style::default().fg(Color::Cyan))).title_alignment(Alignment::Center);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let input_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Percentage(100),
+                            Constraint::Min(2),
+                            Constraint::Min(2),
+                            Constraint::Min(1),
+                        ])
+                        .split(popup_area.inner(&Margin::new(3, 1)));
+
+                    let width = input_chunks[1].width.max(3) - 3;
+                    let name_scroll = app_lock.input.0.visual_scroll(width as usize - "* Username: ".len());
+                    let locker_scroll = app_lock.input.1.visual_scroll(width as usize - "* Locker ID: ".len());
+                    let mut name_style = Style::default();
+                    let mut locker_style = Style::default();
+                    
+                    if let InputMode::Editing(field) = app_lock.input_mode {
+                        if field == 0 {
+                            locker_style = locker_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[1].x
+                                            + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
+                                            + "* Username: ".len() as u16
+                                            + 0,
+                                            input_chunks[1].y + 0,
+                                        );
+
+                        } else {
+                            name_style = name_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[2].x
+                                            + (app_lock.input.1.visual_cursor().max(locker_scroll) - name_scroll) as u16
+                                            + "* Locker ID: ".len() as u16
+                                            + 0,
+                                            input_chunks[2].y + 0,
+                                        );
+                        }
+                    }
+
+                    let popup_help = Paragraph::new(HELP_TEXT.client.order_locker_popup_normal).centered();
+                    f.render_widget(popup_help, input_chunks[3]);
+
+                    let name_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(name_style);
+
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Username: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.0.value(), name_style)
+                    ])))
+                    .block(name_block)
+                    .scroll((0, name_scroll as u16));
+
+                    f.render_widget(input, input_chunks[1]);
+
+                    let locker_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(locker_style);
+                    
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Locker ID: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.1.value(), locker_style)
+                    ])))
+                    .block(locker_block)
+                    .scroll((0, name_scroll as u16));
+
+                    f.render_widget(input, input_chunks[2]);
+                }
+                _ => {}
             }
         }
         Screen::Client(SubScreen::ClientSentPackages) => {

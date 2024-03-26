@@ -76,12 +76,17 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             sender.send(Event::SelectTableItem(TableType::LockerPackages))
                         }
                         KeyCode::Enter => {
-                            sender.send(Event::PlaceOrder)
+                            if let Some(_) = app_lock.get_packages_ref().selected_packages {
+                                sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                            } else { Ok(()) }
                         }
                         _ => Ok(())
                     }
                 Some(Popup::ClientOrderMain) =>
                     match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterPopup(None))
+                        }
                         KeyCode::Tab => {
                             sender.send(Event::SwitchAction)
                         }
@@ -90,9 +95,41 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                         }
                         _ => Ok(())
                     }
+                Some(Popup::ClientOrderLocker) => {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                        }
+                        KeyCode::Tab => {
+                            sender.send(Event::SwitchInput)
+                        }
+                        _ => {
+                            if let InputMode::Editing(0) = app_lock.input_mode {
+                                sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))
+                            } else {
+                                sender.send(Event::KeyInput(key_event, InputBlacklist::Numeric))
+                            }
+                        }
+                    }
+                }
+                Some(Popup::ClientOrderBranch) => {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                        }
+                        _ => Ok(())
+                    }
+                }
+                Some(Popup::ClientOrderDelivery) => {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                        }
+                        _ => Ok(())
+                    }
+                }
                 _ => Ok(())
             }
-            
         }
         SubScreen::ClientSentPackages => {
             match key_event.code {

@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use rust_decimal::Decimal;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
 use sqlx::{Row, FromRow, PgPool};
@@ -9,9 +10,12 @@ use crate::{
     model::{
         common::{Screen, Popup, SubScreen, User, InputMode},
         common_obj::Locker,
+        client::GetLockerErr,
         app::App,
     }
 };
+
+use super::client;
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
@@ -106,6 +110,47 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     let mut app_lock = app.lock().unwrap();
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
+                            if locker_id == client_data.active_locker.as_mut().unwrap().get_id() {
+                                client_data.send_to_locker_err = Some(GetLockerErr::SameAsActive);
+                                return Ok(())
+                            }
+
+                            if sqlx::query("SELECT COUNT(*) AS package_count FROM package WHERE locker_id=$1")
+                                .bind(locker_id)
+                                .fetch_one(pool)
+                                .await?
+                                .get::<i64, _>("package_count") >= 5
+                            {
+                                client_data.send_to_locker_err = Some(GetLockerErr::TooManyPackages);
+                                return Ok(())
+                            }
+
+                            let locker_packages_weight =
+                                sqlx::query(
+                            "
+                                    SELECT SUM(package_weight) as weight_sum FROM package
+                                    INNER JOIN package_description AS description
+                                    ON package.tracking_number=description.tracking_number
+                                    WHERE locker_id=$1
+                                "
+                                )
+                                .bind(locker_id)
+                                .fetch_one(pool)
+                                .await?
+                                .get::<Decimal, _>("weight_sum");
+                            
+                            let selected_packages_weight =
+                                client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
+                                .iter()
+                                .map(|package| package.weight)
+                                .sum::<Decimal>();
+
+                            if locker_packages_weight + selected_packages_weight >= Decimal::new(500000, 0)
+                            {
+                                client_data.send_to_locker_err = Some(GetLockerErr::WeightTooBig(Decimal::new(500000, 0) - locker_packages_weight));
+                            }
+
+
                             let locker_row =
                                 sqlx::query(
                                 "
@@ -128,6 +173,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         }
                         _ => {}
                     }
+                }
+            }
+            else {
+                let mut app_lock = app.lock().unwrap();
+                match &mut app_lock.user {
+                    Some(User::Client(client_data)) => {
+                        client_data.send_to_locker_err = Some(GetLockerErr::Invalid);
+                    }
+                    _ => {}
                 }
             }
             Ok(())

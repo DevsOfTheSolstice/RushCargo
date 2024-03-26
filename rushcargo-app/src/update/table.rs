@@ -47,7 +47,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     }
                 }
                 TableType::LockerPackages => {
-                    let packages = app_lock.packages.as_mut().unwrap();
+                    let packages = app_lock.get_client_packages_mut();
                     if let Some(active_package) = &packages.active_package {
                         match &mut packages.selected_packages {
                             Some(selected_packages) => {

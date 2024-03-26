@@ -75,6 +75,7 @@ pub struct Timer {
     pub last_update: Instant,
 }
 
+#[derive(Debug)]
 pub struct PackageData {
     pub viewing_packages: Vec<Package>,
     pub viewing_packages_idx: i64,

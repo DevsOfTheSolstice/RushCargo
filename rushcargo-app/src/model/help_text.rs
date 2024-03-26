@@ -18,6 +18,10 @@ impl HelpText {
                 order_main: "(Tab) select action",
                 order_locker: "(Tab) switch input | (Enter) next | (Esc) back",
                 order_locker_popup_normal: "Input the recipient's information.",
+                order_locker_popup_invalid: "Invalid username or locker ID.",
+                order_locker_popup_same_as_active: "The packages are already in this locker.",
+                order_locker_popup_locker_weight_err: "Weight too big for locker. Remaining: ",
+                order_locker_popup_locker_count_err: "There are already 5 packages in the locker.",
                 sent_packages: "Select a package."
             },
         }
@@ -37,5 +41,9 @@ pub struct ClientHelpText {
     pub order_main: &'static str,
     pub order_locker: &'static str,
     pub order_locker_popup_normal: &'static str,
+    pub order_locker_popup_invalid: &'static str,
+    pub order_locker_popup_same_as_active: &'static str,
+    pub order_locker_popup_locker_weight_err: &'static str,
+    pub order_locker_popup_locker_count_err: &'static str,
     pub sent_packages: &'static str,
 }

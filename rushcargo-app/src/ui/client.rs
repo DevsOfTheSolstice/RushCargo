@@ -150,18 +150,18 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             ];
 
             let rows: Vec<Row> =
-                app_lock.get_packages_ref().viewing_packages
+                app_lock.get_client_packages_ref().viewing_packages
                 .iter()
                 .enumerate()
                 .map(|(i, package)| {
                     Row::new(vec![
-                        match &app_lock.get_packages_ref().selected_packages {
+                        match &app_lock.get_client_packages_ref().selected_packages {
                             Some(selected_packages) if selected_packages.contains(package) => {
                                 Text::styled("☑", Style::default().fg(Color::Yellow))
                             }
                             _ => Text::from("☐")
                         },
-                        Text::from((app_lock.get_packages_ref().viewing_packages_idx + 1 - (app_lock.get_packages_ref().viewing_packages.len() - i) as i64).to_string()),
+                        Text::from((app_lock.get_client_packages_ref().viewing_packages_idx + 1 - (app_lock.get_client_packages_ref().viewing_packages.len() - i) as i64).to_string()),
                         Text::from(wrap_text(18, package.content.clone())),
                     ])
                     .height(2)
@@ -190,7 +190,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
             f.render_widget(package_view_block, packages_chunks[2]);
             
-            if let Some(active_package) = &app_lock.packages.as_ref().unwrap().active_package {
+            if let Some(active_package) = &app_lock.get_client_packages_ref().active_package {
                 let package_title = Paragraph::new(vec![
                     Line::styled("Package ID:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
                     Line::styled(active_package.tracking_num.to_string(), Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)),

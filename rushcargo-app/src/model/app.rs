@@ -26,7 +26,7 @@ pub struct App {
     pub title: Option<Box<TitleData>>,
     pub list: ListData,
     pub table: TableData,
-    pub packages: Option<PackageData>,
+    //pub packages: Option<PackageData>,
     pub user: Option<User>,
     prev_screen: Option<Screen>,
     prev_popup: Option<Popup>,
@@ -52,7 +52,7 @@ impl App {
             title: None,
             list: ListData::default(),
             table: TableData::default(),
-            packages: None,
+            //packages: None,
             user: None,
             prev_screen: None,
             prev_popup: None,
@@ -91,7 +91,7 @@ impl App {
                 client.get_lockers_next(pool).await.expect("could not get initial lockers");
             }
             Screen::Client(SubScreen::ClientLockerPackages) => {
-                self.packages = Some(
+                self.get_client_mut().packages = Some(
                     PackageData {
                         viewing_packages: Vec::new(),
                         viewing_packages_idx: 0,
@@ -131,7 +131,7 @@ impl App {
                 self.table.state.select(None);
             }
             Some(Screen::Client(SubScreen::ClientLockerPackages)) => {
-                self.packages = None;
+                self.get_client_mut().packages = None;
                 self.table.state.select(None);
             }
             Some(Screen::Client(_)) => {}
@@ -224,7 +224,18 @@ impl App {
             }
         ).unwrap()
     }
-    pub fn get_packages_ref(&self) -> &PackageData {
-        self.packages.as_ref().unwrap()
+    pub fn get_client_packages_ref(&self) -> &PackageData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Client(client) => client.packages.as_ref().unwrap()
+            }
+        ).unwrap()
+    }
+    pub fn get_client_packages_mut(&mut self) -> &mut PackageData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Client(client) => client.packages.as_mut().unwrap()
+            }
+        ).unwrap()
     }
 }

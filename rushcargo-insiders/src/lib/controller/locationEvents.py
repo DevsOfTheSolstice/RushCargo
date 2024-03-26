@@ -216,7 +216,7 @@ class LocationEventHandler:
         return warehouseId, routeDistance
 
     # Returns Warehouse ID from a Given City Area
-    def __getCityAreaWarehouse(self, areaId: int) -> int | None:
+    def __getCityAreaWarehouse(self, areaId: int) -> Warehouse | None:
         # Print Warehouses at the Given City Area
         if not self._warehouseTable.get(BUILDING_FK_CITY_AREA, areaId):
             raise WarehouseNotFound(areaId)
@@ -233,11 +233,22 @@ class LocationEventHandler:
                 if warehouse == None or warehouse.areaId != areaId:
                     raise InvalidWarehouse(areaId)
 
-                return warehouseId
+                return warehouse
 
             except Exception as err:
                 console.print(err, style="warning")
                 continue
+
+    # Get Valid Warehouse Dictionary to be Used by a Warehouse Table Class
+    def __getWarehouseDict(self, w:Warehouse)->dict:
+        # Initialize Dictionary
+        warehouseDict = {}
+
+        # Assign Dictionary Fields
+        warehouseDict[DICT_WAREHOUSES_ID] = w.buildingId
+        warehouseDict[DICT_WAREHOUSES_COORDS] = {NOMINATIM_LONGITUDE: w.gpsLongitude, NOMINATIM_LATITUDE:w.gpsLatitude}
+
+        return warehouseDict
 
     # Get Country ID and Name
     def getCountryId(self) -> dict | None:
@@ -972,6 +983,9 @@ class LocationEventHandler:
         # Building Type
         buildingType = None
 
+        # Initialize Warehouse Dictionary
+        warehouseDict = {}
+
         # Get Building Type
         if tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_ID:
             buildingType = self.__buildingType(tableName)
@@ -1047,19 +1061,32 @@ class LocationEventHandler:
                 clear()
 
                 # Get Main Warehouse for the Given City Area
-                warehouseId = self.__getCityAreaWarehouse(areaId)
+                warehouse = self.__getCityAreaWarehouse(areaId)
+
+                # Get Warehouse Dictionary Fields from Warehouse Object
+                warehouseDict = self.__getWarehouseDict(warehouse)
 
                 # Get Current Province Main Warehouse ID
                 currWarehouse = self._provinceTable.find(provinceId)
-                currWarehouseId = currWarehouse.warehouseId
 
-                # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
-                self._warehouseConnTable.removeProvinceMainWarehouse(provinceId, currWarehouseId)
+                # Check if there's a Main Warehouse
+                if currWarehouse != None:
+                    currWarehouseId = currWarehouse.warehouseId
 
-                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Country Warehouse and all the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
+                    # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
+                    self._warehouseConnTable.removeProvinceMainWarehouse(provinceId, currWarehouseId)
 
-                # Assign warehouseId to value
-                value = warehouseId
+                # Get Province Object
+                province = self._provinceTable.find(provinceId)
+
+                # Get Province Country ID
+                countryId = province.countryId
+
+                # Add Warehouse Connections for the Current Warehouse All the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
+                self._warehouseConnTable.insertProvinceMainWarehouse(countryId, provinceId, warehouseDict)
+
+                # Assign Warehouse ID to value
+                value = warehouseDict[DICT_WAREHOUSES_ID]
 
             # Modify Province
             self._provinceTable.modify(provinceId, field, value)
@@ -1096,19 +1123,25 @@ class LocationEventHandler:
                 clear()
 
                 # Get Main Warehouse for the Given City Area
-                warehouseId = self.__getCityAreaWarehouse(areaId)
+                warehouse = self.__getCityAreaWarehouse(areaId)
+
+                # Get Warehouse Dictionary Fields from Warehouse Object
+                warehouseDict = self.__getWarehouseDict(warehouse)
 
                 # Get Current Region Main Warehouse ID
                 currWarehouse = self._regionTable.find(regionId)
-                currWarehouseId = currWarehouse.warehouseId
 
-                # TO DEVELOP: Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
-                self._warehouseConnTable.removeRegionMainWarehouse(regionId, currWarehouseId)
+                # Check if there's a Main Warehouse
+                if currWarehouse != None:
+                    currWarehouseId = currWarehouse.warehouseId
+
+                    # TO DEVELOP: Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
+                    self._warehouseConnTable.removeRegionMainWarehouse(regionId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Province Warehouse, all the Main Region Warehouses at the Given Province and all the Main City Warehouses at the Given Region
 
-                # Assign warehouseId to value
-                value = warehouseId
+                # Assign Warehouse ID to value
+                value = warehouseDict[DICT_WAREHOUSES_ID]
 
             # Modify Region
             self._regionTable.modify(regionId, field, value)
@@ -1146,17 +1179,23 @@ class LocationEventHandler:
                 # Get Main Warehouse for the Given City Area
                 warehouseId = self.__getCityAreaWarehouse(areaId)
 
+                # Get Warehouse Dictionary Fields from Warehouse Object
+                warehouseDict = self.__getWarehouseDict(warehouse)
+
                 # Get Current City Main Warehouse ID
                 currWarehouse = self._cityTable.find(cityId)
-                currWarehouseId = currWarehouse.warehouseId
 
-                # TO DEVELOP: Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the Main City Area Warehouses at the Given City
-                self._warehouseConnTable.removeCityMainWarehouse(cityId, currWarehouseId)
+                # Check if there's a Main Warehouse
+                if currWarehouse != None:
+                    currWarehouseId = currWarehouse.warehouseId
+
+                    # TO DEVELOP: Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the Main City Area Warehouses at the Given City
+                    self._warehouseConnTable.removeCityMainWarehouse(cityId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the Main City Area Warehouses at the Given City
 
-                # Assign warehouseId to value
-                value = warehouseId
+                # Assign Warehouse ID to value
+                value = warehouseDict[DICT_WAREHOUSES_ID]
 
             # Modify City
             self._cityTable.modify(regionId, field, value)
@@ -1196,19 +1235,25 @@ class LocationEventHandler:
                 clear()
 
                 # Get Main Warehouse for the Given City Area
-                warehouseId = self.__getCityAreaWarehouse(areaId)
+                warehouse = self.__getCityAreaWarehouse(areaId)
+
+                # Get Warehouse Dictionary Fields from Warehouse Object
+                warehouseDict = self.__getWarehouseDict(warehouse)
 
                 # Get Current City Area Main Warehouse ID
                 currWarehouse = self._cityAreaTable.find(areaId)
-                currWarehouseId = currWarehouse.warehouseId
 
-                # TO DEVELOP: Drop Old Warehouse Connections with the Main City Warehouse, all the Main City Area Warehouses at the Same City, and all the Warehouses at the Given City Area
-                self._warehouseConnTable.removeCityAreaMainWarehouse(areaId, currWarehouseId)
+                # Check if there's a Main Warehouse
+                if currWarehouse != None:
+                    currWarehouseId = currWarehouse.warehouseId
+
+                    # TO DEVELOP: Drop Old Warehouse Connections with the Main City Warehouse, all the Main City Area Warehouses at the Same City, and all the Warehouses at the Given City Area
+                    self._warehouseConnTable.removeCityAreaMainWarehouse(areaId, currWarehouseId)
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main City Warehouse, all the Main City Area Warehouses at the Given City and all the Warehouses at the Given City Area
 
-                # Assign warehouseId to value
-                value = warehouseId
+                # Assign Warehouse ID to value
+                value = warehouseDict[DICT_WAREHOUSES_ID]
 
             # Modify City
             self._cityTable.modify(regionId, field, value)

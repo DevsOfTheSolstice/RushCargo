@@ -325,7 +325,6 @@ ADD CONSTRAINT warehouse_connection_warehouse1_id_fkey FOREIGN KEY (warehouse1_i
 ADD CONSTRAINT warehouse_connection_warehouse2_id_fkey FOREIGN KEY (warehouse2_id) REFERENCES Warehouse(warehouse_id);
 
 --35
-
 ALTER TABLE Vigent_Identification
 DROP CONSTRAINT vigent_identification_id_fkey;
 

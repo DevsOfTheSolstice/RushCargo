@@ -69,6 +69,7 @@ CREATE TABLE Warehouse_Connection (
     warehouse_from_id BIGINT,
     warehouse_to_id BIGINT,
     route_distance INT NOT NULL,
+    connection_type VARCHAR(50) NOT NULL,
     FOREIGN KEY (warehouse_from_id) REFERENCES Warehouse(warehouse_id),
     FOREIGN KEY (warehouse_to_id) REFERENCES Warehouse(warehouse_id)
 );

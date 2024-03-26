@@ -1084,7 +1084,7 @@ class LocationEventHandler:
 
                 # Add Warehouse Connections for the Current Warehouse All the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
                 self._warehouseConnTable.insertProvinceMainWarehouse(
-                    self._routingPyGeocoder,countryId, provinceId, warehouseDict
+                    self._routingPyGeocoder, countryId, provinceId, warehouseDict
                 )
 
                 # Assign Warehouse ID to value
@@ -1364,32 +1364,45 @@ class LocationEventHandler:
 
         while True:
             if tableName == COUNTRY_TABLENAME:
-                # Asks for Country Fields
-                countrySearch = Prompt.ask(self._GET_COUNTRY_MSG)
-                phonePrefix = IntPrompt.ask("Enter Phone Prefix")
-
-                # Check Country Name
-                isAddressValid(tableName, COUNTRY_NAME, countrySearch)
-
-                # Check if Country is Stored in Local Database
-                countryNameId = self._tables.getCountrySearchNameId(countrySearch)
                 countryName = None
 
-                # Check Country Name ID
-                if countryNameId != None:
-                    # Get Country Name from Local Database
-                    countryName = self._tables.getCountryName(countryNameId)
-                else:
-                    # Get Country Name from GeoPy API based on the Name Provided
-                    countryName = self._geoPyGeocoder.getCountry(countrySearch)
+                while True:
+                    try:
+                        # Asks for Country Name to Search
+                        countrySearch = Prompt.ask(self._GET_COUNTRY_MSG)
 
-                    # Store Country Search in Local Database
-                    self._tables.addCountry(countrySearch, countryName)
+                        # Check Country Name
+                        isAddressValid(tableName, COUNTRY_NAME, countrySearch)
 
-                # Check if Country Name has already been Inserted
-                if self._countryTable.get(COUNTRY_NAME, countryName, False):
-                    uniqueInserted(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
-                    return
+                        # Check if Country is Stored in Local Database
+                        countryNameId = self._tables.getCountrySearchNameId(
+                            countrySearch
+                        )
+                        countryName = None
+
+                        # Check Country Name ID
+                        if countryNameId != None:
+                            # Get Country Name from Local Database
+                            countryName = self._tables.getCountryName(countryNameId)
+                        else:
+                            # Get Country Name from GeoPy API based on the Name Provided
+                            countryName = self._geoPyGeocoder.getCountry(countrySearch)
+
+                            # Store Country Search in Local Database
+                            self._tables.addCountry(countrySearch, countryName)
+
+                        # Check if Country Name has already been Inserted
+                        if self._countryTable.get(COUNTRY_NAME, countryName, False):
+                            uniqueInserted(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+                            return
+                        break
+
+                    except Exception as err:
+                        console.print(err, style="warning")
+                        continue
+
+                # Ask for Country Fields
+                phonePrefix = IntPrompt.ask("Enter Phone Prefix")
 
                 # Insert Country
                 self._countryTable.add(Country(countryName, phonePrefix))
@@ -1399,42 +1412,56 @@ class LocationEventHandler:
                 if location == None:
                     location = self.getCountryId()
 
-                # Asks for Province Fields
-                provinceSearch = Prompt.ask(self._GET_PROVINCE_MSG)
-
-                # Check Province Name
-                isAddressValid(tableName, PROVINCE_NAME, provinceSearch)
-
-                # Check if Province is Stored in Local Database
-                provinceNameId = self._tables.getProvinceSearchNameId(
-                    location[DICT_COUNTRY_NAME_ID], provinceSearch
-                )
                 provinceName = None
 
-                # Check Province Name ID
-                if provinceNameId != None:
-                    # Get Province Name from Local Database
-                    provinceName = self._tables.getProvinceName(provinceNameId)
-                else:
-                    # Get Province Name from GeoPy API based on the Name Provided
-                    provinceName = self._geoPyGeocoder.getProvince(
-                        location, provinceSearch
-                    )
+                while True:
+                    try:
+                        # Asks for Province Name to Search
+                        provinceSearch = Prompt.ask(self._GET_PROVINCE_MSG)
 
-                    # Store Province Search in Local Database
-                    self._tables.addProvince(
-                        location[DICT_COUNTRY_NAME_ID], provinceSearch, provinceName
-                    )
+                        # Check Province Name
+                        isAddressValid(tableName, PROVINCE_NAME, provinceSearch)
 
-                provinceFields = [PROVINCE_FK_COUNTRY, PROVINCE_NAME]
-                provinceValues = [location[DICT_COUNTRY_ID], provinceName]
+                        # Check if Province is Stored in Local Database
+                        provinceNameId = self._tables.getProvinceSearchNameId(
+                            location[DICT_COUNTRY_NAME_ID], provinceSearch
+                        )
+                        provinceName = None
 
-                # Check if Province Name has already been Inserted for the Given Country
-                if self._provinceTable.getMult(provinceFields, provinceValues, False):
-                    uniqueInsertedMult(
-                        PROVINCE_TABLENAME, provinceFields, provinceValues
-                    )
-                    return
+                        # Check Province Name ID
+                        if provinceNameId != None:
+                            # Get Province Name from Local Database
+                            provinceName = self._tables.getProvinceName(provinceNameId)
+                        else:
+                            # Get Province Name from GeoPy API based on the Name Provided
+                            provinceName = self._geoPyGeocoder.getProvince(
+                                location, provinceSearch
+                            )
+
+                            # Store Province Search in Local Database
+                            self._tables.addProvince(
+                                location[DICT_COUNTRY_NAME_ID],
+                                provinceSearch,
+                                provinceName,
+                            )
+
+                        provinceFields = [PROVINCE_FK_COUNTRY, PROVINCE_NAME]
+                        provinceValues = [location[DICT_COUNTRY_ID], provinceName]
+
+                        # Check if Province Name has already been Inserted for the Given Country
+                        if self._provinceTable.getMult(
+                            provinceFields, provinceValues, False
+                        ):
+                            uniqueInsertedMult(
+                                PROVINCE_TABLENAME, provinceFields, provinceValues
+                            )
+                            return
+
+                        break
+
+                    except Exception as err:
+                        console.print(err, style="warning")
+                        continue
 
                 # Insert Province
                 self._provinceTable.add(
@@ -1446,38 +1473,54 @@ class LocationEventHandler:
                 if location == None:
                     location = self.getProvinceId()
 
-                # Asks for Region Fields
-                regionSearch = Prompt.ask(self._GET_REGION_MSG)
-
-                # Check Region Name
-                isAddressValid(tableName, REGION_NAME, regionSearch)
-
-                # Check if Region is Stored in Local Database
-                regionNameId = self._tables.getRegionSearchNameId(
-                    location[DICT_PROVINCE_NAME_ID], regionSearch
-                )
                 regionName = None
 
-                # Check Region Name ID
-                if regionNameId != None:
-                    # Get Region Name from Local Database
-                    regionName = self._tables.getRegionName(regionNameId)
-                else:
-                    # Get Region Name from GeoPy API based on the Name Provided
-                    regionName = self._geoPyGeocoder.getRegion(location, regionSearch)
+                while True:
+                    try:
+                        # Asks for Region Name to Search
+                        regionSearch = Prompt.ask(self._GET_REGION_MSG)
 
-                    # Store Region Search in Local Database
-                    self._tables.addRegion(
-                        location[DICT_PROVINCE_NAME_ID], regionSearch, regionName
-                    )
+                        # Check Region Name
+                        isAddressValid(tableName, REGION_NAME, regionSearch)
 
-                regionFields = [REGION_FK_PROVINCE, REGION_NAME]
-                regionValues = [location[DICT_PROVINCE_ID], regionName]
+                        # Check if Region is Stored in Local Database
+                        regionNameId = self._tables.getRegionSearchNameId(
+                            location[DICT_PROVINCE_NAME_ID], regionSearch
+                        )
+                        regionName = None
 
-                # Check if Region Name has already been Inserted for the Given Province
-                if self._regionTable.getMult(regionFields, regionValues, False):
-                    uniqueInsertedMult(REGION_TABLENAME, regionFields, regionValues)
-                    return
+                        # Check Region Name ID
+                        if regionNameId != None:
+                            # Get Region Name from Local Database
+                            regionName = self._tables.getRegionName(regionNameId)
+                        else:
+                            # Get Region Name from GeoPy API based on the Name Provided
+                            regionName = self._geoPyGeocoder.getRegion(
+                                location, regionSearch
+                            )
+
+                            # Store Region Search in Local Database
+                            self._tables.addRegion(
+                                location[DICT_PROVINCE_NAME_ID],
+                                regionSearch,
+                                regionName,
+                            )
+
+                        regionFields = [REGION_FK_PROVINCE, REGION_NAME]
+                        regionValues = [location[DICT_PROVINCE_ID], regionName]
+
+                        # Check if Region Name has already been Inserted for the Given Province
+                        if self._regionTable.getMult(regionFields, regionValues, False):
+                            uniqueInsertedMult(
+                                REGION_TABLENAME, regionFields, regionValues
+                            )
+                            return
+
+                        break
+
+                    except Exception as err:
+                        console.print(err, style="warning")
+                        continue
 
                 # Insert Region
                 self._regionTable.add(Region(regionName, location[DICT_PROVINCE_ID]))
@@ -1487,38 +1530,48 @@ class LocationEventHandler:
                 if location == None:
                     location = self.getRegionId()
 
-                # Asks for City Fields
-                citySearch = Prompt.ask(self._GET_CITY_MSG)
-
-                # Check City Name
-                isAddressValid(tableName, CITY_NAME, citySearch)
-
-                # Check if City is Stored in Local Database
-                cityNameId = self._tables.getCitySearchNameId(
-                    location[DICT_REGION_NAME_ID], citySearch
-                )
                 cityName = None
 
-                # Check City Name ID
-                if cityNameId != None:
-                    # Get City Name from Local Database
-                    cityName = self._tables.getCityName(cityNameId)
-                else:
-                    # Get City Name from GeoPy API based on the Name Provided
-                    cityName = self._geoPyGeocoder.getCity(location, citySearch)
+                while True:
+                    try:
+                        # Asks for City Name to Search
+                        citySearch = Prompt.ask(self._GET_CITY_MSG)
 
-                    # Store City Search in Local Database
-                    self._tables.addCity(
-                        location[DICT_REGION_NAME_ID], citySearch, cityName
-                    )
+                        # Check City Name
+                        isAddressValid(tableName, CITY_NAME, citySearch)
 
-                cityFields = [CITY_FK_REGION, CITY_NAME]
-                cityValues = [location[DICT_REGION_ID], cityName]
+                        # Check if City is Stored in Local Database
+                        cityNameId = self._tables.getCitySearchNameId(
+                            location[DICT_REGION_NAME_ID], citySearch
+                        )
+                        cityName = None
 
-                # Check if City Name has already been Inserted for the Given Province
-                if self._cityTable.getMult(cityFields, cityValues, False):
-                    uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
-                    return
+                        # Check City Name ID
+                        if cityNameId != None:
+                            # Get City Name from Local Database
+                            cityName = self._tables.getCityName(cityNameId)
+                        else:
+                            # Get City Name from GeoPy API based on the Name Provided
+                            cityName = self._geoPyGeocoder.getCity(location, citySearch)
+
+                            # Store City Search in Local Database
+                            self._tables.addCity(
+                                location[DICT_REGION_NAME_ID], citySearch, cityName
+                            )
+
+                        cityFields = [CITY_FK_REGION, CITY_NAME]
+                        cityValues = [location[DICT_REGION_ID], cityName]
+
+                        # Check if City Name has already been Inserted for the Given Province
+                        if self._cityTable.getMult(cityFields, cityValues, False):
+                            uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
+                            return
+
+                        break
+
+                    except Exception as err:
+                        console.print(err, style="warning")
+                        continue
 
                 # Insert City
                 self._cityTable.add(City(cityName, location[DICT_REGION_ID]))
@@ -1528,40 +1581,58 @@ class LocationEventHandler:
                 if location == None:
                     location = self.getCityId()
 
-                # Asks for City Area Fields
-                areaSearch = Prompt.ask(self._GET_CITY_AREA_MSG)
-                areaDescription = Prompt.ask("Enter City Area Description")
-
-                # Check City Area Name and Description
-                isAddressValid(tableName, CITY_AREA_NAME, areaSearch)
-                isAddressValid(tableName, CITY_AREA_DESCRIPTION, areaDescription)
-
-                # Check if City Area is Stored in Local Database
-                areaNameId = self._tables.getCityAreaSearchNameId(
-                    location[DICT_CITY_ID], areaSearch
-                )
                 areaName = None
 
-                # Check City Area Name ID
-                if areaNameId != None:
-                    # Get City Area Name from Local Database
-                    areaName = self._tables.getCityAreaName(areaNameId)
-                else:
-                    # Get City Area Name from GeoPy API based on the Name Provided
-                    areaName = self._geoPyGeocoder.getCityArea(location, areaSearch)
+                while True:
+                    try:
+                        # Asks for City Area Name to Search
+                        areaSearch = Prompt.ask(self._GET_CITY_AREA_MSG)
 
-                    # Store City Area Search in Local Database
-                    self._tables.addCityArea(
-                        location[DICT_CITY_NAME_ID], areaSearch, areaName
-                    )
+                        # Check City Area Name
+                        isAddressValid(tableName, CITY_AREA_NAME, areaSearch)
 
-                areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
-                areaValues = [location[DICT_CITY_ID], areaName]
+                        # Check if City Area is Stored in Local Database
+                        areaNameId = self._tables.getCityAreaSearchNameId(
+                            location[DICT_CITY_ID], areaSearch
+                        )
+                        areaName = None
 
-                # Check if City Area Name has already been Inserted for the Given City
-                if self._cityAreaTable.getMult(areaFields, areaValues, False):
-                    uniqueInsertedMult(CITY_AREA_TABLENAME, areaFields, areaValues)
-                    return
+                        # Check City Area Name ID
+                        if areaNameId != None:
+                            # Get City Area Name from Local Database
+                            areaName = self._tables.getCityAreaName(areaNameId)
+                        else:
+                            # Get City Area Name from GeoPy API based on the Name Provided
+                            areaName = self._geoPyGeocoder.getCityArea(
+                                location, areaSearch
+                            )
+
+                            # Store City Area Search in Local Database
+                            self._tables.addCityArea(
+                                location[DICT_CITY_NAME_ID], areaSearch, areaName
+                            )
+
+                        areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
+                        areaValues = [location[DICT_CITY_ID], areaName]
+
+                        # Check if City Area Name has already been Inserted for the Given City
+                        if self._cityAreaTable.getMult(areaFields, areaValues, False):
+                            uniqueInsertedMult(
+                                CITY_AREA_TABLENAME, areaFields, areaValues
+                            )
+                            return
+
+                        break
+
+                    except Exception as err:
+                        console.print(err, style="warning")
+                        continue
+
+                # Asks for City Area Fields
+                areaDescription = Prompt.ask("Enter City Area Description")
+
+                # Check City Area Fields
+                isAddressValid(tableName, CITY_AREA_DESCRIPTION, areaDescription)
 
                 # Insert City Area
                 self._cityAreaTable.add(
@@ -1570,10 +1641,17 @@ class LocationEventHandler:
 
             elif tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_TABLENAME:
                 # Get Building Coordinates
-                if location == None:
-                    location = self.getPlaceCoordinates(
-                        f"Enter Place Name Near to {buildingType}"
-                    )
+                while location == None:
+                    try:
+                        location = self.getPlaceCoordinates(
+                            f"Enter Place Name Near to {buildingType}"
+                        )
+
+                        break
+
+                    except Exception as err:
+                        console.print(err, style="warning")
+                        continue
 
                 # Get City Area ID
                 areaId = location[DICT_CITY_AREA_ID]

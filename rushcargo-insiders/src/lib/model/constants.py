@@ -116,13 +116,13 @@ DICT_WAREHOUSES_COORDS = "coords"
 DICT_WAREHOUSES_ID = "id"
 
 # Warehouse Receivers ...
-WAREHOUSES_RECEIVERS_VIEWNAME = "warehouses_receivers"
+WAREHOUSES_RECEIVERS_VIEWNAME = "warehouse_receivers"
 RECEIVERS = "receivers"
 RECEIVERS_WAREHOUSE_ID = "warehouse_id"
 RECEIVERS_WAREHOUSE_CONN_ID = "connection_id"
 
 # Warehouse Senders ...
-WAREHOUSES_SENDERS_VIEWNAME = "warehouses_senders"
+WAREHOUSES_SENDERS_VIEWNAME = "warehouse_senders"
 SENDERS = "senders"
 SENDERS_WAREHOUSE_ID = "warehouse_id"
 SENDERS_WAREHOUSE_CONN_ID = "connection_id"

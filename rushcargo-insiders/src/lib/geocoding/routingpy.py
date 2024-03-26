@@ -45,5 +45,5 @@ class RoutingPyGeocoder:
             # Get Distance in Meters
             return route.distance
 
-        except Exception as err:
+        except:
             raise RouteNotFound(coords1, coords2)

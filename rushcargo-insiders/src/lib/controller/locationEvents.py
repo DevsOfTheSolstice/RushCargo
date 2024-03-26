@@ -240,13 +240,16 @@ class LocationEventHandler:
                 continue
 
     # Get Valid Warehouse Dictionary to be Used by a Warehouse Table Class
-    def __getWarehouseDict(self, w:Warehouse)->dict:
+    def __getWarehouseDict(self, w: Warehouse) -> dict:
         # Initialize Dictionary
         warehouseDict = {}
 
         # Assign Dictionary Fields
         warehouseDict[DICT_WAREHOUSES_ID] = w.buildingId
-        warehouseDict[DICT_WAREHOUSES_COORDS] = {NOMINATIM_LONGITUDE: w.gpsLongitude, NOMINATIM_LATITUDE:w.gpsLatitude}
+        warehouseDict[DICT_WAREHOUSES_COORDS] = {
+            NOMINATIM_LONGITUDE: w.gpsLongitude,
+            NOMINATIM_LATITUDE: w.gpsLatitude,
+        }
 
         return warehouseDict
 
@@ -999,7 +1002,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._countryTable.get(COUNTRY_ID, countryId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1025,7 +1027,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._provinceTable.get(PROVINCE_ID, provinceId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1066,24 +1067,25 @@ class LocationEventHandler:
                 # Get Warehouse Dictionary Fields from Warehouse Object
                 warehouseDict = self.__getWarehouseDict(warehouse)
 
-                # Get Current Province Main Warehouse ID
-                currWarehouse = self._provinceTable.find(provinceId)
-
-                # Check if there's a Main Warehouse
-                if currWarehouse != None:
-                    currWarehouseId = currWarehouse.warehouseId
-
-                    # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
-                    self._warehouseConnTable.removeProvinceMainWarehouse(provinceId, currWarehouseId)
-
                 # Get Province Object
                 province = self._provinceTable.find(provinceId)
+
+                # Check if there's a Main Warehouse
+                if province.warehouseId != None:
+                    currWarehouseId = province.warehouseId
+
+                    # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
+                    self._warehouseConnTable.removeProvinceMainWarehouse(
+                        provinceId, currWarehouseId
+                    )
 
                 # Get Province Country ID
                 countryId = province.countryId
 
                 # Add Warehouse Connections for the Current Warehouse All the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
-                self._warehouseConnTable.insertProvinceMainWarehouse(countryId, provinceId, warehouseDict)
+                self._warehouseConnTable.insertProvinceMainWarehouse(
+                    self._routingPyGeocoder,countryId, provinceId, warehouseDict
+                )
 
                 # Assign Warehouse ID to value
                 value = warehouseDict[DICT_WAREHOUSES_ID]
@@ -1100,7 +1102,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._regionTable.get(REGION_ID, regionId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1128,15 +1129,17 @@ class LocationEventHandler:
                 # Get Warehouse Dictionary Fields from Warehouse Object
                 warehouseDict = self.__getWarehouseDict(warehouse)
 
-                # Get Current Region Main Warehouse ID
-                currWarehouse = self._regionTable.find(regionId)
+                # Get Region Object
+                region = self._regionTable.find(regionId)
 
                 # Check if there's a Main Warehouse
-                if currWarehouse != None:
-                    currWarehouseId = currWarehouse.warehouseId
+                if region.warehouseId != None:
+                    currWarehouseId = region.warehouseId
 
                     # TO DEVELOP: Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
-                    self._warehouseConnTable.removeRegionMainWarehouse(regionId, currWarehouseId)
+                    self._warehouseConnTable.removeRegionMainWarehouse(
+                        regionId, currWarehouseId
+                    )
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Province Warehouse, all the Main Region Warehouses at the Given Province and all the Main City Warehouses at the Given Region
 
@@ -1155,7 +1158,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._cityTable.get(CITY_ID, cityId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1182,15 +1184,17 @@ class LocationEventHandler:
                 # Get Warehouse Dictionary Fields from Warehouse Object
                 warehouseDict = self.__getWarehouseDict(warehouse)
 
-                # Get Current City Main Warehouse ID
-                currWarehouse = self._cityTable.find(cityId)
+                # Get City Object
+                city = self._cityTable.find(cityId)
 
                 # Check if there's a Main Warehouse
-                if currWarehouse != None:
-                    currWarehouseId = currWarehouse.warehouseId
+                if city.warehouseId != None:
+                    currWarehouseId = city.warehouseId
 
                     # TO DEVELOP: Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the Main City Area Warehouses at the Given City
-                    self._warehouseConnTable.removeCityMainWarehouse(cityId, currWarehouseId)
+                    self._warehouseConnTable.removeCityMainWarehouse(
+                        cityId, currWarehouseId
+                    )
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the Main City Area Warehouses at the Given City
 
@@ -1209,7 +1213,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._cityTable.get(CITY_AREA_ID, areaId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1240,15 +1243,17 @@ class LocationEventHandler:
                 # Get Warehouse Dictionary Fields from Warehouse Object
                 warehouseDict = self.__getWarehouseDict(warehouse)
 
-                # Get Current City Area Main Warehouse ID
-                currWarehouse = self._cityAreaTable.find(areaId)
+                # Get City Area Object
+                area = self._cityAreaTable.find(areaId)
 
                 # Check if there's a Main Warehouse
-                if currWarehouse != None:
-                    currWarehouseId = currWarehouse.warehouseId
+                if area.warehouseId != None:
+                    currWarehouseId = area.warehouseId
 
                     # TO DEVELOP: Drop Old Warehouse Connections with the Main City Warehouse, all the Main City Area Warehouses at the Same City, and all the Warehouses at the Given City Area
-                    self._warehouseConnTable.removeCityAreaMainWarehouse(areaId, currWarehouseId)
+                    self._warehouseConnTable.removeCityAreaMainWarehouse(
+                        areaId, currWarehouseId
+                    )
 
                 # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main City Warehouse, all the Main City Area Warehouses at the Given City and all the Warehouses at the Given City Area
 
@@ -1270,7 +1275,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._warehouseTable.get(WAREHOUSE_ID, warehouseId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1298,7 +1302,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._branchTable.get(BRANCH_ID, branchId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1636,7 +1639,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._countryTable.get(COUNTRY_ID, countryId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1654,7 +1656,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._provinceTable.get(PROVINCE_ID, provinceId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1672,7 +1673,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._regionTable.get(REGION_ID, regionId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1690,7 +1690,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._cityTable.get(CITY_ID, cityId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1708,7 +1707,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._cityAreaTable.get(CITY_AREA_ID, areaId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1726,7 +1724,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._warehouseTable.get(WAREHOUSE_ID, warehouseId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation
@@ -1746,7 +1743,6 @@ class LocationEventHandler:
 
             # Print Fetched Results
             if not self._branchTable.get(BRANCH_ID, branchId):
-                noCoincidenceFetched()
                 return
 
             # Ask for Confirmation

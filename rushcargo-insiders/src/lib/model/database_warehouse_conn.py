@@ -60,8 +60,8 @@ class WarehouseConnectionTable:
             # Assign Dictionary Fields
             warehouseDict[DICT_WAREHOUSES_ID] = w[0]
             warehouseDict[DICT_WAREHOUSES_COORDS] = {
-                NOMINATIM_LONGITUDE: w[1],
-                NOMINATIM_LATITUDE: w[2],
+                NOMINATIM_LATITUDE: w[1],
+                NOMINATIM_LONGITUDE: w[2],
             }
 
             # Append to Warehouse List
@@ -70,9 +70,9 @@ class WarehouseConnectionTable:
         return warehouseList
 
     # Returns Query to Remove a Main Warehouse of a Given Location as a Sender from All its Connections
-    def __removeSenderMainWarehouseQuery(self, locationIdField: str, connType: str):
+    def __removeSenderMainWarehouseQuery(self, locationIdField: str):
         return sql.SQL(
-            "DELETE FROM {tableName} WHERE {idField} EXISTS IN (SELECT {sendersConnIdField} FROM {sendersViewName} {senders} WHERE {senders}.{locationIdField} = %s AND {senders}.{warehouseIdField} = %s AND {senders}.{warehouseConnType} = {connType})"
+            "DELETE FROM {tableName} WHERE EXISTS (SELECT {sendersConnIdField} FROM {sendersViewName} {senders} WHERE {senders}.{locationIdField} = %s AND {senders}.{warehouseIdField} = %s AND {senders}.{warehouseConnType} =%s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
             idField=sql.Identifier(self._tablePKName),
@@ -82,23 +82,21 @@ class WarehouseConnectionTable:
             locationIdField=sql.Identifier(locationIdField),
             warehouseIdField=sql.Identifier(SENDERS_WAREHOUSE_ID),
             warehouseConnType=sql.Identifier(WAREHOUSE_CONN_CONN_TYPE),
-            connType=sql.Identifier(connType),
         )
 
     # Returns Query to Remove a Main Warehouse of a Given Location as a Receiver from All its Connections
-    def __removeReceiverMainWarehouseQuery(self, locationIdField: str, connType: str):
+    def __removeReceiverMainWarehouseQuery(self, locationIdField: str):
         return sql.SQL(
-            "DELETE FROM {tableName} WHERE {idField} EXISTS IN (SELECT {receiversConnIdField} FROM {receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} = {connType})"
+            "DELETE FROM {tableName} WHERE EXISTS (SELECT {receiversConnIdField} FROM {receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} =%s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
             idField=sql.Identifier(self._tablePKName),
-            sendersConnIdField=sql.Identifier(SENDERS_WAREHOUSE_CONN_ID),
-            sendersViewName=sql.Identifier(WAREHOUSES_SENDERS_VIEWNAME),
-            senders=sql.Identifier(SENDERS),
+            receiversConnIdField=sql.Identifier(RECEIVERS_WAREHOUSE_CONN_ID),
+            receiversViewName=sql.Identifier(WAREHOUSES_RECEIVERS_VIEWNAME),
+            receivers=sql.Identifier(RECEIVERS),
             locationIdField=sql.Identifier(locationIdField),
-            warehouseIdField=sql.Identifier(SENDERS_WAREHOUSE_ID),
+            warehouseIdField=sql.Identifier(RECEIVERS_WAREHOUSE_ID),
             warehouseConnType=sql.Identifier(WAREHOUSE_CONN_CONN_TYPE),
-            connType=sql.Identifier(connType),
         )
 
     # Returns Query to Remove a Given Location Main Warehouse with All its Counterparts Connections
@@ -112,19 +110,15 @@ class WarehouseConnectionTable:
         locationType, locationIdField = getLocationInfo(locationTableName)
 
         # Get Query to Remove the Given Warehouse as a Sender
-        senderQuery = self.__removeSenderMainWarehouseQuery(
-            locationIdField, locationType
-        )
+        senderQuery = self.__removeSenderMainWarehouseQuery(locationIdField)
 
         # Get Query to Remove the Given Warehouse as a Receiver
-        receiverQuery = self.__removeReceiverMainWarehouseQuery(
-            locationIdField, locationType
-        )
+        receiverQuery = self.__removeReceiverMainWarehouseQuery(locationIdField)
 
         # Execute Query
         try:
             # Remove Given Warehouse as a Sender
-            self._c.execute(senderQuery, [locationId, warehouseId])
+            self._c.execute(senderQuery, [locationId, warehouseId, locationType])
 
             console.print(
                 f"Removed Warehouse ID {warehouseId} as a Sender at {locationType}-Level",
@@ -132,7 +126,7 @@ class WarehouseConnectionTable:
             )
 
             # Remove Given Warehouse as a Receiver
-            self._c.execute(receiverQuery, [locationId, warehouseId])
+            self._c.execute(receiverQuery, [locationId, warehouseId, locationType])
 
             console.print(
                 f"Removed Warehouse ID {warehouseId} as a Receiver at {locationType}-Level",
@@ -285,7 +279,7 @@ class WarehouseConnectionTable:
         # Execute Query
         try:
             # Insert the Given Warehouse as a Sender
-            await self._c.execute(
+            self._c.execute(
                 query,
                 [warehouseId, warehouseConnId, routeDistanceSender, connType],
             )
@@ -319,7 +313,7 @@ class WarehouseConnectionTable:
         # Execute Query
         try:
             # Insert the Given Warehouse as a Receiver
-            await self._c.execute(
+            self._c.execute(
                 query, [warehouseConnId, warehouseId, routeDistanceReceiver, connType]
             )
 
@@ -343,32 +337,43 @@ class WarehouseConnectionTable:
         query = self.__insertMainWarehouseQuery()
 
         # Insert Each Warehouse Connection to Warehouse Connection Table Asynchronously
-        async with asyncio.TaskGroup() as tg:
-            for warehouseConn in warehouseConns:
-                # Check Warehouse Connection ID. Ignore if it's the Same from the Parent
-                if warehouseConn[DICT_WAREHOUSES_ID] == warehouse[DICT_WAREHOUSES_ID]:
-                    continue
+        try:
+            async with asyncio.TaskGroup() as tg:
+                for warehouseConn in warehouseConns:
+                    # Check Warehouse Connection ID. Ignore if it's the Same from the Parent
+                    if (
+                        warehouseConn[DICT_WAREHOUSES_ID]
+                        == warehouse[DICT_WAREHOUSES_ID]
+                    ):
+                        continue
 
-                # Insert Main Warehouse Sender Connection
-                tg.create_task(
-                    self.__insertMainWarehouseSenderConn(
-                        routingPyGeocoder, query, connType, warehouse, warehouseConn
+                    # Insert Main Warehouse Sender Connection
+                    tg.create_task(
+                        self.__insertMainWarehouseSenderConn(
+                            routingPyGeocoder, query, connType, warehouse, warehouseConn
+                        )
                     )
-                )
 
-                # Insert Main Warehouse Receiver Connection
-                tg.create_task(
-                    self.__insertMainWarehouseReceiverConn(
-                        routingPyGeocoder, query, connType, warehouse, warehouseConn
+                    # Insert Main Warehouse Receiver Connection
+                    tg.create_task(
+                        self.__insertMainWarehouseReceiverConn(
+                            routingPyGeocoder, query, connType, warehouse, warehouseConn
+                        )
                     )
-                )
 
-                # Sleep for N Seconds
-                await asyncio.sleep(ASYNC_SLEEP)
+                    # Sleep for N Seconds
+                    await asyncio.sleep(ASYNC_SLEEP)
+
+        except Exception as err:
+            console.print(err, style="warning")
 
     # Insert Province Main Warehouse and Set All of its Connections
     def insertProvinceMainWarehouse(
-        self, countryId: int, provinceId: int, warehouseDict: dict
+        self,
+        routingPyGeocoder: RoutingPyGeocoder,
+        countryId: int,
+        provinceId: int,
+        warehouseDict: dict,
     ):
         # Get All Province Main Warehouses at the Given Country ID
         provinceMainWarehouses = self.getProvinceMainWarehouses(countryId)
@@ -379,7 +384,7 @@ class WarehouseConnectionTable:
         # Set Province Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                provinceMainWarehouses,
+                routingPyGeocoder,
                 CONN_TYPE_PROVINCE,
                 warehouseDict,
                 provinceMainWarehouses,
@@ -389,7 +394,7 @@ class WarehouseConnectionTable:
         # Set Region Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                regionMainWarehouses,
+                routingPyGeocoder,
                 CONN_TYPE_PROVINCE,
                 warehouseDict,
                 regionMainWarehouses,

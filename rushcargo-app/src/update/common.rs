@@ -192,7 +192,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                     last_name: String::from(""),
                                 }
                             );
-
+                        
                             app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
                         }
                         _ => {}
@@ -240,7 +240,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         .try_get::<i64, _>("max").unwrap_or(-1) + 1;
                 
                 match &app_lock.user {
-                    Some(User::Client(client)) => {
+                    Some(User::Client(client_data)) => {
                         sqlx::query(
                             "
                                 INSERT INTO shipping_guide
@@ -249,10 +249,10 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             "
                         )
                         .bind(next_shipping_id)
-                        .bind(client.info.username.clone())
-                        .bind(client.send_to_client.as_ref().unwrap().username.clone())
-                        .bind(client.active_locker.as_ref().unwrap().get_id())
-                        .bind(client.send_to_locker.as_ref().unwrap().get_id())
+                        .bind(client_data.info.username.clone())
+                        .bind(client_data.send_to_client.as_ref().unwrap().username.clone())
+                        .bind(client_data.active_locker.as_ref().unwrap().get_id())
+                        .bind(client_data.send_to_locker.as_ref().unwrap().get_id())
                         .execute(pool)
                         .await?;
 
@@ -266,7 +266,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             "
                         )
                         .bind(next_payment_id)
-                        .bind(client.info.username.clone())
+                        .bind(client_data.info.username.clone())
                         .bind(payment_data.transaction_id)
                         .bind(payment_data.bank.to_string())
                         .bind(datetime.date())
@@ -287,6 +287,21 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         .bind(payment_data.amount)
                         .execute(pool)
                         .await?;
+
+                        let package_data = app_lock.get_client_packages_mut();
+                        let selected_packages = package_data.selected_packages.as_ref().unwrap();
+
+                        for package in selected_packages.iter() {
+                            sqlx::query("UPDATE package SET locker_id=NULL WHERE tracking_number=$1")
+                                .bind(package.get_id())
+                                .execute(pool)
+                                .await?;
+                            package_data.viewing_packages.remove(
+                                package_data.viewing_packages.iter().position(|x| x == package).unwrap()
+                            );
+                        }
+
+                        package_data.selected_packages = None;
 
                         app_lock.enter_popup(Some(Popup::OrderSuccessful), pool).await;
                     }

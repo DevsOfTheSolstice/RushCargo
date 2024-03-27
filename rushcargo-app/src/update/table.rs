@@ -53,13 +53,16 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             Some(selected_packages) => {
                                 if selected_packages.contains(&active_package) {
                                     selected_packages.remove(
-                                        selected_packages.iter().position(|x| *x == *active_package
+                                        selected_packages.iter().position(|x| x == active_package
                                     ).expect("package not found in selection"));
                                 } else {
                                     selected_packages.push(active_package.clone());
                                 }
                             }
                             None => packages.selected_packages = Some(Vec::from([active_package.clone()]))
+                        }
+                        if packages.selected_packages.as_ref().unwrap().is_empty(){
+                            packages.selected_packages = None;
                         }
                     }
                 }

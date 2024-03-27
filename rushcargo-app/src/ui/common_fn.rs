@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Layout, Direction, Rect, Constraint},
-    prelude::Frame,
+    prelude::{Line, Frame},
     widgets::Clear,
 };
 
@@ -15,6 +15,29 @@ pub fn centered_rect(r: &Rect, width: u16, height: u16) -> Rect {
         width,
         height,
     }
+}
+
+pub fn wrap_text(width: usize, text: String) -> Vec<Line<'static>> {
+    let mut ret: Vec<Line> = Vec::new();
+    let remaining_text = text.split_whitespace();
+
+    let mut line_text = String::new();
+    for word in remaining_text {
+        if word.len() + line_text.len() <= width {
+            line_text.push_str(&(word.to_string() + " "));
+        } else {
+            if !line_text.is_empty() {
+                line_text.pop();
+                ret.push(Line::raw(line_text.clone()));
+                line_text.clear();
+                line_text.push_str(&(word.to_string() + " "));
+            }
+            else { return Vec::new(); }
+        }
+    }
+    ret.push(Line::raw(line_text.clone()));
+
+    ret
 }
 
 pub fn clear_chunks(f: &mut Frame, chunks: &std::rc::Rc<[Rect]>) {

@@ -99,7 +99,9 @@ impl App {
                         active_package: None,
                     }
                 );
-                self.get_packages_next(TableType::LockerPackages, pool).await.expect("could not get initial packages");
+                self.get_packages_next(TableType::LockerPackages, pool)
+                    .await
+                    .unwrap_or_else(|_| self.get_client_mut().packages = Some(PackageData::default()));//.expect("could not get initial packages");
             }
             _ => {}
         }

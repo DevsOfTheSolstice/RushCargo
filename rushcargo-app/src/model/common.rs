@@ -2,8 +2,10 @@ use std::time::{Duration, Instant};
 use tui_input::Input;
 use super::{
     client::ClientData,
-    common_obj::{Package, Locker},
+    common_obj::{Locker, Package},
+    trucker::TruckerData
 };
+
 
 #[derive(Debug, Clone)]
 pub enum Screen {
@@ -11,7 +13,7 @@ pub enum Screen {
     Settings,
     Login,
     Client(SubScreen),
-    Trucker,
+    Trucker(SubScreen),
 }
 
 #[derive(Debug, Clone)]
@@ -20,6 +22,12 @@ pub enum SubScreen {
     ClientLockers,
     ClientLockerPackages,
     ClientSentPackages,
+
+
+    TruckerMain,
+    TruckerStatistics,
+    TruckerManagementPackets,
+    TruckerRoutes
 }
 
 impl std::fmt::Display for Screen {
@@ -30,7 +38,7 @@ impl std::fmt::Display for Screen {
                 Screen::Settings => "Settings",
                 Screen::Login => "Login",
                 Screen::Client(_) => "Client",
-                Screen::Trucker => "Trucker"
+                Screen::Trucker(_) => "Trucker"
             }
         )
     }
@@ -52,7 +60,19 @@ pub enum Popup {
 #[derive(Debug)]
 pub enum User {
     Client(ClientData),
+    Trucker(TruckerData),
 }
+#[derive(Debug)]
+pub enum UserType {
+    NaturalClient,
+    LegalClient,
+    Trucker,
+    Motorcyclist,
+    OrderAdmin,
+    ClientAdmin,
+    PackageAdmin,
+}
+
 
 pub enum InputMode {
     Normal,

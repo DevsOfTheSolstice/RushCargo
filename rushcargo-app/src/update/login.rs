@@ -10,6 +10,7 @@ use crate::{
     model::{
         common::{User, Popup, TimeoutType},
         client::{ClientData, Client},
+        trucker::{TruckerData, Trucker},
         app::App,
     }
 };
@@ -69,7 +70,19 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                         ))
                                     }
                                     1 => todo!("legal client login"),
-                                    2 => todo!("trucker login"),
+                                    2 => {
+                                        let username: String = res.try_get("username")?;
+                                        let truck: String = res.try_get("truck")?;
+                                        Some(User::Trucker(
+                                            TruckerData {
+                                                trucker: 
+                                                    Trucker {
+                                                        username,
+                                                        truck
+                                                    },
+                                            }
+                                        ))
+                                    },
                                     3 => todo!("motorcyclist login"),
                                     4 => todo!("admin login"),
                                     _ => panic!("Unexpected i value in TryLogin event.")

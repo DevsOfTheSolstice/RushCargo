@@ -24,6 +24,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
             if let Some(user_type) = &app_lock.user {
                 match user_type {
                     User::Client(_) => sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain))).expect(SENDER_ERR),
+                    User::Trucker(_) => sender.send(Event::EnterScreen(Screen::Trucker(SubScreen::TruckerMain))).expect(SENDER_ERR),
                     _ => todo!("enter screen of user type: {:?}", user_type),
                 };
                 sender.send(Event::EnterPopup(None))

@@ -139,16 +139,16 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 Screen::Settings => settings::event_act(key_event, sender, app),
                 Screen::Login => login::event_act(key_event, sender, app),
                 Screen::Client(_) => client::event_act(key_event, sender, app),
-                Screen::Trucker => trucker::event_act(key_event, sender, app)
+                Screen::Trucker(_) => trucker::event_act(key_event, sender, app)
             }
-        },
+        },/* 
         CrosstermEvent::Resize(_, _) => {
             let mut app_lock = app.lock().unwrap();
             if !app_lock.timeout.contains_key(&TimeoutType::Resize) {
                 app_lock.add_timeout(1, 250, TimeoutType::Resize);
                 sender.send(Event::Resize).expect(SENDER_ERR);
             }
-        },
+        },*/
         _ => {}
     }
 }

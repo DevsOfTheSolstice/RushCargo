@@ -3,6 +3,7 @@ mod settings;
 mod login;
 mod client;
 mod common_fn;
+mod trucker;
 
 use std::sync::{Arc, Mutex};
 use ratatui::prelude::{Frame, Layout};
@@ -32,7 +33,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         Screen::Client(_)
         => client::render(app, f),
 
-        Screen::Trucker
-        => todo!(),
+        Screen::Trucker(_)
+        => client::render(app, f),
     }
 }

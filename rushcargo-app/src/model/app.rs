@@ -91,18 +91,25 @@ impl App {
                 client.get_lockers_next(pool).await.expect("could not get initial lockers");
             }
             Screen::Client(SubScreen::ClientLockerPackages) => {
-                self.packages = Some(
-                    PackageData {
-                        viewing_packages: Vec::new(),
-                        viewing_packages_idx: 0,
-                        selected_packages: None,
-                        active_package: None,
-                    }
-                );
-                self.get_packages_next(TableType::LockerPackages, pool).await.expect("could not get initial packages");
+                self.active_screen = Screen::Client(SubScreen::ClientLockerPackages);
             }
-            _ => {}
+            Screen::Client(SubScreen::ClientSentPackages) => {
+                self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
+
+            }
+            Screen::Trucker(SubScreen::TruckerMain) => {
+                self.active_screen = Screen::Trucker(SubScreen::TruckerMain);
+            }
+            Screen::Trucker(SubScreen::TruckerStatistics) => {
+                self.active_screen = Screen::Trucker(SubScreen::TruckerStatistics)
+            }
+            Screen::Trucker(SubScreen::TruckerManagementPackets) => {
+                self.active_screen = Screen::Trucker(SubScreen::TruckerManagementPackets)
+            },
+            _ => todo!(),
+            
         }
+        
     }
 
     fn cleanup_screen(&mut self, next_screen: &Screen) {
@@ -135,7 +142,10 @@ impl App {
                 self.table.state.select(None);
             }
             Some(Screen::Client(_)) => {}
-            Some(Screen::Trucker) => {}
+            Some(Screen::Trucker(SubScreen::TruckerMain)) => {
+                self.action_sel = None;
+            }
+            Some(Screen::Trucker(_)) => {}
             None => {}
         }
         self.prev_screen = Some(next_screen.clone());
@@ -151,6 +161,7 @@ impl App {
             }
             _ => {}
         }
+
     }
 
     fn cleanup_popup(&mut self, next_popup: &Option<Popup>) {
@@ -212,7 +223,7 @@ impl App {
         self.user.as_ref().map(|u|
             match u {
                 User::Client(client) => client,
-                _ => panic!(),
+                _ => panic!("sus??"),
             }
         ).unwrap()
     }

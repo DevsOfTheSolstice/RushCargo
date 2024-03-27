@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    prelude::{Alignment, Frame},
+    prelude::{Alignment, Frame, Margin},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Clear, Paragraph}
@@ -47,8 +47,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let trucker_data = Paragraph::new(
         Line::from(vec![
             Span::raw(" Trucker "),
-            Span::styled(trucker.username.clone(), Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::raw(format!(": {} {}", trucker.first_name.clone(), trucker.last_name.clone()))
+            Span::styled(trucker.trucker.username.clone(), Style::default().add_modifier(Modifier::BOLD).fg(Color::LightYellow)),
+            Span::raw(format!(": {} {}", trucker.trucker.username.clone(), trucker.trucker.truck.clone()))
         ])
     ).block(trucker_data_block);
     f.render_widget(trucker_data, chunks[0]);
@@ -71,32 +71,52 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     percent_y(f, 2.0),
                     chunks[1]
                 ));
-            let action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
-
+            let unsel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
+            let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+            
             let stats_action = 
                 if let Some(0) = app_lock.action_sel {
-                    Paragraph::new("View Statistics").centered().block(action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    Paragraph::new("View Statistics").centered().block(sel_action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 } else {
-                    Paragraph::new("View Statistics").centered().block(action_block.clone()).style(Style::default().fg(Color::DarkGray))
+                    Paragraph::new("View Statistics").centered().block(unsel_action_block.clone()).style(Style::default().fg(Color::DarkGray))
                 };
 
             f.render_widget(stats_action, actions_chunks[0]);
 
             let management_action = 
                 if let Some(1) = app_lock.action_sel {
-                    Paragraph::new("View packages to accept").centered().block(action_block).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    Paragraph::new("View packages to accept").centered().block(sel_action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 } else {
-                    Paragraph::new("View packages to accept").centered().block(action_block).style(Style::default).fg(Color::DarkGray)
+                    Paragraph::new("View packages to accept").centered().block(unsel_action_block.clone()).style(Style::default().fg(Color::DarkGray))
                 };
             
-            f.render_widget(management_action, actions_chunks[1])
+            f.render_widget(management_action, actions_chunks[1]);
+
+            let route_action = 
+                if let Some(2) = app_lock.action_sel {
+                    Paragraph::new("View route to make").centered().block(sel_action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                } else {
+                    Paragraph::new("View route to make").centered().block(unsel_action_block.clone()).style(Style::default().fg(Color::Yellow))
+                };
+            f.render_widget(route_action, actions_chunks[2]);
         }
         Screen::Trucker(SubScreen::TruckerStatistics) => {
             let help = Paragraph::new(HELP_TEXT.trucker.Statistics).block(help_block);
             f.render_widget(help, chunks[2]);
+
+            let stats_table = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(100)
+            ])
+            .split(chunks[1].inner(&Margin::new(6,0)));
         }
         Screen::Trucker(SubScreen::TruckerManagementPackets) => {
-            let help = Pararaph::new(HELP_TEXT.trucker.management_action).block(help_block);
+            let help = Paragraph::new(HELP_TEXT.trucker.management_action).block(help_block);
+            f.render_widget(help, chunks[2]);
+        }
+        Screen::Trucker(SubScreen::TruckerRoutes) => {
+            let help = Paragraph::new(HELP_TEXT.trucker.route_action).block(help_block);
             f.render_widget(help, chunks[2]);
         }
         _ => {}

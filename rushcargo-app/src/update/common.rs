@@ -61,6 +61,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         _ => {}
                     }
                 }
+                Screen::Trucker(SubScreen::TruckerMain) => {
+                    match app_lock.action_sel {
+                        Some(val) if val < 3 => app_lock.action_sel = Some(val + 1),
+                        _ => app_lock.action_sel = Some(0),
+                    }
+                } //TODO: Trucker Stat AND Management Screen
                 _ => {}
             }
             Ok(())
@@ -71,6 +77,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let subscreen = 
                 match &app_lock.active_screen {
                     Screen::Client(sub) => Some(sub),
+                    Screen::Trucker(sub) => Some(sub),
                     _ => None
                 };
 
@@ -87,6 +94,14 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         Some(0) => app_lock.enter_popup(Some(Popup::ClientOrderLocker), pool).await,
                         Some(1) => app_lock.enter_popup(Some(Popup::ClientOrderBranch), pool).await,
                         Some(2) => app_lock.enter_popup(Some(Popup::ClientOrderDelivery), pool).await,
+                        _ => {}
+                    }
+                }
+                Some(SubScreen::TruckerMain) => {
+                    match app_lock.action_sel { //sus
+                        Some(0) => app_lock.enter_screen(Screen::Trucker(SubScreen::TruckerStatistics), pool).await,
+                        Some(1) => app_lock.enter_screen(Screen::Trucker(SubScreen::TruckerManagementPackets), pool).await,
+                        Some(2) => app_lock.enter_screen(Screen::Trucker(SubScreen::TruckerRoutes), pool).await,
                         _ => {}
                     }
                 }

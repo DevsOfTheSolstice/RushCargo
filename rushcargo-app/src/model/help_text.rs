@@ -1,6 +1,7 @@
 pub struct HelpText {
     pub login: LoginHelpText,
     pub client: ClientHelpText,
+    pub common: CommonHelpText,
 }
 
 impl HelpText {
@@ -25,6 +26,9 @@ impl HelpText {
                 order_payment: "(Tab) open banks list | (Enter) complete order",
                 sent_packages: "Select a package."
             },
+            common: CommonHelpText {
+                yay: ":D",
+            },
         }
     }
 }
@@ -48,4 +52,8 @@ pub struct ClientHelpText {
     pub order_locker_popup_locker_count_err: &'static str,
     pub order_payment: &'static str,
     pub sent_packages: &'static str,
+}
+
+pub struct CommonHelpText {
+    pub yay: &'static str,
 }

@@ -40,6 +40,7 @@ impl std::fmt::Display for Screen {
 #[derive(Debug, Clone)]
 pub enum Popup {
     Prev,
+    OrderSuccessful,
 
     LoginSuccessful,
 

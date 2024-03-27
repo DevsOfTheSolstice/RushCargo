@@ -222,7 +222,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                 let payment_data =
                     PaymentData {
-                        amount: Decimal::new(100, 0),
+                        amount: Decimal::new(99, 0),
                         transaction_id: app_lock.input.0.to_string(),
                         bank,
                     };
@@ -275,6 +275,20 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         .execute(pool)
                         .await?;
 
+                        sqlx::query(
+                            "
+                                INSERT INTO guide_payments
+                                (pay_id, shipping_number, amount_paid)
+                                VALUES ($1, $2, $3)
+                            "
+                        )
+                        .bind(next_payment_id)
+                        .bind(next_shipping_id)
+                        .bind(payment_data.amount)
+                        .execute(pool)
+                        .await?;
+
+                        app_lock.enter_popup(Some(Popup::OrderSuccessful), pool).await;
                     }
                     _ => unimplemented!("Event::PlaceOrderLockerLocker for user {:?}", app_lock.user)
                 }

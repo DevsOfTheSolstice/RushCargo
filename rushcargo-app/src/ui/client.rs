@@ -463,6 +463,17 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         f.render_widget(bank_title, input_chunks[3]);
                     }
                 }
+                Some(Popup::OrderSuccessful) => {
+                    let help = Paragraph::new(HELP_TEXT.common.yay).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(percent_x(f, 1.0), percent_y(f, 1.0), chunks[1]);
+
+                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+                }
                 _ => {}
             }
         }

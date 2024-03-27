@@ -147,6 +147,9 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             }
                     }
                 }
+                Some(Popup::OrderSuccessful) => {
+                    sender.send(Event::EnterPopup(None))
+                }
                 Some(Popup::ClientOrderBranch) => {
                     match key_event.code {
                         KeyCode::Esc => {

@@ -15,7 +15,7 @@ use crate::{
         app::App, client::Client,
     },
     ui::common_fn::{
-        centered_rect, clear_chunks, percent_x, percent_y
+        centered_rect,
     }, HELP_TEXT
 };
 
@@ -29,10 +29,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Percentage(90),
             Constraint::Length(3),
         ])
-        .split(centered_rect(
-            percent_x(f, 2.0),
-            percent_y(f, 1.9),
-            f.size()));
+        .split(centered_rect(&f.size(), 80, 18));
     
     let client = app_lock.get_client_ref();
 
@@ -60,11 +57,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     Constraint::Length(3),
                     Constraint::Length(3),
                 ])
-                .split(centered_rect(
-                    percent_x(f, 1.0),
-                    percent_y(f, 2.0),
-                    chunks[1]
-                ));
+                .split(centered_rect(&chunks[1], 25, 6));
 
             let unsel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
             let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
@@ -233,7 +226,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_main).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
 
                     let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
@@ -243,12 +236,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let actions_chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Percentage(100),
-                            Constraint::Min(2),
                             Constraint::Min(1),
-                            Constraint::Min(2),
                             Constraint::Min(1),
-                            Constraint::Min(2),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
                         ])
                         .split(popup_area.inner(&Margin::new(1, 1)));
                     
@@ -275,7 +269,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_locker).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
 
                     let popup_block = Block::default()
                         .borders(Borders::ALL)
@@ -369,7 +363,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_payment).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
 
                     let popup_block = Block::default()
                         .borders(Borders::ALL)
@@ -438,7 +432,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                                 input_chunks[3].x + "* Bank: ".len() as u16,
                                 input_chunks[3].y,
                             25,
-                            6
+                            5
                             );
 
                         let bank_dropdown_block = Block::default().borders(Borders::ALL);
@@ -457,7 +451,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         let bank_title =
                             Line::from(vec![
                                 Span::styled("* Bank: ", Style::default().fg(Color::Yellow)),
-                                Span::raw("▼ ─────────────────────")
+                                Span::raw("▼ ──────────────────────")
                             ]);
 
                         f.render_widget(bank_title, input_chunks[3]);
@@ -467,12 +461,19 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.common.yay).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(percent_x(f, 1.0), percent_y(f, 1.0), chunks[1]);
+                    let popup_area = centered_rect(&chunks[1], 28, 4);
 
                     let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
+                    let order_successful = Paragraph::new(Text::from(vec![
+                        Line::raw("Order placed"),
+                        Line::raw("successfully!")
+                    ]))
+                    .centered()
+                    .block(popup_block);
+
                     f.render_widget(Clear, popup_area);
-                    f.render_widget(popup_block, popup_area);
+                    f.render_widget(order_successful, popup_area);
                 }
                 _ => {}
             }

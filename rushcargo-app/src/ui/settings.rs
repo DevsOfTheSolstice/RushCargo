@@ -12,12 +12,7 @@ use crate::{
         common::{Popup, InputMode, TimeoutType},
         app::App,
     },
-    ui::common_fn::{
-        centered_rect,
-        percent_x,
-        percent_y,
-        clear_chunks,
-    }
+    ui::common_fn::centered_rect,
 };
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
@@ -29,10 +24,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Length(3),
             Constraint::Length(3),
         ])
-        .split(centered_rect(
-            percent_x(f, 1.0),
-            percent_y(f, 1.0),
-            f.size()));
+        .split(centered_rect(&f.size(), 30, 20));
     
     let list_chunks = Layout::default()
         .direction(Direction::Horizontal)

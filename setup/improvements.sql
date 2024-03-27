@@ -301,15 +301,19 @@ ALTER TABLE Package
 DROP COLUMN locker_id;
 
 ALTER TABLE Package
-ADD COLUMN locker_id BIGINT
-FOREIGN KEY (locker_id) REFERENCES Locker(locker_id);
+ADD COLUMN locker_id BIGINT;
+ALTER TABLE Package
+ADD FOREIGN KEY (locker_id) REFERENCES Locker(locker_id);
 
 --33
 ALTER TABLE Shipping_Guide
-ADD COLUMN locker_sender BIGINT,
-ADD COLUMN locker_receiver BIGINT,
-FOREIGN KEY (locker_sender) REFERENCES Locker(locker_id),
-FOREIGN KEY (locker_receiver) REFERENCES Locker(locker_id);
+ADD COLUMN locker_sender BIGINT;
+ALTER TABLE Shipping_Guide
+ADD COLUMN locker_receiver BIGINT;
+ALTER TABLE Shipping_Guide
+ADD FOREIGN KEY (locker_sender) REFERENCES Locker(locker_id);
+ALTER TABLE Shipping_Guide
+ADD FOREIGN KEY (locker_receiver) REFERENCES Locker(locker_id);
 
 --34
 ALTER TABLE Warehouse_connection
@@ -328,8 +332,9 @@ ADD CONSTRAINT warehouse_connection_warehouse2_id_fkey FOREIGN KEY (warehouse2_i
 ALTER TABLE Vigent_Identification
 DROP CONSTRAINT vigent_identification_id_fkey;
 
-DROP TABLE Vigent_Identification;
-
+--36
+ALTER TABLE Shipping_Guide ALTER COLUMN building_sender DROP DEFAULT;
+ALTER TABLE Shipping_Guide ALTER COLUMN branch_receiver DROP DEFAULT;
 
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
@@ -346,3 +351,5 @@ DROP TABLE IF EXISTS Package_Admin;
 DROP TABLE IF EXISTS Cashier_Admin;
 DROP TABLE IF EXISTS No_Comercial_Package;
 DROP TABLE IF EXISTS Comercial_Package;
+DROP TABLE IF EXISTS Vigent_Identification;
+

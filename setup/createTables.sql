@@ -69,7 +69,7 @@ CREATE TABLE Warehouse (
 
 --10
 CREATE TABLE Warehouse_Connection (
-    warehouse_r BIGSERIAL,
+    warehouse1_id BIGSERIAL,
     warehouse2_id BIGSERIAL,
     radial_distance DECIMAL(4,2) NOT NULL,
     rute_distance DECIMAL(4,2) NOT NULL,

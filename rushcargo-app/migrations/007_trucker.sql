@@ -10,4 +10,4 @@ INSERT INTO vehicle (vin_vehicle, brand, model, weight_capacity, width_capacity,
 VALUES ('3N1CN7APXEL805651', 'Fuso', 'FE130', '3.50', '6', '3.40', '10.50', 'Truck');
 
 INSERT INTO truck_driver (username, truck)
-VALUES ('truckkun', '3N1CN7APXEL805651')
+VALUES ('truckkun', '3N1CN7APXEL805651');

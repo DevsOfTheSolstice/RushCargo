@@ -33,6 +33,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let (list_state, actions) = match list_type {
                 ListType::Title => (&app_lock.list.state.0, &app_lock.list.actions.title),
                 ListType::Settings => (&app_lock.list.state.0, &app_lock.list.actions.settings),
+                _ => unimplemented!("Event::SelectListItem for {:?}", list_type)
             };
 
             if let Some(selected) = list_state.selected() {
@@ -55,6 +56,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         let mut settings_file = File::create(BIN_PATH.lock().unwrap().clone() + "settings.bin").expect("Could not open `settings.bin`");
                         settings_file.write_all(&bincode::serialize(&app_lock.settings).unwrap()).expect("Could not write to `settings.bin`");
                     }
+                    _ => {}
                 }
             }
             Ok(())

@@ -2,8 +2,8 @@ use sqlx::{PgPool, FromRow};
 use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
 use super::{
-    common::PackageData,
-    common_obj::{Country, Warehouse, Locker},
+    common::{PackageData, PaymentData},
+    common_obj::{Country, Locker, Warehouse},
 };
 
 #[derive(Debug)]
@@ -30,6 +30,8 @@ pub struct ClientData {
     pub packages: Option<PackageData>,
     pub send_to_locker: Option<Locker>,
     pub send_to_locker_err: Option<GetLockerErr>,
+    pub send_to_client: Option<Client>,
+    pub payment: Option<PaymentData>,
 }
 
 impl ClientData {

@@ -147,7 +147,11 @@ impl App {
 
         match self.active_popup {
             Some(Popup::ClientOrderLocker) => {
-                self.input_mode = InputMode::Editing(0); 
+                self.input_mode = InputMode::Editing(0);
+            }
+            Some(Popup::ClientInputPayment) => {
+                self.action_sel = Some(0);
+                self.input_mode = InputMode::Editing(0);
             }
             _ => {}
         }
@@ -163,6 +167,12 @@ impl App {
                 self.input.1.reset();
                 self.get_client_mut().send_to_locker_err = None;
                 self.input_mode = InputMode::Normal;
+            }
+            Some(Popup::ClientInputPayment) => {
+                self.input.0.reset();
+                self.input.1.reset();
+                self.list.state.0.select(None);
+                self.action_sel = None;
             }
             _ => {}
         }

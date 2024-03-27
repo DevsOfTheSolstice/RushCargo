@@ -1,9 +1,9 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    prelude::{Alignment, Frame, Margin},
+    prelude::{Alignment, Frame, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Cell, Table, Row, Block, BorderType, Borders, Clear, Paragraph}
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Row, Table}
 };
 use rust_decimal::Decimal;
 use std::sync::{Arc, Mutex};
@@ -277,7 +277,11 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
                     let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
 
-                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick).title(Line::styled("Recipient", Style::default().fg(Color::Cyan))).title_alignment(Alignment::Center);
+                    let popup_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .title(Line::styled("Recipient", Style::default().fg(Color::Cyan)))
+                        .title_alignment(Alignment::Center);
 
                     f.render_widget(Clear, popup_area);
                     f.render_widget(popup_block, popup_area);
@@ -362,7 +366,102 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     f.render_widget(input, input_chunks[2]);
                 }
                 Some(Popup::ClientInputPayment) => {
-                    todo!("client input payment popup ui");
+                    let help = Paragraph::new(HELP_TEXT.client.order_payment).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+
+                    let popup_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .title(Line::styled("Payment", Style::default().fg(Color::Cyan)))
+                        .title_alignment(Alignment::Center);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let input_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Percentage(100),
+                            Constraint::Min(2),
+                            Constraint::Min(1),
+                            Constraint::Min(2),
+                        ])
+                        .split(popup_area.inner(&Margin::new(3, 1)));
+
+                    let width = input_chunks[1].width.max(3) - 3;
+                    let reference_scroll = app_lock.input.0.visual_scroll(width as usize - "* Reference. num: ".len());
+
+                    //let bank_scroll = app_lock.input.1.visual_scroll(width as usize - "* Bank: ".len());
+                    let mut reference_style = Style::default();
+                    let mut bank_style = Style::default();
+                    
+                    if let InputMode::Editing(field) = app_lock.input_mode {
+                        if field == 0 {
+                            bank_style = bank_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[1].x
+                                            + (app_lock.input.0.visual_cursor().max(reference_scroll) - reference_scroll) as u16
+                                            + "* Reference num.: ".len() as u16
+                                            + 0,
+                                            input_chunks[1].y + 0,
+                                        );
+
+                        }
+                    }
+
+                    let pay_text = Paragraph::new(Text::from(vec![
+                        Line::from(vec![Span::raw("Amount to pay: "), Span::styled("USD 100", Style::default().fg(Color::Yellow))])
+                    ])).centered();
+                    
+                    f.render_widget(pay_text, input_chunks[0]);
+
+                    let reference_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(reference_style);
+
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Reference num.: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.0.value(), reference_style)
+                    ])))
+                    .block(reference_block)
+                    .scroll((0, reference_scroll as u16));
+
+                    f.render_widget(input, input_chunks[1]);
+
+                    if let Some(1) = app_lock.action_sel {
+                        let bank_title = Line::styled("* Bank: ", Style::default().fg(Color::Yellow));
+                        f.render_widget(bank_title, input_chunks[3]);
+                        let bank_dropdown_area =
+                            Rect::new(
+                                input_chunks[3].x + "* Bank: ".len() as u16,
+                                input_chunks[3].y,
+                            25,
+                            6
+                            );
+
+                        let bank_dropdown_block = Block::default().borders(Borders::ALL);
+
+                        f.render_widget(Clear, bank_dropdown_area);
+                        f.render_widget(bank_dropdown_block, bank_dropdown_area);
+
+                        let banks_list_area = bank_dropdown_area.inner(&Margin::new(1, 1));
+
+                        let banks_list = List::new(
+                            app_lock.list.actions.payment_banks.clone()
+                        ).highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
+
+                        f.render_stateful_widget(banks_list, banks_list_area, &mut app_lock.list.state.0);
+                    } else {
+                        let bank_title =
+                            Line::from(vec![
+                                Span::styled("* Bank: ", Style::default().fg(Color::Yellow)),
+                                Span::raw("▼ ─────────────────────")
+                            ]);
+
+                        f.render_widget(bank_title, input_chunks[3]);
+                    }
                 }
                 _ => {}
             }

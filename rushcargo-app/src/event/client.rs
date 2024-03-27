@@ -12,8 +12,9 @@ use std::{
 use crate::{
     event::{Event, InputBlacklist, SENDER_ERR},
     model::{
-    app::App, common::{SubScreen, InputMode, Popup, Screen, User},
-    app_table::TableType
+        app::App, common::{SubScreen, InputMode, Popup, Screen, User},
+        app_list::ListType,
+        app_table::TableType,
     },
 };
 
@@ -116,6 +117,34 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                                 sender.send(Event::KeyInput(key_event, InputBlacklist::Numeric))
                             }
                         }
+                    }
+                }
+                Some(Popup::ClientInputPayment) => {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                        }
+                        KeyCode::Tab => {
+                            sender.send(Event::SwitchAction)
+                        }
+                        KeyCode::Enter => {
+                            if let Some(_) = app_lock.get_client_ref().send_to_locker {
+                                sender.send(Event::PlaceOrderLockerLocker)
+                            } else {
+                                Ok(())
+                            }
+                        }
+                        _ =>
+                            match app_lock.action_sel {
+                                Some(0) => sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric)),
+                                Some(1) =>
+                                    match key_event.code {
+                                        KeyCode::Down | KeyCode::Char('j') => sender.send(Event::NextListItem(ListType::PaymentBanks)),
+                                        KeyCode::Up | KeyCode::Char('k') => sender.send(Event::PrevListItem(ListType::PaymentBanks)),
+                                        _ => Ok(())
+                                    }
+                                _ => Ok(())
+                            }
                     }
                 }
                 Some(Popup::ClientOrderBranch) => {

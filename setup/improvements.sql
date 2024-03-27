@@ -336,6 +336,23 @@ DROP CONSTRAINT vigent_identification_id_fkey;
 ALTER TABLE Shipping_Guide ALTER COLUMN building_sender DROP DEFAULT;
 ALTER TABLE Shipping_Guide ALTER COLUMN branch_receiver DROP DEFAULT;
 
+--37
+ALTER TABLE Payment ALTER COLUMN amount TYPE DECIMAL(7,2);
+
+--38
+ALTER TABLE Building DROP CONSTRAINT fk_area_id;
+ALTER TABLE Building DROP COLUMN area_id;
+
+ALTER TABLE Building
+ADD COLUMN city_id BIGINT,
+ADD CONSTRAINT fk_city_id
+FOREIGN KEY (city_id) REFERENCES City(city_id);
+
+--39
+ALTER TABLE Assigned_Delivery DROP CONSTRAINT assigned_delivery_assigned_area_fkey;
+ALTER TABLE Assigned_Delivery DROP COLUMN assigned_area;
+ALTER TABLE Assigned_Delivery ADD COLUMN Area VARCHAR(255);
+
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;
@@ -352,4 +369,4 @@ DROP TABLE IF EXISTS Cashier_Admin;
 DROP TABLE IF EXISTS No_Comercial_Package;
 DROP TABLE IF EXISTS Comercial_Package;
 DROP TABLE IF EXISTS Vigent_Identification;
-
+DROP TABLE IF EXISTS City_Area;

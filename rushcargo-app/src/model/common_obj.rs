@@ -57,6 +57,50 @@ impl Package {
     }
 }
 
+#[derive(Debug)]
+pub struct Building {
+    id: i64,
+    pub city_id: i64,
+    pub name: String,
+    pub address_description: String,
+    pub gps_latitude: Option<Decimal>,
+    pub gps_longitude: Option<Decimal>,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+}
+
+impl<'r> FromRow<'r, PgRow> for Building {
+    fn from_row(row: &'r PgRow) -> std::prelude::v1::Result<Self, sqlx::Error> {
+        Ok(Building {
+            id: row.try_get("building_id")?,
+            city_id: row.try_get("city_id")?,
+            name: row.try_get("building_name")?,
+            address_description: row.try_get("address_description")?,
+            gps_latitude: row.try_get("gps_latitude")?,
+            gps_longitude: row.try_get("gps_longitude")?,
+            phone: row.try_get("phone")?,
+            email: row.try_get("email")?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Branch {
+    id: Building,
+    warehouse_connection: Warehouse,
+    route_distance: Decimal,
+}
+
+impl<'r> FromRow<'r, PgRow> for Branch {
+    fn from_row(row: &'r PgRow) -> std::prelude::v1::Result<Self, sqlx::Error> {
+        Ok(Branch {
+            id: Building::from_row(row)?,
+            warehouse_connection: Warehouse::from_row(row)?,
+            route_distance: row.try_get("rute_distance")?,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Warehouse {
     id: i64

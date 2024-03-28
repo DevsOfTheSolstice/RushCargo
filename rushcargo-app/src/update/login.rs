@@ -66,8 +66,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                                 active_locker: None,
                                                 packages: None,
                                                 send_to_locker: None,
-                                                send_to_locker_err: None,
+                                                get_db_err: None,
                                                 send_to_client: None,
+                                                send_to_branch: None,
                                                 payment: None,
                                             }
                                         ))

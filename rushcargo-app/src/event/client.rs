@@ -130,6 +130,8 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                         KeyCode::Enter => {
                             if let Some(_) = app_lock.get_client_ref().send_to_locker {
                                 sender.send(Event::PlaceOrderLockerLocker)
+                            } else if let Some(_) = app_lock.get_client_ref().send_to_branch {
+                                todo!("client Key Enter on send to branch")
                             } else {
                                 Ok(())
                             }
@@ -154,6 +156,22 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                     match key_event.code {
                         KeyCode::Esc => {
                             sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                        }
+                        KeyCode::Tab => {
+                            sender.send(Event::SwitchInput)
+                        }
+                        KeyCode::Enter => {
+                            sender.send(Event::TryGetUserBranch(
+                                app_lock.input.0.value().to_string(),
+                                app_lock.input.1.value().to_string()
+                            ))
+                        }
+                        _ => {
+                            if let InputMode::Editing(0) = app_lock.input_mode {
+                                sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))
+                            } else {
+                                sender.send(Event::KeyInput(key_event, InputBlacklist::Numeric))
+                            }
                         }
                         _ => Ok(())
                     }

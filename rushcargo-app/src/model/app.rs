@@ -155,6 +155,9 @@ impl App {
                 self.action_sel = Some(0);
                 self.input_mode = InputMode::Editing(0);
             }
+            Some(Popup::ClientOrderBranch) => {
+                self.input_mode = InputMode::Editing(0);
+            }
             _ => {}
         }
     }
@@ -167,7 +170,7 @@ impl App {
             Some(Popup::ClientOrderLocker) => {
                 self.input.0.reset();
                 self.input.1.reset();
-                self.get_client_mut().send_to_locker_err = None;
+                self.get_client_mut().get_db_err = None;
                 self.input_mode = InputMode::Normal;
             }
             Some(Popup::ClientInputPayment) => {
@@ -175,6 +178,12 @@ impl App {
                 self.input.1.reset();
                 self.list.state.0.select(None);
                 self.action_sel = None;
+            }
+            Some(Popup::ClientOrderBranch) => {
+                self.input.0.reset();
+                self.input.1.reset();
+                self.get_client_mut().get_db_err = None;
+                self.input_mode = InputMode::Normal;
             }
             _ => {}
         }

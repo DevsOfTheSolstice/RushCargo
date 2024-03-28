@@ -11,7 +11,7 @@ use crate::{
     model::{
         help_text,
         common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User},
-        client::GetLockerErr,
+        client::GetDBErr,
         app::App,
         client::Client,
     },
@@ -292,13 +292,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
                     let width = input_chunks[1].width.max(3) - 3;
                     let name_scroll = app_lock.input.0.visual_scroll(width as usize - "* Username: ".len());
-                    let branch_scroll = app_lock.input.1.visual_scroll(width as usize - "* Locker ID: ".len());
+                    let locker_scroll = app_lock.input.1.visual_scroll(width as usize - "* Locker ID: ".len());
                     let mut name_style = Style::default();
-                    let mut branch_style = Style::default();
+                    let mut locker_style = Style::default();
                     
                     if let InputMode::Editing(field) = app_lock.input_mode {
                         if field == 0 {
-                            branch_style = branch_style.fg(Color::DarkGray);
+                            locker_style = locker_style.fg(Color::DarkGray);
                             f.set_cursor(input_chunks[1].x
                                             + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
                                             + "* Username: ".len() as u16
@@ -309,7 +309,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         } else {
                             name_style = name_style.fg(Color::DarkGray);
                             f.set_cursor(input_chunks[2].x
-                                            + (app_lock.input.1.visual_cursor().max(branch_scroll) - branch_scroll) as u16
+                                            + (app_lock.input.1.visual_cursor().max(locker_scroll) - locker_scroll) as u16
                                             + "* Locker ID: ".len() as u16
                                             + 0,
                                             input_chunks[2].y + 0,
@@ -320,12 +320,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let err_style = Style::default().fg(Color::Red);
 
                     let popup_help = Paragraph::new(
-                        match app_lock.get_client_ref().send_to_locker_err {
+                        match app_lock.get_client_ref().get_db_err {
                             None => Line::raw(HELP_TEXT.client.order_locker_popup_normal.to_string()),
-                            Some(GetLockerErr::Invalid) => Line::styled(HELP_TEXT.client.order_locker_popup_invalid.to_string(), err_style),
-                            Some(GetLockerErr::SameAsActive) => Line::styled(HELP_TEXT.client.order_locker_popup_same_as_active.to_string(), err_style),
-                            Some(GetLockerErr::TooManyPackages) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_count_err.to_string(), err_style),
-                            Some(GetLockerErr::WeightTooBig(max_weight)) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_weight_err.to_string() + &max_weight.to_string(), err_style)
+                            Some(GetDBErr::InvalidUserLocker) => Line::styled(HELP_TEXT.client.order_locker_popup_invalid.to_string(), err_style),
+                            Some(GetDBErr::LockerSameAsActive) => Line::styled(HELP_TEXT.client.order_locker_popup_same_as_active.to_string(), err_style),
+                            Some(GetDBErr::LockerTooManyPackages) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_count_err.to_string(), err_style),
+                            Some(GetDBErr::LockerWeightTooBig(max_weight)) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_weight_err.to_string() + &max_weight.to_string(), err_style),
+                            _ => panic!()
                         }
                     ).centered();
 
@@ -345,17 +346,17 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
                     f.render_widget(input, input_chunks[1]);
 
-                    let branch_block = Block::default()
+                    let locker_block = Block::default()
                         .borders(Borders::BOTTOM)
                         .border_type(BorderType::Rounded)
-                        .border_style(branch_style);
+                        .border_style(locker_style);
                     
                     let input = Paragraph::new(Text::from(Line::from(vec![
-                        Span::styled("* Branch ID: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(app_lock.input.1.value(), branch_style)
+                        Span::styled("* Locker ID: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.1.value(), locker_style)
                     ])))
-                    .block(branch_block)
-                    .scroll((0, branch_scroll as u16));
+                    .block(locker_block)
+                    .scroll((0, locker_scroll as u16));
 
                     f.render_widget(input, input_chunks[2]);
                 }
@@ -432,6 +433,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         ).highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
 
                         f.render_stateful_widget(banks_list, banks_list_area, &mut app_lock.list.state.0);
+
                     } else {
                         let bank_title =
                             Line::from(vec![
@@ -440,6 +442,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                             ]);
 
                         f.render_widget(bank_title, input_chunks[3]);
+                        
+                        f.set_cursor(input_chunks[1].x
+                                        + (app_lock.input.0.visual_cursor().max(reference_scroll) - reference_scroll) as u16
+                                        + "* Reference num.: ".len() as u16
+                                        + 0,
+                                        input_chunks[1].y + 0,
+                                    );
                     }
                 }
                 Some(Popup::OrderSuccessful) => {
@@ -463,6 +472,94 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 Some(Popup::ClientOrderBranch) => {
                     let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);
                     f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
+
+                    let popup_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .title(Line::styled("Recipient", Style::default().fg(Color::Cyan)))
+                        .title_alignment(Alignment::Center);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let input_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Percentage(100),
+                            Constraint::Min(2),
+                            Constraint::Min(2),
+                            Constraint::Min(1),
+                        ])
+                        .split(popup_area.inner(&Margin::new(3, 1)));
+
+                    let width = input_chunks[1].width.max(3) - 3;
+                    let name_scroll = app_lock.input.0.visual_scroll(width as usize - "* Username: ".len());
+                    let branch_scroll = app_lock.input.1.visual_scroll(width as usize - "* Branch ID: ".len());
+                    let mut name_style = Style::default();
+                    let mut branch_style = Style::default();
+                    
+                    if let InputMode::Editing(field) = app_lock.input_mode {
+                        if field == 0 {
+                            branch_style = branch_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[1].x
+                                            + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
+                                            + "* Username: ".len() as u16
+                                            + 0,
+                                            input_chunks[1].y + 0,
+                                        );
+
+                        } else {
+                            name_style = name_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[2].x
+                                            + (app_lock.input.1.visual_cursor().max(branch_scroll) - branch_scroll) as u16
+                                            + "* Branch ID: ".len() as u16
+                                            + 0,
+                                            input_chunks[2].y + 0,
+                                        );
+                        }
+                    }
+
+                    let err_style = Style::default().fg(Color::Red);
+
+                    let popup_help = Paragraph::new(
+                        match app_lock.get_client_ref().get_db_err {
+                            None => Line::raw(""),
+                            Some(GetDBErr::InvalidUserBranch) => Line::styled(HELP_TEXT.client.order_branch_popup_invalid.to_string(), err_style),
+                            _ => panic!()
+                        }
+                    ).centered();
+
+                    f.render_widget(popup_help, input_chunks[3]);
+
+                    let name_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(name_style);
+
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Username: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.0.value(), name_style)
+                    ])))
+                    .block(name_block)
+                    .scroll((0, name_scroll as u16));
+
+                    f.render_widget(input, input_chunks[1]);
+
+                    let branch_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(branch_style);
+                    
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Branch ID: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.1.value(), branch_style)
+                    ])))
+                    .block(branch_block)
+                    .scroll((0, branch_scroll as u16));
+
+                    f.render_widget(input, input_chunks[2]);
                 }
                 _ => {}
             }

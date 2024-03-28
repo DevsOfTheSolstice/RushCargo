@@ -3,15 +3,17 @@ use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
 use super::{
     common::{PackageData, PaymentData},
-    common_obj::{Country, Locker, Warehouse},
+    common_obj::{Branch, Country, Locker, Warehouse},
 };
 
 #[derive(Debug)]
-pub enum GetLockerErr {
-    SameAsActive,
-    Invalid,
-    TooManyPackages,
-    WeightTooBig(Decimal),
+pub enum GetDBErr {
+    LockerSameAsActive,
+    InvalidUserLocker,
+    LockerTooManyPackages,
+    LockerWeightTooBig(Decimal),
+
+    InvalidUserBranch,
 }
 
 #[derive(Debug)]
@@ -29,8 +31,9 @@ pub struct ClientData {
     pub active_locker: Option<Locker>,
     pub packages: Option<PackageData>,
     pub send_to_locker: Option<Locker>,
-    pub send_to_locker_err: Option<GetLockerErr>,
+    pub get_db_err: Option<GetDBErr>,
     pub send_to_client: Option<Client>,
+    pub send_to_branch: Option<Branch>,
     pub payment: Option<PaymentData>,
 }
 

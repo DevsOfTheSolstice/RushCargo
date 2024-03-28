@@ -3,6 +3,7 @@ mod list;
 mod table;
 mod login;
 mod client;
+mod tryget_db;
 
 use std::sync::{Arc, Mutex};
 use sqlx::PgPool;
@@ -16,7 +17,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::SwitchAction | Event::SelectAction |
-        Event::EnterScreen(_) | Event::EnterPopup(_) | Event::TryGetUserLocker(_, _) |
+        Event::EnterScreen(_) | Event::EnterPopup(_) |
         Event::PlaceOrderLockerLocker
         => common::update(app, pool, event).await,
 
@@ -28,6 +29,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
         Event::TryLogin
         => login::update(app, pool, event).await,
+
+        Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _)
+        => tryget_db::update(app, pool, event).await,
 
         Event::Resize
         => Ok(()),

@@ -1,5 +1,4 @@
 use std::sync::{Arc, Mutex};
-use ratatui::layout::Offset;
 use rust_decimal::Decimal;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
@@ -10,14 +9,11 @@ use crate::{
     event::{Event, InputBlacklist},
     model::{
         app::App,
-        client::{GetLockerErr, Client},
+        client::{GetDBErr, Client},
         common::{Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
         common_obj::Locker,
     },
-    HELP_TEXT
 };
-
-use super::client;
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
@@ -111,103 +107,6 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app_lock.active_screen, subscreen)
             }
             Ok(()) 
-        }
-        Event::TryGetUserLocker(username, locker_id) => {
-            if username.is_empty() || locker_id.is_empty() { return Ok(()); }
-
-            let locker_id = locker_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
-            if let Some(res) =
-                sqlx::query("SELECT * FROM locker WHERE locker_id=$1")
-                    .bind(locker_id)
-                    .fetch_optional(pool)
-                    .await?
-            {
-                if username == res.get::<String, _>("client") {
-                    let mut app_lock = app.lock().unwrap();
-                    match &mut app_lock.user {
-                        Some(User::Client(client_data)) => {
-                            if locker_id == client_data.active_locker.as_mut().unwrap().get_id() {
-                                client_data.send_to_locker_err = Some(GetLockerErr::SameAsActive);
-                                return Ok(())
-                            }
-
-                            if sqlx::query("SELECT COUNT(*) AS package_count FROM package WHERE locker_id=$1")
-                                .bind(locker_id)
-                                .fetch_one(pool)
-                                .await?
-                                .get::<i64, _>("package_count") >= 5
-                            {
-                                client_data.send_to_locker_err = Some(GetLockerErr::TooManyPackages);
-                                return Ok(())
-                            }
-
-                            let locker_packages_weight =
-                                sqlx::query(
-                            "
-                                    SELECT SUM(package_weight) as weight_sum FROM package
-                                    INNER JOIN package_description AS description
-                                    ON package.tracking_number=description.tracking_number
-                                    WHERE locker_id=$1
-                                "
-                                )
-                                .bind(locker_id)
-                                .fetch_one(pool)
-                                .await?
-                                .try_get::<Decimal, _>("weight_sum")
-                                .unwrap_or(Decimal::new(0, 0));
-                            
-                            let selected_packages_weight =
-                                client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
-                                .iter()
-                                .map(|package| package.weight)
-                                .sum::<Decimal>();
-
-                            if locker_packages_weight + selected_packages_weight >= Decimal::new(500000, 0)
-                            {
-                                client_data.send_to_locker_err = Some(GetLockerErr::WeightTooBig(Decimal::new(500000, 0) - locker_packages_weight));
-                            }
-
-                            let locker_row =
-                                sqlx::query(
-                                "
-                                    SELECT locker.*, country.*, warehouse.*,
-                                    COUNT(package.tracking_number) AS package_count FROM locker
-                                    LEFT JOIN package ON locker.locker_id=package.locker_id
-                                    INNER JOIN country ON locker.country_id=country.country_id
-                                    INNER JOIN warehouse ON locker.warehouse_id=warehouse.warehouse_id
-                                    WHERE locker.locker_id=$1
-                                    GROUP BY locker.locker_id, country.country_id, warehouse.warehouse_id
-                                    ORDER BY package_count DESC
-                                ")
-                                .bind(locker_id)
-                                .fetch_one(pool)
-                                .await?;
-                            
-                            client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
-
-                            client_data.send_to_client = Some(
-                                Client {
-                                    username: username.clone(),
-                                    first_name: String::from(""),
-                                    last_name: String::from(""),
-                                }
-                            );
-                        
-                            app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
-                        }
-                        _ => {}
-                    }
-                    return Ok(());
-                }
-            }
-            let mut app_lock = app.lock().unwrap();
-            match &mut app_lock.user {
-                Some(User::Client(client_data)) => {
-                    client_data.send_to_locker_err = Some(GetLockerErr::Invalid);
-                }
-                _ => {}
-            }
-            Ok(())
         }
         Event::PlaceOrderLockerLocker => {
             let mut app_lock = app.lock().unwrap();

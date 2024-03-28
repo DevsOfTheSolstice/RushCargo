@@ -23,6 +23,7 @@ impl HelpText {
                 order_locker_popup_same_as_active: "The packages are already there.",
                 order_locker_popup_locker_weight_err: "Weight exceeded. Max: ",
                 order_locker_popup_locker_count_err: "Package limit (5) exceeded.",
+                order_branch_popup_invalid: "Invalid username or branch ID.",
                 order_payment: "(Tab) open banks list | (Enter) complete order",
                 sent_packages: "Select a package."
             },
@@ -50,6 +51,7 @@ pub struct ClientHelpText {
     pub order_locker_popup_same_as_active: &'static str,
     pub order_locker_popup_locker_weight_err: &'static str,
     pub order_locker_popup_locker_count_err: &'static str,
+    pub order_branch_popup_invalid: &'static str,
     pub order_payment: &'static str,
     pub sent_packages: &'static str,
 }

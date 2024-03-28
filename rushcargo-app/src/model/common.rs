@@ -105,6 +105,17 @@ pub struct PackageData {
     pub active_package: Option<Package>,
 }
 
+impl std::default::Default for PackageData {
+    fn default() -> Self {
+        PackageData {
+            viewing_packages: Vec::new(),
+            viewing_packages_idx: 0,
+            selected_packages: None,
+            active_package: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Bank {
     PayPal,

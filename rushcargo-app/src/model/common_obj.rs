@@ -51,6 +51,12 @@ impl<'r> FromRow<'r, PgRow> for Package {
     }
 }
 
+impl Package {
+    pub fn get_id(&self) -> i64 {
+        self.tracking_num
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Warehouse {
     id: i64

@@ -12,11 +12,11 @@ use crate::{
         help_text,
         common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User},
         client::GetLockerErr,
-        app::App, client::Client,
+        app::App,
+        client::Client,
     },
-    ui::common_fn::{
-        centered_rect,
-    }, HELP_TEXT
+    ui::common_fn::{centered_rect, wrap_text},
+    HELP_TEXT
 };
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
@@ -171,7 +171,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .column_spacing(3)
                 .header(header.bottom_margin(1))
                 .highlight_style(Style::default().fg(Color::LightYellow).add_modifier(Modifier::REVERSED))
-                .highlight_symbol(vec![Line::raw(" █ "), Line::raw(" █ ")])//" ▶  ")
+                .highlight_symbol(vec![Line::raw(" █ "), Line::raw(" █ ")])
                 .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
                 .block(Block::default().borders(Borders::ALL).border_type(BorderType::Plain));
 
@@ -266,7 +266,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     f.render_widget(delivery_action, actions_chunks[5]);
                 }
                 Some(Popup::ClientOrderLocker) => {
-                    let help = Paragraph::new(HELP_TEXT.client.order_locker).block(help_block);
+                    let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);
                     f.render_widget(help, chunks[2]);
 
                     let popup_area = centered_rect(&chunks[1], 40, 9);
@@ -292,13 +292,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
                     let width = input_chunks[1].width.max(3) - 3;
                     let name_scroll = app_lock.input.0.visual_scroll(width as usize - "* Username: ".len());
-                    let locker_scroll = app_lock.input.1.visual_scroll(width as usize - "* Locker ID: ".len());
+                    let branch_scroll = app_lock.input.1.visual_scroll(width as usize - "* Locker ID: ".len());
                     let mut name_style = Style::default();
-                    let mut locker_style = Style::default();
+                    let mut branch_style = Style::default();
                     
                     if let InputMode::Editing(field) = app_lock.input_mode {
                         if field == 0 {
-                            locker_style = locker_style.fg(Color::DarkGray);
+                            branch_style = branch_style.fg(Color::DarkGray);
                             f.set_cursor(input_chunks[1].x
                                             + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
                                             + "* Username: ".len() as u16
@@ -309,7 +309,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         } else {
                             name_style = name_style.fg(Color::DarkGray);
                             f.set_cursor(input_chunks[2].x
-                                            + (app_lock.input.1.visual_cursor().max(locker_scroll) - name_scroll) as u16
+                                            + (app_lock.input.1.visual_cursor().max(branch_scroll) - branch_scroll) as u16
                                             + "* Locker ID: ".len() as u16
                                             + 0,
                                             input_chunks[2].y + 0,
@@ -345,17 +345,17 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
                     f.render_widget(input, input_chunks[1]);
 
-                    let locker_block = Block::default()
+                    let branch_block = Block::default()
                         .borders(Borders::BOTTOM)
                         .border_type(BorderType::Rounded)
-                        .border_style(locker_style);
+                        .border_style(branch_style);
                     
                     let input = Paragraph::new(Text::from(Line::from(vec![
-                        Span::styled("* Locker ID: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(app_lock.input.1.value(), locker_style)
+                        Span::styled("* Branch ID: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.1.value(), branch_style)
                     ])))
-                    .block(locker_block)
-                    .scroll((0, name_scroll as u16));
+                    .block(branch_block)
+                    .scroll((0, branch_scroll as u16));
 
                     f.render_widget(input, input_chunks[2]);
                 }
@@ -387,22 +387,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let width = input_chunks[1].width.max(3) - 3;
                     let reference_scroll = app_lock.input.0.visual_scroll(width as usize - "* Reference. num: ".len());
 
-                    //let bank_scroll = app_lock.input.1.visual_scroll(width as usize - "* Bank: ".len());
-                    let mut reference_style = Style::default();
-                    let mut bank_style = Style::default();
-                    
-                    if let InputMode::Editing(field) = app_lock.input_mode {
-                        if field == 0 {
-                            bank_style = bank_style.fg(Color::DarkGray);
-                            f.set_cursor(input_chunks[1].x
-                                            + (app_lock.input.0.visual_cursor().max(reference_scroll) - reference_scroll) as u16
-                                            + "* Reference num.: ".len() as u16
-                                            + 0,
-                                            input_chunks[1].y + 0,
-                                        );
-
-                        }
-                    }
+                    let reference_style = Style::default();
 
                     let pay_text = Paragraph::new(Text::from(vec![
                         Line::from(vec![Span::raw("Amount to pay: "), Span::styled("USD 100", Style::default().fg(Color::Yellow))])
@@ -475,6 +460,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     f.render_widget(Clear, popup_area);
                     f.render_widget(order_successful, popup_area);
                 }
+                Some(Popup::ClientOrderBranch) => {
+                    let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);
+                    f.render_widget(help, chunks[2]);
+                }
                 _ => {}
             }
         }
@@ -492,27 +481,4 @@ fn dimensions_string(val: Decimal) -> String {
     } else {
         String::from(format!("{}m", val / Decimal::new(100, 2)))
     }
-}
-
-fn wrap_text(width: usize, text: String) -> Vec<Line<'static>> {
-    let mut ret: Vec<Line> = Vec::new();
-    let remaining_text = text.split_whitespace();
-
-    let mut line_text = String::new();
-    for word in remaining_text {
-        if word.len() + line_text.len() <= width {
-            line_text.push_str(&(word.to_string() + " "));
-        } else {
-            if !line_text.is_empty() {
-                line_text.pop();
-                ret.push(Line::raw(line_text.clone()));
-                line_text.clear();
-                line_text.push_str(&(word.to_string() + " "));
-            }
-            else { return Vec::new(); }
-        }
-    }
-    ret.push(Line::raw(line_text.clone()));
-
-    ret
 }

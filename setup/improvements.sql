@@ -336,6 +336,11 @@ DROP CONSTRAINT vigent_identification_id_fkey;
 ALTER TABLE Shipping_Guide ALTER COLUMN building_sender DROP DEFAULT;
 ALTER TABLE Shipping_Guide ALTER COLUMN branch_receiver DROP DEFAULT;
 
+ALTER TABLE Shipping_Guide ALTER COLUMN branch_receiver DROP NOT NULL;
+ALTER TABLE Shipping_Guide ALTER COLUMN building_sender DROP NOT NULL;
+ALTER TABLE Shipping_Guide ALTER COLUMN shipping_hour DROP NOT NULL;
+ALTER TABLE Shipping_Guide ALTER COLUMN shipping_date DROP NOT NULL;
+
 --37
 ALTER TABLE Payment ALTER COLUMN amount TYPE DECIMAL(7,2);
 
@@ -352,6 +357,22 @@ FOREIGN KEY (city_id) REFERENCES City(city_id);
 ALTER TABLE Assigned_Delivery DROP CONSTRAINT assigned_delivery_assigned_area_fkey;
 ALTER TABLE Assigned_Delivery DROP COLUMN assigned_area;
 ALTER TABLE Assigned_Delivery ADD COLUMN Area VARCHAR(255);
+
+--40
+ALTER TABLE Natural_Client
+DROP COLUMN route_distance;
+
+ALTER TABLE Natural_Client
+ADD COLUMN  address_description VARCHAR(255) NOT NULL;
+
+--41
+ALTER TABLE Legal_Client_Affiliations DROP COLUMN gps_address;
+ALTER TABLE Legal_Client_Affiliations ADD COLUMN address_description VARCHAR(255);
+
+--42
+ALTER TABLE Motocyclist 
+ADD COLUMN affiliated_branch INT,
+ADD CONSTRAINT fk_affiliated_branch FOREIGN KEY (affiliated_branch) REFERENCES Branch(branch_id);
 
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;

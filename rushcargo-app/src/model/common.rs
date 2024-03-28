@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 use tui_input::Input;
+use rust_decimal::Decimal;
 use super::{
     client::ClientData,
     common_obj::{Locker, Package},
@@ -46,7 +47,8 @@ impl std::fmt::Display for Screen {
 
 #[derive(Debug, Clone)]
 pub enum Popup {
-    None,
+    Prev,
+    OrderSuccessful,
 
     LoginSuccessful,
 
@@ -95,6 +97,7 @@ pub struct Timer {
     pub last_update: Instant,
 }
 
+#[derive(Debug)]
 pub struct PackageData {
     pub viewing_packages: Vec<Package>,
     pub viewing_packages_idx: i64,
@@ -102,6 +105,26 @@ pub struct PackageData {
     pub active_package: Option<Package>,
 }
 
-pub struct SendData {
-    pub locker: Option<Locker>,
+#[derive(Debug)]
+pub enum Bank {
+    PayPal,
+    BOFA,
+    AmazonPay,
+}
+
+impl std::fmt::Display for Bank {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Bank::PayPal => write!(f, "PayPal"),
+            Bank::BOFA => write!(f, "BOFA"),
+            Bank::AmazonPay => write!(f, "AmazonPay"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PaymentData {
+    pub amount: Decimal,
+    pub transaction_id: String,
+    pub bank: Bank,
 }

@@ -10,6 +10,7 @@ use super::{
 pub enum ListType {
     Title,
     Settings,
+    PaymentBanks,
 }
 
 trait ListItem {
@@ -27,6 +28,7 @@ pub struct ListStates(pub ListState, pub ListState);
 pub struct ListActions {
     pub title: Vec<&'static str>,
     pub settings: Vec<&'static str>,
+    pub payment_banks: Vec<&'static str>,
 }
 
 pub struct ListData {
@@ -49,6 +51,11 @@ impl std::default::Default for ListData {
                 ],
                 settings: vec![
                     "Display animation: ",
+                ],
+                payment_banks: vec![
+                    "PayPal",
+                    "Amazon Pay",
+                    "Bank of America",
                 ]
             }
         }
@@ -60,6 +67,7 @@ impl App {
         let (list_state, items): (_, &dyn ListItem) = match list_type {
             ListType::Title => (&mut self.list.state.0, &self.list.actions.title),
             ListType::Settings => (&mut self.list.state.0, &self.list.actions.settings),
+            ListType::PaymentBanks => (&mut self.list.state.0, &self.list.actions.payment_banks),
         };
 
         let i = match list_state.selected() {
@@ -79,6 +87,7 @@ impl App {
         let (list_state, items): (_, &dyn ListItem) = match list_type {
             ListType::Title => (&mut self.list.state.0, &self.list.actions.title),
             ListType::Settings => (&mut self.list.state.0, &self.list.actions.settings),
+            ListType::PaymentBanks => (&mut self.list.state.0, &self.list.actions.payment_banks),
         };
 
         let i = match list_state.selected() {

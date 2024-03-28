@@ -103,6 +103,7 @@ WAREHOUSE_CONN_ID = "connection_id"
 WAREHOUSE_CONN_WAREHOUSE_FROM_ID = "warehouse_from_id"
 WAREHOUSE_CONN_WAREHOUSE_TO_ID = "warehouse_to_id"
 WAREHOUSE_CONN_ROUTE_DISTANCE = "route_distance"
+WAREHOUSE_CONN_CONN_TYPE = "connection_type"
 
 # Branch ...
 BRANCH_TABLENAME = "branch"
@@ -110,14 +111,33 @@ BRANCH_ID = "branch_id"
 BRANCH_ROUTE_DISTANCE = "route_distance"
 BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
 
-# Country Warehouse Receivers ...
-COUNTRY_WAREHOUSES_RECEIVERS_VIEWNAME = "country_warehouses_receivers"
+# Warehouse Connection Dictionary Fields from a Given Main Warehouses View
+DICT_WAREHOUSES_COORDS = "coords"
+DICT_WAREHOUSES_ID = "id"
+
+# Warehouse Receivers ...
+WAREHOUSES_RECEIVERS_VIEWNAME = "warehouse_receivers"
 RECEIVERS = "receivers"
 RECEIVERS_WAREHOUSE_ID = "warehouse_id"
 RECEIVERS_WAREHOUSE_CONN_ID = "connection_id"
 
-# Country Warehouse Senders ...
-COUNTRY_WAREHOUSES_SENDERS_VIEWNAME = "country_warehouses_senders"
+# Warehouse Senders ...
+WAREHOUSES_SENDERS_VIEWNAME = "warehouse_senders"
 SENDERS = "senders"
 SENDERS_WAREHOUSE_ID = "warehouse_id"
 SENDERS_WAREHOUSE_CONN_ID = "connection_id"
+
+# Main Warehouses for a Given Location Type Views
+PROVINCE_MAIN_WAREHOUSES = "province_main_warehouses"
+REGION_MAIN_WAREHOUSES = "region_main_warehouses"
+CITY_MAIN_WAREHOUSES = "city_main_warehouses"
+CITY_AREA_MAIN_WAREHOUSES = "city_area_main_warehouses"
+
+# Warehouse Connection Types
+CONN_TYPE_PROVINCE = "Province"
+CONN_TYPE_REGION = "Region"
+CONN_TYPE_CITY = "City"
+CONN_TYPE_AREA = "City Area"
+
+# Async Sleep Time in Seconds
+ASYNC_SLEEP = 0.1

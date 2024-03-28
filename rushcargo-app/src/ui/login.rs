@@ -12,12 +12,7 @@ use crate::{
         common::{Popup, InputMode, TimeoutType},
         app::App,
     },
-    ui::common_fn::{
-        centered_rect,
-        percent_x,
-        percent_y,
-        clear_chunks,
-    }
+    ui::common_fn::centered_rect,
 };
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
@@ -31,10 +26,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Length(3),
             Constraint::Length(1),
         ])
-        .split(centered_rect(
-            percent_x(f, 1.0),
-            percent_y(f, 1.0),
-            f.size()));
+        .split(centered_rect(&f.size(), 45, 8));
 
     let title_block = Block::default();
 
@@ -117,7 +109,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     if let Some(popup) = &app_lock.active_popup {
         match popup {
             Popup::LoginSuccessful => {
-                let popup_rect = centered_rect(15, (3.0 / f.size().height as f32 * 100.0 + 1.0) as u16, f.size());
+                let popup_rect = centered_rect(&f.size(), 28, 3);
 
                 f.render_widget(Clear, popup_rect);
 

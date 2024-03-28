@@ -14,6 +14,7 @@ from ..controller.constants import (
 
 from ..model.constants import CITY_AREA_ID
 
+
 # GeoPy Geocoder Class
 class GeoPyGeocoder:
     # Geolocator
@@ -23,7 +24,9 @@ class GeoPyGeocoder:
     def __init__(self, user: str):
         try:
             # Initialize Geolocator
-            self._geolocator = Nominatim(user_agent=f"{NOMINATIM_USER_AGENT}-{user}", timeout=5)
+            self._geolocator = Nominatim(
+                user_agent=f"{NOMINATIM_USER_AGENT}-{user}", timeout=5
+            )
 
         except Exception as err:
             raise err
@@ -158,7 +161,12 @@ class GeoPyGeocoder:
                 raise LocationError(cityArea, NOMINATIM_CITY_AREA)
 
             # Check if it's a City Area
-            if geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA:
+            if (
+                geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA
+                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA_ALT1
+                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA_ALT2
+                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA_ALT3
+            ):
                 return self.__getName(geopyLocation.raw)
 
             # Invalid Location
@@ -202,4 +210,3 @@ class GeoPyGeocoder:
 
         except Exception as err:
             raise err
-

@@ -15,9 +15,6 @@ use crate::{
     },
     ui::common_fn::{
         centered_rect,
-        percent_x,
-        percent_y,
-        clear_chunks,
     }
 };
 
@@ -31,10 +28,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Percentage(90),
             Constraint::Length(3),
         ])
-        .split(centered_rect(
-            percent_x(f, 2.0),
-            percent_y(f, 1.7),
-            f.size()));
+        .split(centered_rect(&f.size(), 80, 18));
+
     let trucker = app_lock.user.as_ref().map(|u| {
         match u {
             User::Trucker(trucker) => trucker,
@@ -66,11 +61,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     Constraint::Length(3),
                     Constraint::Length(3),
                 ])
-                .split(centered_rect(
-                    percent_x(f, 1.0),
-                    percent_y(f, 2.0),
-                    chunks[1]
-                ));
+                .split(centered_rect(&chunks[1], 25, 6));
+
             let unsel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
             let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
             

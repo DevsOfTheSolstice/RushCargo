@@ -32,6 +32,7 @@ pub enum InputBlacklist {
     None,
     Money,
     Alphabetic,
+    Alphanumeric,
     NoSpace,
     Numeric,
 }
@@ -60,6 +61,7 @@ pub enum Event {
     TryLogin,
 
     TryGetUserLocker(String, String),
+    PlaceOrderLockerLocker,
 }
 
 #[derive(Debug)]

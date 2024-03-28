@@ -16,7 +16,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::SwitchAction | Event::SelectAction |
-        Event::EnterScreen(_) | Event::EnterPopup(_) | Event::TryGetUserLocker(_, _)
+        Event::EnterScreen(_) | Event::EnterPopup(_) | Event::TryGetUserLocker(_, _) |
+        Event::PlaceOrderLockerLocker
         => common::update(app, pool, event).await,
 
         Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)

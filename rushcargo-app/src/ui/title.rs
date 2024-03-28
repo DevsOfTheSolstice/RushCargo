@@ -24,12 +24,7 @@ use crate::{
         app::App,
         title::{Dot, RenderDot},
     },
-    ui::common_fn::{
-        centered_rect,
-        percent_x,
-        percent_y,
-        clear_chunks,
-    }
+    ui::common_fn::centered_rect,
 };
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
@@ -42,10 +37,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Length(2),
             Constraint::Length(10),
         ])
-        .split(centered_rect(
-            percent_x(f, 1.5),
-            percent_y(f, 2.8),
-            f.size()));
+        .split(centered_rect(&f.size(), 80, 25));
 
     let lower_chunks = Layout::default()
         .direction(Direction::Horizontal)

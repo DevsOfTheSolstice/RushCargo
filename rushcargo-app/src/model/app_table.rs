@@ -49,7 +49,7 @@ impl App {
             TableType::LockerPackages => {
                 let i = match self.table.state.selected() {
                     Some(i) => {
-                        if i >= self.packages.as_ref().unwrap().viewing_packages.len() - 1 {
+                        if i >= self.get_client_packages_ref().viewing_packages.len() - 1 {
                             if let Ok(()) = self.get_packages_next(table_type, pool).await {
                                 0
                             } else {
@@ -62,7 +62,10 @@ impl App {
                     None => 0
                 };
                 self.table.state.select(Some(i));
-                self.packages.as_mut().unwrap().active_package = Some(self.packages.as_ref().unwrap().viewing_packages[i].clone());
+
+                let packages = self.get_client_packages_mut();
+
+                packages.active_package = Some(packages.viewing_packages[i].clone());
             }
         }
     }
@@ -102,7 +105,10 @@ impl App {
                     None => 0
                 };
                 self.table.state.select(Some(i));
-                self.packages.as_mut().unwrap().active_package = Some(self.packages.as_ref().unwrap().viewing_packages[i].clone());
+
+                let packages = self.get_client_packages_mut();
+
+                packages.active_package = Some(packages.viewing_packages[i].clone());
             }
         }
     }
@@ -125,7 +131,7 @@ impl App {
                         let query: Query<'_, Postgres, _> =
                             sqlx::query(base_query)
                             .bind(client.active_locker.as_ref().unwrap().get_id())
-                            .bind(self.packages.as_ref().unwrap().viewing_packages_idx);
+                            .bind(self.get_client_packages_ref().viewing_packages_idx);
 
                         query
                     }
@@ -144,13 +150,18 @@ impl App {
 
         let rows_num = rows.len();
 
-        self.packages.as_mut().unwrap().viewing_packages =
+        let packages = match self.user {
+            Some(User::Client(_)) => self.get_client_packages_mut(),
+            _ => panic!()
+        };
+
+        packages.viewing_packages =
             rows
             .into_iter()
             .map(|row| Package::from_row(&row).expect("could not build package from row in get_packages_next"))
             .collect::<Vec<Package>>();
         
-        self.packages.as_mut().unwrap().viewing_packages_idx += rows_num as i64;
+        packages.viewing_packages_idx += rows_num as i64;
 
         Ok(())
     }
@@ -173,7 +184,7 @@ impl App {
                         let query: Query<'_, Postgres, _> =
                             sqlx::query(base_query)
                             .bind(client.active_locker.as_ref().unwrap().get_id())
-                            .bind(self.packages.as_ref().unwrap().viewing_packages_idx);
+                            .bind(self.get_client_packages_ref().viewing_packages_idx);
 
                         query
                     }
@@ -190,9 +201,14 @@ impl App {
 
         if rows.is_empty() { return Err(anyhow!("")) }
 
-        self.packages.as_mut().unwrap().viewing_packages_idx -= self.get_packages_ref().viewing_packages.len() as i64;
+        let packages = match self.user {
+            Some(User::Client(_)) => self.get_client_packages_mut(),
+            _ => panic!()
+        };
 
-        self.packages.as_mut().unwrap().viewing_packages =
+        packages.viewing_packages_idx -= packages.viewing_packages.len() as i64;
+
+        packages.viewing_packages =
             rows
             .into_iter()
             .map(|row| Package::from_row(&row).expect("could not build package from row in get_packages_next"))

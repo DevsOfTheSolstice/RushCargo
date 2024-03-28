@@ -1,17 +1,21 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    prelude::{Alignment, Frame, Margin},
+    prelude::{Alignment, Frame, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Cell, Table, Row, Block, BorderType, Borders, Clear, Paragraph}
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Row, Table}
 };
 use rust_decimal::Decimal;
 use std::sync::{Arc, Mutex};
 use crate::{
     model::{
-        app::App, client::Client, common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User}, help_text
-    }, ui::common_fn::{
-        centered_rect, clear_chunks, percent_x, percent_y
+        help_text,
+        common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User},
+        client::GetLockerErr,
+        app::App, client::Client,
+    },
+    ui::common_fn::{
+        centered_rect,
     }, HELP_TEXT
 };
 
@@ -25,10 +29,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Percentage(90),
             Constraint::Length(3),
         ])
-        .split(centered_rect(
-            percent_x(f, 2.0),
-            percent_y(f, 1.9),
-            f.size()));
+        .split(centered_rect(&f.size(), 80, 18));
     
     let client = app_lock.get_client_ref();
 
@@ -56,11 +57,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     Constraint::Length(3),
                     Constraint::Length(3),
                 ])
-                .split(centered_rect(
-                    percent_x(f, 1.0),
-                    percent_y(f, 2.0),
-                    chunks[1]
-                ));
+                .split(centered_rect(&chunks[1], 25, 6));
 
             let unsel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
             let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
@@ -96,13 +93,14 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .split(chunks[1].inner(&Margin::new(6, 0)));
 
             let header =
-                Row::new(vec!["#", "Country", "Packages"])
+                Row::new(vec!["#", "Country", "Packages", "Locker ID"])
                 .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
             
             let widths = [
                 Constraint::Length(3),
                 Constraint::Length(10),
                 Constraint::Length(8),
+                Constraint::Length(10),
             ];
 
             let rows: Vec<Row> =
@@ -114,6 +112,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         (client.viewing_lockers_idx + 1 - (client.viewing_lockers.as_ref().unwrap().len() - i) as i64).to_string(),
                         locker.country.name.clone(),
                         locker.package_count.to_string(),
+                        locker.get_id().to_string(),
                     ])
                 })
                 .collect();
@@ -150,18 +149,18 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             ];
 
             let rows: Vec<Row> =
-                app_lock.get_packages_ref().viewing_packages
+                app_lock.get_client_packages_ref().viewing_packages
                 .iter()
                 .enumerate()
                 .map(|(i, package)| {
                     Row::new(vec![
-                        match &app_lock.get_packages_ref().selected_packages {
+                        match &app_lock.get_client_packages_ref().selected_packages {
                             Some(selected_packages) if selected_packages.contains(package) => {
                                 Text::styled("☑", Style::default().fg(Color::Yellow))
                             }
                             _ => Text::from("☐")
                         },
-                        Text::from((app_lock.get_packages_ref().viewing_packages_idx + 1 - (app_lock.get_packages_ref().viewing_packages.len() - i) as i64).to_string()),
+                        Text::from((app_lock.get_client_packages_ref().viewing_packages_idx + 1 - (app_lock.get_client_packages_ref().viewing_packages.len() - i) as i64).to_string()),
                         Text::from(wrap_text(18, package.content.clone())),
                     ])
                     .height(2)
@@ -190,7 +189,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
             f.render_widget(package_view_block, packages_chunks[2]);
             
-            if let Some(active_package) = &app_lock.packages.as_ref().unwrap().active_package {
+            if let Some(active_package) = &app_lock.get_client_packages_ref().active_package {
                 let package_title = Paragraph::new(vec![
                     Line::styled("Package ID:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
                     Line::styled(active_package.tracking_num.to_string(), Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)),
@@ -227,7 +226,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_main).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
 
                     let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
@@ -237,12 +236,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let actions_chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Percentage(100),
-                            Constraint::Min(2),
                             Constraint::Min(1),
-                            Constraint::Min(2),
                             Constraint::Min(1),
-                            Constraint::Min(2),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
                         ])
                         .split(popup_area.inner(&Margin::new(1, 1)));
                     
@@ -269,9 +269,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_locker).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(percent_x(f, 2.0), percent_y(f, 2.0), chunks[1]);
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
 
-                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick).title(Line::styled("Recipient", Style::default().fg(Color::Cyan))).title_alignment(Alignment::Center);
+                    let popup_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .title(Line::styled("Recipient", Style::default().fg(Color::Cyan)))
+                        .title_alignment(Alignment::Center);
 
                     f.render_widget(Clear, popup_area);
                     f.render_widget(popup_block, popup_area);
@@ -313,7 +317,18 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                         }
                     }
 
-                    let popup_help = Paragraph::new(HELP_TEXT.client.order_locker_popup_normal).centered();
+                    let err_style = Style::default().fg(Color::Red);
+
+                    let popup_help = Paragraph::new(
+                        match app_lock.get_client_ref().send_to_locker_err {
+                            None => Line::raw(HELP_TEXT.client.order_locker_popup_normal.to_string()),
+                            Some(GetLockerErr::Invalid) => Line::styled(HELP_TEXT.client.order_locker_popup_invalid.to_string(), err_style),
+                            Some(GetLockerErr::SameAsActive) => Line::styled(HELP_TEXT.client.order_locker_popup_same_as_active.to_string(), err_style),
+                            Some(GetLockerErr::TooManyPackages) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_count_err.to_string(), err_style),
+                            Some(GetLockerErr::WeightTooBig(max_weight)) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_weight_err.to_string() + &max_weight.to_string(), err_style)
+                        }
+                    ).centered();
+
                     f.render_widget(popup_help, input_chunks[3]);
 
                     let name_block = Block::default()
@@ -345,7 +360,120 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     f.render_widget(input, input_chunks[2]);
                 }
                 Some(Popup::ClientInputPayment) => {
-                    todo!("client input payment popup ui");
+                    let help = Paragraph::new(HELP_TEXT.client.order_payment).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(&chunks[1], 40, 9);
+
+                    let popup_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .title(Line::styled("Payment", Style::default().fg(Color::Cyan)))
+                        .title_alignment(Alignment::Center);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let input_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Percentage(100),
+                            Constraint::Min(2),
+                            Constraint::Min(1),
+                            Constraint::Min(2),
+                        ])
+                        .split(popup_area.inner(&Margin::new(3, 1)));
+
+                    let width = input_chunks[1].width.max(3) - 3;
+                    let reference_scroll = app_lock.input.0.visual_scroll(width as usize - "* Reference. num: ".len());
+
+                    //let bank_scroll = app_lock.input.1.visual_scroll(width as usize - "* Bank: ".len());
+                    let mut reference_style = Style::default();
+                    let mut bank_style = Style::default();
+                    
+                    if let InputMode::Editing(field) = app_lock.input_mode {
+                        if field == 0 {
+                            bank_style = bank_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[1].x
+                                            + (app_lock.input.0.visual_cursor().max(reference_scroll) - reference_scroll) as u16
+                                            + "* Reference num.: ".len() as u16
+                                            + 0,
+                                            input_chunks[1].y + 0,
+                                        );
+
+                        }
+                    }
+
+                    let pay_text = Paragraph::new(Text::from(vec![
+                        Line::from(vec![Span::raw("Amount to pay: "), Span::styled("USD 100", Style::default().fg(Color::Yellow))])
+                    ])).centered();
+                    
+                    f.render_widget(pay_text, input_chunks[0]);
+
+                    let reference_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(reference_style);
+
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Reference num.: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.0.value(), reference_style)
+                    ])))
+                    .block(reference_block)
+                    .scroll((0, reference_scroll as u16));
+
+                    f.render_widget(input, input_chunks[1]);
+
+                    if let Some(1) = app_lock.action_sel {
+                        let bank_title = Line::styled("* Bank: ", Style::default().fg(Color::Yellow));
+                        f.render_widget(bank_title, input_chunks[3]);
+                        let bank_dropdown_area =
+                            Rect::new(
+                                input_chunks[3].x + "* Bank: ".len() as u16,
+                                input_chunks[3].y,
+                            25,
+                            5
+                            );
+
+                        let bank_dropdown_block = Block::default().borders(Borders::ALL);
+
+                        f.render_widget(Clear, bank_dropdown_area);
+                        f.render_widget(bank_dropdown_block, bank_dropdown_area);
+
+                        let banks_list_area = bank_dropdown_area.inner(&Margin::new(1, 1));
+
+                        let banks_list = List::new(
+                            app_lock.list.actions.payment_banks.clone()
+                        ).highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
+
+                        f.render_stateful_widget(banks_list, banks_list_area, &mut app_lock.list.state.0);
+                    } else {
+                        let bank_title =
+                            Line::from(vec![
+                                Span::styled("* Bank: ", Style::default().fg(Color::Yellow)),
+                                Span::raw("▼ ──────────────────────")
+                            ]);
+
+                        f.render_widget(bank_title, input_chunks[3]);
+                    }
+                }
+                Some(Popup::OrderSuccessful) => {
+                    let help = Paragraph::new(HELP_TEXT.common.yay).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(&chunks[1], 28, 4);
+
+                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+
+                    let order_successful = Paragraph::new(Text::from(vec![
+                        Line::raw("Order placed"),
+                        Line::raw("successfully!")
+                    ]))
+                    .centered()
+                    .block(popup_block);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(order_successful, popup_area);
                 }
                 _ => {}
             }

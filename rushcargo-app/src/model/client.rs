@@ -1,6 +1,18 @@
 use sqlx::{PgPool, FromRow};
+use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
-use super::common_obj::{Country, Warehouse, Locker};
+use super::{
+    common::{PackageData, PaymentData},
+    common_obj::{Country, Locker, Warehouse},
+};
+
+#[derive(Debug)]
+pub enum GetLockerErr {
+    SameAsActive,
+    Invalid,
+    TooManyPackages,
+    WeightTooBig(Decimal),
+}
 
 #[derive(Debug)]
 pub struct Client {
@@ -15,7 +27,11 @@ pub struct ClientData {
     pub viewing_lockers: Option<Vec<Locker>>,
     pub viewing_lockers_idx: i64,
     pub active_locker: Option<Locker>,
+    pub packages: Option<PackageData>,
     pub send_to_locker: Option<Locker>,
+    pub send_to_locker_err: Option<GetLockerErr>,
+    pub send_to_client: Option<Client>,
+    pub payment: Option<PaymentData>,
 }
 
 impl ClientData {

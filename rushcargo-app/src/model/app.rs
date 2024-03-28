@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use sqlx::{Row, Pool, Postgres, PgPool};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Ok, Result};
 use ratatui::widgets::{List, ListState};
 use std::time::{Duration, Instant};
 use tui_input::Input;
@@ -27,7 +27,7 @@ pub struct App {
     pub title: Option<Box<TitleData>>,
     pub list: ListData,
     pub table: TableData,
-    pub packages: Option<PackageData>,
+    //pub packages: Option<PackageData>,
     pub user: Option<User>,
     prev_screen: Option<Screen>,
     prev_popup: Option<Popup>,
@@ -53,7 +53,7 @@ impl App {
             title: None,
             list: ListData::default(),
             table: TableData::default(),
-            packages: None,
+            //packages: None,
             user: None,
             prev_screen: None,
             prev_popup: None,
@@ -92,11 +92,15 @@ impl App {
                 client.get_lockers_next(pool).await.expect("could not get initial lockers");
             }
             Screen::Client(SubScreen::ClientLockerPackages) => {
-                self.active_screen = Screen::Client(SubScreen::ClientLockerPackages);
-            }
-            Screen::Client(SubScreen::ClientSentPackages) => {
-                self.active_screen = Screen::Client(SubScreen::ClientSentPackages);
-
+                self.get_client_mut().packages = Some(
+                    PackageData {
+                        viewing_packages: Vec::new(),
+                        viewing_packages_idx: 0,
+                        selected_packages: None,
+                        active_package: None,
+                    }
+                );
+                self.get_packages_next(TableType::LockerPackages, pool).await.expect("could not get initial packages");
             }
             Screen::Trucker(SubScreen::TruckerMain) => {
                 self.active_screen = Screen::Trucker(SubScreen::TruckerMain);
@@ -107,8 +111,8 @@ impl App {
             Screen::Trucker(SubScreen::TruckerManagementPackets) => {
                 self.active_screen = Screen::Trucker(SubScreen::TruckerManagementPackets)
             },
-            _ => todo!(),
             
+            _ => {}
         }
         
     }
@@ -139,7 +143,7 @@ impl App {
                 self.table.state.select(None);
             }
             Some(Screen::Client(SubScreen::ClientLockerPackages)) => {
-                self.packages = None;
+                self.get_client_mut().packages = None;
                 self.table.state.select(None);
             }
             Some(Screen::Client(_)) => {}
@@ -158,7 +162,11 @@ impl App {
 
         match self.active_popup {
             Some(Popup::ClientOrderLocker) => {
-                self.input_mode = InputMode::Editing(0); 
+                self.input_mode = InputMode::Editing(0);
+            }
+            Some(Popup::ClientInputPayment) => {
+                self.action_sel = Some(0);
+                self.input_mode = InputMode::Editing(0);
             }
             _ => {}
         }
@@ -173,7 +181,14 @@ impl App {
             Some(Popup::ClientOrderLocker) => {
                 self.input.0.reset();
                 self.input.1.reset();
+                self.get_client_mut().send_to_locker_err = None;
                 self.input_mode = InputMode::Normal;
+            }
+            Some(Popup::ClientInputPayment) => {
+                self.input.0.reset();
+                self.input.1.reset();
+                self.list.state.0.select(None);
+                self.action_sel = None;
             }
             _ => {}
         }
@@ -224,7 +239,7 @@ impl App {
         self.user.as_ref().map(|u|
             match u {
                 User::Client(client) => client,
-                _ => panic!("sus??"),
+                _ => panic!(),
             }
         ).unwrap()
     }
@@ -236,7 +251,25 @@ impl App {
             }
         ).unwrap()
     }
-    pub fn get_packages_ref(&self) -> &PackageData {
-        self.packages.as_ref().unwrap()
+    /*FIXME: i put the panics because otherwise it appears the error
+    "match` arms have incompatible types expected `&PackageData`, found `()`"
+    so the code should panic in case that the user is not of type User::Client
+    so the match should only return a reference to PackageData.
+    */
+    pub fn get_client_packages_ref(&self) -> &PackageData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Client(client) => client.packages.as_ref().unwrap(),
+                _ => panic!("Expected User::Client"), //TODO: change this
+            }
+        ).unwrap()
+    }
+    pub fn get_client_packages_mut(&mut self) -> &mut PackageData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Client(client) => client.packages.as_mut().unwrap(),
+                _ => panic!("Expected User::Client"),
+            }
+        ).unwrap()
     }
 }

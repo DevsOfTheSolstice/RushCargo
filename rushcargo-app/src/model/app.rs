@@ -10,6 +10,7 @@ use crate::{
         app_list::ListData,
         app_table::{TableData, TableType},
         client::ClientData,
+        trucker::TruckerData,
         common::{User, SubScreen, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,

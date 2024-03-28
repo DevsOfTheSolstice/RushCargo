@@ -34,6 +34,6 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         => client::render(app, f),
 
         Screen::Trucker(_)
-        => client::render(app, f),
+        => trucker::render(app, f),
     }
 }

@@ -58,7 +58,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     match app_lock.active_screen {
         Screen::Trucker(SubScreen::TruckerMain) => {
             let help = Paragraph::new(HELP_TEXT.trucker.main).block(help_block);
-            f.render_widget(help, chunks[2]);
+            f.render_widget(help, chunks[1]);
 
             let actions_chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -98,11 +98,11 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 } else {
                     Paragraph::new("View route to make").centered().block(unsel_action_block.clone()).style(Style::default().fg(Color::Yellow))
                 };
-            f.render_widget(route_action, actions_chunks[2]);
+            f.render_widget(route_action, actions_chunks[1]);
         }
         Screen::Trucker(SubScreen::TruckerStatistics) => {
             let help = Paragraph::new(HELP_TEXT.trucker.Statistics).block(help_block);
-            f.render_widget(help, chunks[2]);
+            f.render_widget(help, chunks[1]);
 
             let stats_table = Layout::default()
             .direction(Direction::Vertical)
@@ -113,11 +113,11 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         }
         Screen::Trucker(SubScreen::TruckerManagementPackets) => {
             let help = Paragraph::new(HELP_TEXT.trucker.management_action).block(help_block);
-            f.render_widget(help, chunks[2]);
+            f.render_widget(help, chunks[1]);
         }
         Screen::Trucker(SubScreen::TruckerRoutes) => {
             let help = Paragraph::new(HELP_TEXT.trucker.route_action).block(help_block);
-            f.render_widget(help, chunks[2]);
+            f.render_widget(help, chunks[1]);
         }
         _ => {}
     } 

@@ -1,19 +1,10 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    prelude::{Alignment, Frame, Margin, Rect},
-    style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Row, Table}
+    prelude::{Frame, Rect},
+    widgets::{Block, BorderType, Borders, Paragraph}
 };
-use anyhow::{Result, anyhow};
 use std::sync::{Arc, Mutex};
 use crate::{
-    model::{
-        help_text,
-        common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User},
-        client::GetDBErr,
-        app::App,
-        client::Client,
-    },
+    model::app::App,
     ui::common_fn::{centered_rect, wrap_text},
     HELP_TEXT
 };

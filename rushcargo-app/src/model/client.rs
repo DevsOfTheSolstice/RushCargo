@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
 use super::{
     common::{PackageData, PaymentData},
-    common_obj::{Branch, Country, Locker, Warehouse},
+    db_obj::{Branch, Country, Locker, Warehouse},
 };
 
 #[derive(Debug)]
@@ -14,6 +14,9 @@ pub enum GetDBErr {
     LockerWeightTooBig(Decimal),
 
     InvalidUserBranch,
+
+    InvalidUserDelivery(u8),
+    NoCompatBranchDelivery,
 }
 
 #[derive(Debug)]
@@ -30,11 +33,13 @@ pub struct ClientData {
     pub viewing_lockers_idx: i64,
     pub active_locker: Option<Locker>,
     pub packages: Option<PackageData>,
-    pub send_to_locker: Option<Locker>,
     pub get_db_err: Option<GetDBErr>,
+    pub send_to_locker: Option<Locker>,
     pub send_to_client: Option<Client>,
     pub send_to_branch: Option<Branch>,
-    pub payment: Option<PaymentData>,
+    pub getuser_fail_count: u8,
+    pub send_payment: Option<PaymentData>,
+    pub send_with_delivery: bool,
 }
 
 impl ClientData {

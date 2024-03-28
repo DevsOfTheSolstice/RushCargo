@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use super::{
     app::App,
     common::{User, Screen, SubScreen},
-    common_obj::Package
+    db_obj::Package
 };
 
 #[derive(Debug)]

@@ -32,6 +32,10 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             app.lock().unwrap().enter_popup(popup, pool).await;
             Ok(())
         }
+        Event::ToggleDisplayMsg => {
+            app.lock().unwrap().toggle_displaymsg();
+            Ok(())
+        }
         Event::SwitchInput => {
             let mut app_lock = app.lock().unwrap();
 

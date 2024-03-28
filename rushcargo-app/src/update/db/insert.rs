@@ -11,7 +11,7 @@ use crate::{
         app::App,
         client::{Client, GetDBErr},
         common::{Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
-        common_obj::{Branch, Locker},
+        db_obj::{Branch, Locker},
     },
 };
 

@@ -246,7 +246,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                             Constraint::Min(1),
                         ])
                         .split(popup_area.inner(&Margin::new(1, 1)));
-                    
+
                     let sel_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
                     let unsel_style = Style::default().fg(Color::White);
 
@@ -322,7 +322,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
                     let popup_help = Paragraph::new(
                         match app_lock.get_client_ref().get_db_err {
-                            None => Line::raw(HELP_TEXT.client.order_locker_popup_normal.to_string()),
+                            None => Line::raw(""),
                             Some(GetDBErr::InvalidUserLocker) => Line::styled(HELP_TEXT.client.order_locker_popup_invalid.to_string(), err_style),
                             Some(GetDBErr::LockerSameAsActive) => Line::styled(HELP_TEXT.client.order_locker_popup_same_as_active.to_string(), err_style),
                             Some(GetDBErr::LockerTooManyPackages) => Line::styled(HELP_TEXT.client.order_locker_popup_locker_count_err.to_string(), err_style),
@@ -562,22 +562,140 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
                     f.render_widget(input, input_chunks[2]);
                 }
+                Some(Popup::ClientOrderDelivery) => {
+                    let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(&chunks[1], 40, 9)?;
+
+                    let popup_block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .title(Line::styled("Recipient", Style::default().fg(Color::Cyan)))
+                        .title_alignment(Alignment::Center);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let input_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Percentage(100),
+                            Constraint::Min(2),
+                            Constraint::Min(3),
+                        ])
+                        .split(popup_area.inner(&Margin::new(3, 1)));
+
+                    let width = input_chunks[1].width.max(3) - 3;
+                    let name_scroll = app_lock.input.0.visual_scroll(width as usize - "* Username: ".len());
+                    let name_style = Style::default();
+                    
+                    f.set_cursor(input_chunks[1].x
+                                            + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
+                                            + "* Username: ".len() as u16
+                                            + 0,
+                                            input_chunks[1].y + 0,
+                                        );
+                    /*if let InputMode::Editing(field) = app_lock.input_mode {
+                        if field == 0 {
+                            branch_style = branch_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[1].x
+                                            + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
+                                            + "* Username: ".len() as u16
+                                            + 0,
+                                            input_chunks[1].y + 0,
+                                        );
+
+                        } else {
+                            name_style = name_style.fg(Color::DarkGray);
+                            f.set_cursor(input_chunks[2].x
+                                            + (app_lock.input.1.visual_cursor().max(branch_scroll) - branch_scroll) as u16
+                                            + "* Branch ID: ".len() as u16
+                                            + 0,
+                                            input_chunks[2].y + 0,
+                                        );
+                        }
+                    }*/
+
+                    let err_style = Style::default().fg(Color::Red);
+
+                    /*let popup_help = Paragraph::new(
+                        match app_lock.get_client_ref().get_db_err {
+                            None => Line::raw(""),
+                            Some(GetDBErr::InvalidUserBranch) => Line::styled(HELP_TEXT.client.order_branch_popup_invalid.to_string(), err_style),
+                            _ => panic!()
+                        }
+                    ).centered();*/
+
+                    let name_block = Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_type(BorderType::Rounded)
+                        .border_style(name_style);
+
+                    let input = Paragraph::new(Text::from(Line::from(vec![
+                        Span::styled("* Username: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(app_lock.input.0.value(), name_style)
+                    ])))
+                    .block(name_block)
+                    .scroll((0, name_scroll as u16));
+
+                    f.render_widget(input, input_chunks[1]);
+                    
+                    if let Some(err) = app_lock.get_client_ref().get_db_err.as_ref() {
+                        if app_lock.display_msg {
+                            let err_popup_area = centered_rect(&f.size(), 30, 6)?;
+
+                            let err_popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+
+                            let err_popup = Paragraph::new(wrap_text(25,
+                                match err {
+                                        GetDBErr::InvalidUserDelivery(_) => {
+                                            HELP_TEXT.client.order_delivery_popup_invalid.to_string()
+                                        }
+                                        GetDBErr::NoCompatBranchDelivery => {
+                                            HELP_TEXT.client.order_delivery_no_compat.to_string()
+                                        }
+                                        _ => panic!()
+                                    }
+                                )
+                            )
+                            .centered()
+                            .style(Style::default().fg(Color::Red))
+                            .block(err_popup_block);
+
+                            f.render_widget(Clear, err_popup_area);
+                            f.render_widget(err_popup, err_popup_area);
+                        }
+                        else if let GetDBErr::InvalidUserDelivery(3) = err {
+                            let err_text =
+                                Line::styled(
+                                    format!(
+                                        "{}{}", HELP_TEXT.client.order_delivery_failed_attempts,
+                                        app_lock.timeout.get(&TimeoutType::GetUserDelivery).unwrap().counter
+                                    ),
+                                Style::default().fg(Color::Red)
+                                );
+                            
+                            f.render_widget(err_text, input_chunks[2]);
+                        }
+                    }
+                }
                 _ => {}
             }
         }
         Screen::Client(SubScreen::ClientSentPackages) => {
             let help = Paragraph::new(HELP_TEXT.client.sent_packages).block(help_block);
             f.render_widget(help, chunks[2]);
+            }
+            _ => {}
         }
-        _ => {}
+        Ok(())
     }
-    Ok(())
-}
 
-fn dimensions_string(val: Decimal) -> String {
-    if val < Decimal::new(100, 0) {
-        String::from(format!("{}cm", val))
-    } else {
-        String::from(format!("{}m", val / Decimal::new(100, 2)))
+    fn dimensions_string(val: Decimal) -> String {
+        if val < Decimal::new(100, 0) {
+            String::from(format!("{}cm", val))
+        } else {
+            String::from(format!("{}m", val / Decimal::new(100, 2)))
+        }
     }
-}

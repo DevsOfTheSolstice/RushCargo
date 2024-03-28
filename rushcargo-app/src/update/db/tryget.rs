@@ -9,9 +9,9 @@ use crate::{
     event::{Event, InputBlacklist},
     model::{
         app::App,
-        client::{Client, GetDBErr},
-        common::{Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
-        common_obj::{Branch, Locker},
+        client::{self, Client, GetDBErr},
+        common::{Bank, InputMode, PaymentData, Popup, Screen, SubScreen, TimeoutType, User},
+        db_obj::{Branch, Locker},
     },
 };
 
@@ -107,13 +107,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 }
             }
 
-            let mut app_lock = app.lock().unwrap();
-            match &mut app_lock.user {
-                Some(User::Client(client_data)) => {
-                    client_data.get_db_err = Some(GetDBErr::InvalidUserLocker);
-                }
-                _ => {}
-            }
+            set_getdberr(app, GetDBErr::InvalidUserLocker);
 
             Ok(())
         }
@@ -162,16 +156,121 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 }
             }
 
-            let mut app_lock = app.lock().unwrap();
-            match &mut app_lock.user {
-                Some(User::Client(client_data)) => {
-                    client_data.get_db_err = Some(GetDBErr::InvalidUserBranch);
+            set_getdberr(app, GetDBErr::InvalidUserBranch);
+
+            Ok(())
+        }
+        Event::TryGetUserDelivery(username) => {
+            if username.is_empty() { return Ok(()); }
+
+            {
+                let app_lock = app.lock().unwrap();
+                match &app_lock.user {
+                    Some(User::Client(client_data)) => {
+                        if let Some(GetDBErr::InvalidUserDelivery(3)) = client_data.get_db_err { return Ok(()); }
+                    }
+                    _ => unimplemented!("Event::TryGetUserDelivery for user {:?}", app_lock.user)
                 }
-                _ => unimplemented!("Event::TryGetUserBranch for user {:?}", app_lock.user)
             }
+
+            let motorcyclists =
+                sqlx::query(
+                    "
+                        SELECT * FROM natural_client
+                        INNER JOIN motorcyclist ON natural_client.affiliated_branch=motorcyclist.assigned_branch
+                        INNER JOIN vehicle ON motorcyclist.motorcycle=vehicle.vin_vehicle
+                        WHERE natural_client.username=$1
+                    "
+                )
+                .bind(&username)
+                .fetch_all(pool)
+                .await?;
+
+            if motorcyclists.is_empty() {
+                let mut app_lock = app.lock().unwrap();
+                if let Some(GetDBErr::InvalidUserDelivery(2)) = app_lock.get_client_ref().get_db_err {
+                    app_lock.add_timeout(30, 1000, TimeoutType::GetUserDelivery);
+                }
+                match &mut app_lock.user {
+                    Some(User::Client(client_data)) => {
+                        client_data.get_db_err =
+                            if let Some(GetDBErr::InvalidUserDelivery(val)) = client_data.get_db_err {
+                                Some(GetDBErr::InvalidUserDelivery(val + 1))
+                            } else {
+                                Some(GetDBErr::InvalidUserDelivery(1))
+                            }
+                    }
+                    _ => unimplemented!("Event::TryGetUserDelivery for user {:?}", app_lock.user)
+                }
+                app_lock.toggle_displaymsg();
+                return Ok(());
+            }
+
+            let (packages_weight, packages_width, packages_height, packages_length) =
+                {
+                    let app_lock = app.lock().unwrap();
+
+                    let (mut weight_count, mut width_count, mut height_count, mut length_count) =
+                        (Decimal::new(0, 0), Decimal::new(0, 0), Decimal::new(0, 0), Decimal::new(0, 0));
+
+                    match &app_lock.user {
+                        Some(User::Client(client_data)) => {
+                            for package in client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap() {
+                                weight_count += package.weight;
+                                width_count += package.width;
+                                height_count += package.height;
+                                length_count += package.length;
+                            }
+                        }
+                        _ => unimplemented!("Event::TryGetUserDelivery for user {:?}", app_lock.user)
+                    }
+
+                    (weight_count, width_count, height_count, length_count)
+                };
+
+            for motorcyclist in motorcyclists {
+                if motorcyclist.get::<Decimal, _>("weight_capacity") >= packages_weight
+                && motorcyclist.get::<Decimal, _>("width_capacity") >= packages_width
+                && motorcyclist.get::<Decimal, _>("height_capacity") >= packages_height
+                && motorcyclist.get::<Decimal, _>("length_capacity") >= packages_length
+                {
+                    let mut app_lock = app.lock().unwrap();
+
+                    match &mut app_lock.user {
+                        Some(User::Client(client_data)) => {
+                            client_data.send_with_delivery = true;
+                            client_data.send_to_client = Some(
+                                Client {
+                                    username,
+                                    first_name: String::from(""),
+                                    last_name: String::from(""),
+                                }
+                            );
+                            app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
+                        }
+                        _ => unimplemented!("Event::TryGetUserDelivery for user {:?}", app_lock.user)
+                    }
+
+                    return Ok(());
+                }
+            }
+
+            app.lock().unwrap().toggle_displaymsg();
+            set_getdberr(app, GetDBErr::NoCompatBranchDelivery);
 
             Ok(())
         }
         _ => panic!("An event of type {:?} was passed to the db::tryget update function", event)
+    }
+}
+
+fn set_getdberr(app: &mut Arc<Mutex<App>>, err: GetDBErr) {
+    let mut app_lock = app.lock().unwrap();
+
+    match &mut app_lock.user {
+        Some(User::Client(client_data)) => {
+            client_data.get_db_err = Some(err);
+        }
+        _ => unimplemented!("update::db::tryget::set_getdberr for user {:?}", app_lock.user)
     }
 }

@@ -122,7 +122,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 Some(Popup::ClientInputPayment) => {
                     match key_event.code {
                         KeyCode::Esc => {
-                            sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
+                           sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
                         }
                         KeyCode::Tab => {
                             sender.send(Event::SwitchAction)
@@ -131,7 +131,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             if let Some(_) = app_lock.get_client_ref().send_to_locker {
                                 sender.send(Event::PlaceOrderLockerLocker)
                             } else if let Some(_) = app_lock.get_client_ref().send_to_branch {
-                                todo!("client Key Enter on send to branch")
+                                sender.send(Event::PlaceOrderLockerBranch)
                             } else {
                                 Ok(())
                             }
@@ -181,8 +181,16 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                         KeyCode::Esc => {
                             sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
                         }
-                        _ => Ok(())
+                        KeyCode::Enter => {
+                            sender.send(Event::TryGetUserDelivery(app_lock.input.0.value().to_string()))
+                        }
+                        _ => {
+                            sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric))
+                        }
                     }
+                }
+                Some(Popup::DisplayMsg) => {
+                    sender.send(Event::ToggleDisplayMsg)
                 }
                 _ => Ok(())
             }

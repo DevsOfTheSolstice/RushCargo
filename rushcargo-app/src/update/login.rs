@@ -69,7 +69,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                                 get_db_err: None,
                                                 send_to_client: None,
                                                 send_to_branch: None,
-                                                payment: None,
+                                                getuser_fail_count: 0,
+                                                send_payment: None,
+                                                send_with_delivery: false,
                                             }
                                         ))
                                     }

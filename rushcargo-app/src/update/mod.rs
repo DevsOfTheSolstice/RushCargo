@@ -16,7 +16,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::SwitchAction | Event::SelectAction |
-        Event::EnterScreen(_) | Event::EnterPopup(_)
+        Event::EnterScreen(_) | Event::EnterPopup(_) | Event::ToggleDisplayMsg
         => common::update(app, pool, event).await,
 
         Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)
@@ -28,15 +28,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         Event::TryLogin
         => login::update(app, pool, event).await,
 
-        Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _)
+        Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _) | Event::TryGetUserDelivery(_)
         => db::tryget::update(app, pool, event).await,
 
-        Event::PlaceOrderLockerLocker
+        Event::PlaceOrderLockerLocker | Event::PlaceOrderLockerBranch
         => db::insert::update(app, pool, event).await,
 
         Event::Resize
         => Ok(()),
 
-        _ => panic!("received event {:?} without assigned function", event)
+        _ => panic!("received event {:?} without assigned update function", event)
     }
 }

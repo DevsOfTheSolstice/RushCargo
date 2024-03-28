@@ -3,7 +3,7 @@ use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
     client::ClientData,
-    common_obj::{Package, Locker},
+    db_obj::{Package, Locker},
 };
 
 #[derive(Debug, Clone)]
@@ -41,6 +41,7 @@ impl std::fmt::Display for Screen {
 pub enum Popup {
     Prev,
     OrderSuccessful,
+    DisplayMsg,
 
     LoginSuccessful,
 
@@ -69,6 +70,7 @@ pub enum TimeoutType {
     Resize,
     CubeTick,
     Login,
+    GetUserDelivery,
 }
 
 pub struct Timer {

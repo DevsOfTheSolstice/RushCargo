@@ -43,6 +43,7 @@ pub enum Event {
     Quit,
     EnterScreen(Screen),
     EnterPopup(Option<Popup>),
+    ToggleDisplayMsg,
     Resize,
     TimeoutTick(TimeoutType),
     KeyInput(KeyEvent, InputBlacklist),
@@ -62,6 +63,7 @@ pub enum Event {
 
     TryGetUserLocker(String, String),
     TryGetUserBranch(String, String),
+    TryGetUserDelivery(String),
     PlaceOrderLockerLocker,
     PlaceOrderLockerBranch,
 }
@@ -131,6 +133,7 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 // Events common to all screens.
                 match key_event.code {
                     KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
+                    _ if app_lock.display_msg => { sender.send(Event::ToggleDisplayMsg).expect(SENDER_ERR); return; },
                     _ => Ok(())
                 }.expect(SENDER_ERR);
             }

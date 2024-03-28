@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Display};
 use sqlx::{Row, Pool, Postgres, PgPool};
 use anyhow::{Result, anyhow};
 use ratatui::widgets::{List, ListState};
@@ -9,12 +9,14 @@ use crate::{
     model::{
         app_list::ListData,
         app_table::{TableData, TableType},
-        client::ClientData,
+        client::{ClientData, GetDBErr},
         common::{User, SubScreen, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
     }
 };
+
+use super::client;
 
 pub struct App {
     pub input: InputFields,
@@ -26,12 +28,12 @@ pub struct App {
     pub title: Option<Box<TitleData>>,
     pub list: ListData,
     pub table: TableData,
-    //pub packages: Option<PackageData>,
     pub user: Option<User>,
     prev_screen: Option<Screen>,
     prev_popup: Option<Popup>,
     pub active_screen: Screen,
     pub active_popup: Option<Popup>,
+    pub display_msg: bool,
     pub should_clear_screen: bool,
     pub should_quit: bool,
 }
@@ -52,12 +54,12 @@ impl App {
             title: None,
             list: ListData::default(),
             table: TableData::default(),
-            //packages: None,
             user: None,
             prev_screen: None,
             prev_popup: None,
             active_screen: Screen::Login,
             active_popup: None,
+            display_msg: false,
             should_clear_screen: false,
             should_quit: false,
         }
@@ -158,6 +160,9 @@ impl App {
             Some(Popup::ClientOrderBranch) => {
                 self.input_mode = InputMode::Editing(0);
             }
+            Some(Popup::ClientOrderDelivery) => {
+                self.input_mode = InputMode::Editing(0);
+            }
             _ => {}
         }
     }
@@ -185,9 +190,26 @@ impl App {
                 self.get_client_mut().get_db_err = None;
                 self.input_mode = InputMode::Normal;
             }
+            Some(Popup::ClientOrderDelivery) => {
+                self.input.0.reset();
+                self.input.1.reset();
+                self.input_mode = InputMode::Normal;
+            }
             _ => {}
         }
         self.prev_popup = next_popup.clone();
+    }
+
+    /*pub fn enter_displaymsg(&mut self) {
+        self.active_popup = Some(Popup::DisplayMsg); 
+    }
+
+    pub fn exit_displaymsg(&mut self) {
+        self.active_popup = self.prev_popup.clone();
+    }*/
+
+    pub fn toggle_displaymsg(&mut self) {
+        self.display_msg = !self.display_msg;
     }
 
     /// The timeout tick rate here should be equal or greater to the EventHandler tick rate.
@@ -223,6 +245,13 @@ impl App {
         } else {
             match timeout_type {
                 TimeoutType::Login => self.failed_logins = 0,
+                TimeoutType::GetUserDelivery =>
+                    match &mut self.user {
+                        Some(User::Client(client_data)) => {
+                            client_data.get_db_err = Some(GetDBErr::InvalidUserDelivery(0));
+                        }
+                        _ => unimplemented!("{:?} for {:?}", timeout_type, self.user)
+                    }
                 _ => {}
             }
             if timeout_type != TimeoutType::CubeTick {

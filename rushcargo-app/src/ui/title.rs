@@ -16,6 +16,7 @@ use ratatui::{
         Paragraph,
     }
 };
+use anyhow::{Result, anyhow};
 use std::sync::{Arc, Mutex};
 use crate::{
     HELP_TEXT,
@@ -27,7 +28,7 @@ use crate::{
     ui::common_fn::centered_rect,
 };
 
-pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
+pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     let mut app_lock = app.lock().unwrap();
 
     let chunks = Layout::default()
@@ -37,7 +38,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Length(2),
             Constraint::Length(10),
         ])
-        .split(centered_rect(&f.size(), 80, 25));
+        .split(centered_rect(&f.size(), 80, 25)?);
 
     let lower_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -153,6 +154,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         .block(Block::default().borders(Borders::NONE));
 
     f.render_widget(canvas, lower_chunks[3]);
+
+    Ok(())
 }
 
 fn get_vec(dot0: Dot, dot1: Dot) -> impl Fn(f64, char) -> Dot {

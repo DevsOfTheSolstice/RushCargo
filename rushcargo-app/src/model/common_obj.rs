@@ -84,11 +84,17 @@ impl<'r> FromRow<'r, PgRow> for Building {
     }
 }
 
+impl Building {
+    pub fn get_id(&self) -> i64 {
+        self.id
+    }
+}
+
 #[derive(Debug)]
 pub struct Branch {
     id: Building,
-    warehouse_connection: Warehouse,
-    route_distance: Decimal,
+    pub warehouse_connection: Warehouse,
+    pub route_distance: Decimal,
 }
 
 impl<'r> FromRow<'r, PgRow> for Branch {
@@ -98,6 +104,12 @@ impl<'r> FromRow<'r, PgRow> for Branch {
             warehouse_connection: Warehouse::from_row(row)?,
             route_distance: row.try_get("rute_distance")?,
         })
+    }
+}
+
+impl Branch {
+    pub fn get_id(&self) -> i64 {
+        self.id.get_id()
     }
 }
 

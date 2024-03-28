@@ -3,18 +3,19 @@ use ratatui::{
     prelude::{Line, Frame},
     widgets::Clear,
 };
+use anyhow::{Result, anyhow, Error};
 
-pub fn centered_rect(r: &Rect, width: u16, height: u16) -> Rect {
-    let rect_padding_x = ((r.width - width) / 2) as u16;
-    let rect_padding_y = ((r.height - height) / 2) as u16;
+pub fn centered_rect(r: &Rect, width: u16, height: u16) -> Result<Rect> {
+    let rect_padding_x = ((r.width.checked_sub(width).ok_or_else(|| anyhow!("")))? / 2) as u16;
+    let rect_padding_y = ((r.height.checked_sub(height).ok_or_else(|| anyhow!("")))? / 2) as u16;
     let full_padding_x = r.x + rect_padding_x;
     let full_padding_y = r.y + rect_padding_y;
-    Rect {
+    Ok(Rect {
         x: full_padding_x,
         y: full_padding_y,
         width,
         height,
-    }
+    })
 }
 
 pub fn wrap_text(width: usize, text: String) -> Vec<Line<'static>> {

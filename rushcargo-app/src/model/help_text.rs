@@ -29,6 +29,7 @@ impl HelpText {
             },
             common: CommonHelpText {
                 yay: ":D",
+                render_err: "The terminal is too smol :(",
             },
         }
     }
@@ -58,4 +59,5 @@ pub struct ClientHelpText {
 
 pub struct CommonHelpText {
     pub yay: &'static str,
+    pub render_err: &'static str,
 }

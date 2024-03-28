@@ -5,6 +5,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Row, Table}
 };
+use anyhow::{Result, anyhow};
 use rust_decimal::Decimal;
 use std::sync::{Arc, Mutex};
 use crate::{
@@ -19,7 +20,7 @@ use crate::{
     HELP_TEXT
 };
 
-pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
+pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     let mut app_lock = app.lock().unwrap();
 
     let chunks = Layout::default()
@@ -29,7 +30,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Percentage(90),
             Constraint::Length(3),
         ])
-        .split(centered_rect(&f.size(), 80, 18));
+        .split(centered_rect(&f.size(), 80, 18)?);
     
     let client = app_lock.get_client_ref();
 
@@ -57,7 +58,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     Constraint::Length(3),
                     Constraint::Length(3),
                 ])
-                .split(centered_rect(&chunks[1], 25, 6));
+                .split(centered_rect(&chunks[1], 25, 6)?);
 
             let unsel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
             let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
@@ -183,7 +184,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Min(2),
-                    Constraint::Percentage(100)
+                    Constraint::Min(7),
                 ])
                 .split(packages_chunks[2].inner(&Margin::new(1, 1)));
 
@@ -226,7 +227,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_main).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(&chunks[1], 40, 9);
+                    let popup_area = centered_rect(&chunks[1], 40, 9)?;
 
                     let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
@@ -269,7 +270,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(&chunks[1], 40, 9);
+                    let popup_area = centered_rect(&chunks[1], 40, 9)?;
 
                     let popup_block = Block::default()
                         .borders(Borders::ALL)
@@ -364,7 +365,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_payment).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(&chunks[1], 40, 9);
+                    let popup_area = centered_rect(&chunks[1], 40, 9)?;
 
                     let popup_block = Block::default()
                         .borders(Borders::ALL)
@@ -455,7 +456,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.common.yay).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(&chunks[1], 28, 4);
+                    let popup_area = centered_rect(&chunks[1], 28, 4)?;
 
                     let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
@@ -473,7 +474,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                     let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);
                     f.render_widget(help, chunks[2]);
 
-                    let popup_area = centered_rect(&chunks[1], 40, 9);
+                    let popup_area = centered_rect(&chunks[1], 40, 9)?;
 
                     let popup_block = Block::default()
                         .borders(Borders::ALL)
@@ -570,6 +571,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         }
         _ => {}
     }
+    Ok(())
 }
 
 fn dimensions_string(val: Decimal) -> String {

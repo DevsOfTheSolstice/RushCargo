@@ -3,6 +3,7 @@ mod settings;
 mod login;
 mod client;
 mod common_fn;
+mod err;
 
 use std::sync::{Arc, Mutex};
 use ratatui::prelude::{Frame, Layout};
@@ -35,4 +36,5 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         Screen::Trucker
         => todo!(),
     }
+    .unwrap_or_else(|_| { err::render(app, f) })
 }

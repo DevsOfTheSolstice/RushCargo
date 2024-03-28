@@ -63,6 +63,7 @@ pub enum Event {
     TryGetUserLocker(String, String),
     TryGetUserBranch(String, String),
     PlaceOrderLockerLocker,
+    PlaceOrderLockerBranch,
 }
 
 #[derive(Debug)]

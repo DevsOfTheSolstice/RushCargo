@@ -5,6 +5,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Paragraph, Clear}
 };
+use anyhow::{Result, anyhow};
 use std::sync::{Arc, Mutex};
 use crate::{
     HELP_TEXT,
@@ -15,7 +16,7 @@ use crate::{
     ui::common_fn::centered_rect,
 };
 
-pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
+pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     let mut app_lock = app.lock().unwrap();
 
     let chunks = Layout::default()
@@ -26,7 +27,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Length(3),
             Constraint::Length(1),
         ])
-        .split(centered_rect(&f.size(), 45, 8));
+        .split(centered_rect(&f.size(), 45, 8)?);
 
     let title_block = Block::default();
 
@@ -109,7 +110,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     if let Some(popup) = &app_lock.active_popup {
         match popup {
             Popup::LoginSuccessful => {
-                let popup_rect = centered_rect(&f.size(), 28, 3);
+                let popup_rect = centered_rect(&f.size(), 28, 3)?;
 
                 f.render_widget(Clear, popup_rect);
 
@@ -130,4 +131,5 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             _ => { unimplemented!() }
         }
     }
+    Ok(())
 }

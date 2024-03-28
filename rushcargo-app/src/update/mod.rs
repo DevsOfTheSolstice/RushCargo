@@ -2,8 +2,7 @@ mod common;
 mod list;
 mod table;
 mod login;
-mod client;
-mod tryget_db;
+mod db;
 
 use std::sync::{Arc, Mutex};
 use sqlx::PgPool;
@@ -17,8 +16,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::SwitchAction | Event::SelectAction |
-        Event::EnterScreen(_) | Event::EnterPopup(_) |
-        Event::PlaceOrderLockerLocker
+        Event::EnterScreen(_) | Event::EnterPopup(_)
         => common::update(app, pool, event).await,
 
         Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)
@@ -31,7 +29,10 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         => login::update(app, pool, event).await,
 
         Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _)
-        => tryget_db::update(app, pool, event).await,
+        => db::tryget::update(app, pool, event).await,
+
+        Event::PlaceOrderLockerLocker
+        => db::insert::update(app, pool, event).await,
 
         Event::Resize
         => Ok(()),

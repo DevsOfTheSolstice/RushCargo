@@ -172,6 +172,6 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
             Ok(())
         }
-        _ => panic!("An event of type {:?} was passed to the trydb_get update function", event)
+        _ => panic!("An event of type {:?} was passed to the db::tryget update function", event)
     }
 }

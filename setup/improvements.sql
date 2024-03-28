@@ -374,6 +374,21 @@ ALTER TABLE Motocyclist
 ADD COLUMN affiliated_branch INT,
 ADD CONSTRAINT fk_affiliated_branch FOREIGN KEY (affiliated_branch) REFERENCES Branch(branch_id);
 
+--43
+ALTER TABLE Vehicle
+    ALTER COLUMN weight_capacity TYPE DECIMAL(10, 2),
+    ALTER COLUMN width_capacity TYPE DECIMAL(10, 2),
+    ALTER COLUMN height_capacity TYPE DECIMAL(10, 2),
+    ALTER COLUMN length_capacity TYPE DECIMAL(10, 2);
+
+--44
+ALTER TABLE Driver
+    ALTER COLUMN salary TYPE DECIMAL(10, 2);
+
+--45
+ALTER TABLE Motocyclist
+    RENAME TO Motorcyclist;
+
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;
 DROP TABLE IF EXISTS Truck;

@@ -66,6 +66,7 @@ pub enum Event {
     TryGetUserDelivery(String),
     PlaceOrderLockerLocker,
     PlaceOrderLockerBranch,
+    PlaceOrderLockerDelivery,
 }
 
 #[derive(Debug)]

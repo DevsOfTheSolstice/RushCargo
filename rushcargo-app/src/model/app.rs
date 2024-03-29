@@ -162,6 +162,7 @@ impl App {
             }
             Some(Popup::ClientOrderDelivery) => {
                 self.input_mode = InputMode::Editing(0);
+                self.get_client_mut().send_with_delivery = true;
             }
             _ => {}
         }
@@ -183,6 +184,11 @@ impl App {
                 self.input.1.reset();
                 self.list.state.0.select(None);
                 self.action_sel = None;
+                self.get_client_mut().send_with_delivery = false;
+                self.get_client_mut().send_to_client = None;
+                self.get_client_mut().send_to_branch = None;
+                self.get_client_mut().send_to_client = None;
+                self.get_client_mut().send_payment = None;
             }
             Some(Popup::ClientOrderBranch) => {
                 self.input.0.reset();
@@ -199,14 +205,6 @@ impl App {
         }
         self.prev_popup = next_popup.clone();
     }
-
-    /*pub fn enter_displaymsg(&mut self) {
-        self.active_popup = Some(Popup::DisplayMsg); 
-    }
-
-    pub fn exit_displaymsg(&mut self) {
-        self.active_popup = self.prev_popup.clone();
-    }*/
 
     pub fn toggle_displaymsg(&mut self) {
         self.display_msg = !self.display_msg;

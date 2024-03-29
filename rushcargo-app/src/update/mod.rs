@@ -31,7 +31,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _) | Event::TryGetUserDelivery(_)
         => db::tryget::update(app, pool, event).await,
 
-        Event::PlaceOrderLockerLocker | Event::PlaceOrderLockerBranch
+        Event::PlaceOrderLockerLocker | Event::PlaceOrderLockerBranch | Event::PlaceOrderLockerDelivery
         => db::insert::update(app, pool, event).await,
 
         Event::Resize

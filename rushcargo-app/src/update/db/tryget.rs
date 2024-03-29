@@ -238,7 +238,6 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
-                            client_data.send_with_delivery = true;
                             client_data.send_to_client = Some(
                                 Client {
                                     username,

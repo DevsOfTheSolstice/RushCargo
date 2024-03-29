@@ -17,7 +17,7 @@ use crate::{
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
-        Event::PlaceOrderLockerLocker | Event::PlaceOrderLockerBranch
+        Event::PlaceOrderLockerLocker | Event::PlaceOrderLockerBranch | Event::PlaceOrderLockerDelivery
         => {
             place_order(app, pool, &event).await?;
             Ok(())
@@ -55,13 +55,14 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 .fetch_one(pool)
                 .await?
                 .try_get::<i64, _>("max").unwrap_or(-1) + 1;
-        
+
         match &app_lock.user {
             Some(User::Client(client_data)) => {
                 let (locker_receiver, branch_receiver) =
                     match event {
                         Event::PlaceOrderLockerLocker => (Some(client_data.send_to_locker.as_ref().unwrap().get_id()), None),
                         Event::PlaceOrderLockerBranch => (None, Some(client_data.send_to_branch.as_ref().unwrap().get_id())),
+                        Event::PlaceOrderLockerDelivery => (None, None),
                         _ => panic!()
                     };
 
@@ -69,7 +70,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                     "
                         INSERT INTO shipping_guide
                         (shipping_number, client_user_from, client_user_to, locker_sender, locker_receiver, branch_receiver, delivery_included)
-                        VALUES ($1, $2, $3, $4, $5, $6, false)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
                     "
                 )
                 .bind(next_shipping_id)
@@ -78,6 +79,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 .bind(client_data.active_locker.as_ref().unwrap().get_id())
                 .bind(locker_receiver)
                 .bind(branch_receiver)
+                .bind(client_data.send_with_delivery)
                 .execute(pool)
                 .await?;
 

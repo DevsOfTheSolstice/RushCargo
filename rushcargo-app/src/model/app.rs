@@ -152,6 +152,7 @@ impl App {
         match self.active_popup {
             Some(Popup::ClientOrderLocker) => {
                 self.input_mode = InputMode::Editing(0);
+                self.get_client_mut().send_with_delivery = false;
             }
             Some(Popup::ClientInputPayment) => {
                 self.action_sel = Some(0);
@@ -159,6 +160,7 @@ impl App {
             }
             Some(Popup::ClientOrderBranch) => {
                 self.input_mode = InputMode::Editing(0);
+                self.get_client_mut().send_with_delivery = false;
             }
             Some(Popup::ClientOrderDelivery) => {
                 self.input_mode = InputMode::Editing(0);
@@ -184,7 +186,6 @@ impl App {
                 self.input.1.reset();
                 self.list.state.0.select(None);
                 self.action_sel = None;
-                self.get_client_mut().send_with_delivery = false;
                 self.get_client_mut().send_to_client = None;
                 self.get_client_mut().send_to_branch = None;
                 self.get_client_mut().send_to_client = None;

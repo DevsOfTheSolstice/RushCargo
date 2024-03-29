@@ -2,11 +2,17 @@ import os
 from email_validator import validate_email, EmailNotValidError
 
 from .constants import *
-from .exceptions import FieldValueError, PlaceError
+from .exceptions import FieldValueError, PlaceError, GoToMenu
 
 
-# Clear Function
-def clear():
+def clear() -> None:
+    """
+    Function to Clear the Terminal
+
+    :return: Nothing
+    :rtype: NoneType
+    """
+
     # For Windows
     if os.name == "nt":
         os.system("cls")
@@ -16,8 +22,7 @@ def clear():
         os.system("clear")
 
 
-# String Input Validator
-def checkString(
+def stringValidator(
     inputStr: str,
     nullable: bool,
     canAlpha: bool = True,
@@ -26,6 +31,20 @@ def checkString(
     canEnDash: bool = False,
     canDot: bool = False,
 ) -> bool:
+    """
+    Function that Validates String Input by the User for SQL-related Operations
+
+    :param str inputStr: User Input String
+    :param bool nullable: Specificies whether the String can be Empty (of Length 0)
+    :param bool canAlpha: ... can Contain Alphabetic Characters
+    :param bool canDigit: ... can Contain Numeric Characters
+    :param bool canWhitespace: ... can Contain Whitespace Characters
+    :param bool canEnDash: ... can Contain En Dash Characters
+    :param bool canDot: ... can Contain Dot Characters
+    :return: ``True`` if the User Input String is Valid. Otherwise, ``False``
+    :rtype: bool
+    """
+
     # Nothing to Check
     if canAlpha and canDigit and canWhitespace and canEnDash and canDot:
         return True
@@ -35,11 +54,11 @@ def checkString(
         return False
 
     for i in inputStr:
-        # Check if the Given Character is an Alphabetical Character
+        # Check if the Given Character is an Alphabetic Character
         if canAlpha and i.isalpha():
             continue
 
-        # Check if the Given Character is a Digit
+        # Check if the Given Character is a Numeric Character
         if canDigit and i.isdigit():
             continue
 
@@ -60,33 +79,81 @@ def checkString(
     return True
 
 
-# String Input Validator that Only Accepts Digit Charcters
-def isDigitStr(inputStr: str) -> bool:
-    return checkString(inputStr, False, False, True, False, False, False)
+def digitValidator(inputStr: str) -> bool:
+    """
+    Function that Validates 'Digit' String Input by the User for SQL-related Operations
+
+    :param str inputStr: User Input String
+    :return: ``True`` if the User Input String is Valid. Otherwise, ``False``
+    :rtype: bool
+    """
+
+    return stringValidator(inputStr, False, False, True, False, False, False)
 
 
-# String Input Validator that Only Accepts Alphabetic Characters
-def isAlphaStr(inputStr: str) -> bool:
-    return checkString(inputStr, False, True, False, False, False, False)
+def alphaValidator(inputStr: str) -> bool:
+    """
+    Function that Validates 'Alphabetic' String Input by the User for SQL-related Operations
+
+    :param str inputStr: User Input String
+    :return: ``True`` if the User Input String is Valid. Otherwise, ``False``
+    :rtype: bool
+    """
+
+    return stringValidator(inputStr, False, True, False, False, False, False)
 
 
-# String Input Validator that Checks if the Given String Corresponds to a Valid Address
-def isAddressStr(inputStr: str, canDigits: bool, nullable: bool) -> bool:
-    return checkString(inputStr, nullable, True, canDigits, True, False, False)
+def addressValidator(inputStr: str, canDigits: bool, nullable: bool) -> bool:
+    """
+    Function that Validates 'Address' String Input by the User for SQL-related Operations
+
+    :param str inputStr: User Input String
+    :return: ``True`` if the User Input String is Valid. Otherwise, ``False``
+    :rtype: bool
+    """
+
+    return stringValidator(inputStr, nullable, True, canDigits, True, False, False)
 
 
-# String Input Validator for Territories Address
 def territoryAddressValidator(inputStr: str) -> bool:
-    return isAddressStr(inputStr, False, True)
+    """
+    Function that Validates a Territory 'Address' String Input by the User for SQL-related Operations
+
+    :param str inputStr: User Input String
+    :return: ``True`` if the User Input String is Valid. Otherwise, ``False``
+    :rtype: bool
+    """
+
+    return addressValidator(inputStr, False, True)
 
 
-# String Input Validator for Building Name
 def buildingAddressValidator(inputStr: str) -> bool:
-    return isAddressStr(inputStr, True, False)
+    """
+    Function that Validates a Building 'Address' String Input by the User for SQL-related Operations
+
+    :param str inputStr: User Input String
+    :return: ``True`` if the User Input String is Valid. Otherwise, ``False``
+    :rtype: bool
+    """
+
+    return addressValidator(inputStr, True, False)
 
 
-# Table Email Validator that Returns its Normalized Form (if It's Valid)
 def isEmailValid(email: str) -> str:
+    """
+    Function to Check the Email Input by the User, and Returns its Normalized Form if It's Valid
+
+    :param str email: Email String that was Input by the User
+    :return: Email Normalized Form
+    :rtype: str
+    :raises EmailNotValidError: Raised if the Email Contain Illegal Characters
+    :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+    """
+
+    # Check if the User wants to Exit
+    if email == EXIT:
+        raise GoToMenu
+
     try:
         # Validating Email
         validatedEmail = validate_email(email)
@@ -98,25 +165,47 @@ def isEmailValid(email: str) -> str:
         raise err
 
 
-# Table Phone Number Validator
-def isPhoneValid(table: str, field: str, phone: str):
-    if not isDigitStr(phone):
-        raise FieldValueError(table, field, phone)
+def isAddressValid(tableName: str, field: str, address: str) -> None:
+    """
+    Function to Check the Address Input by the User for a Given Table
 
+    :param str tableName: Table Name where the Address is Pretended to be Inserted
+    :param str field: Address Field Name
+    :param str address: Address String that was Input by the User
+    :return: Nothing
+    :rtype: NoneType
+    :raises FieldValueError: Raised if the Address Contain Illegal Characters for the Given Table
+    :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+    """
 
-# Table Address Validator
-def isAddressValid(table: str, field: str, address: str):
-    if table == WAREHOUSE_TABLENAME or table == BRANCH_TABLENAME:
+    # Check if the User wants to Exit
+    if address == EXIT:
+        raise GoToMenu
+
+    if tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_TABLENAME:
         if not buildingAddressValidator(address):
-            raise FieldValueError(table, field, address)
+            raise FieldValueError(tableName, field, address)
 
     elif not territoryAddressValidator(address):
-        raise FieldValueError(table, field, address)
+        raise FieldValueError(tableName, field, address)
 
     return
 
 
-# Place Name Validator
-def isPlaceNameValid(address: str):
-    if not isAddressStr(address, True, False):
-        raise PlaceError(address)
+def isPlaceNameValid(name: str):
+    """
+    Function to Check the Place Name Input by the User
+
+    :param str name: Place Name String that was Input by the User
+    :return: Nothing
+    :rtype: NoneType
+    :raises PlacedError: Raised if the Place Name Contain Illegal Characters
+    :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+    """
+
+    # Check if the User wants to Exit
+    if name == EXIT:
+        raise GoToMenu
+
+    if not addressValidator(name, True, False):
+        raise PlaceError(name)

@@ -1,8 +1,8 @@
-from rich.prompt import Confirm
 import logging
+
+from rich.prompt import Confirm, Prompt
 from rich.logging import RichHandler
 
-from .constants import END_MSG
 from .locationEvents import LocationEventHandler
 
 from ..io.arguments import getEventHandlerArguments
@@ -12,6 +12,7 @@ from ..io.validator import clear
 from ..model.database import Database
 from ..model.database_tables import console
 
+from ..terminal.constants import END_MSG, PRESS_ENTER
 
 # Get Rich Logger
 logging.basicConfig(
@@ -23,39 +24,56 @@ logging.basicConfig(
 log = logging.getLogger("rich")
 
 
-# Event Handler Class
 class EventHandler:
+    """
+    Class that Handles All the Events
+    """
+
+    # Database Connection
+    __c = None
+
     # Event Handlers
     __locationEventHandler = None
 
-    # Initialize Event Handler
     def __init__(self, db: Database, user: str, ORSApiKey: str):
+        """
+        Event Handler Class Constructor
+
+        :param Database db: Database Object of the Current Connection with the Remote Database
+        :param str user: Remote Database Role Name
+        :param str ORSApiKey: Open Routing Service API Key
+        """
+
+        # Store Database Connection Cursor
+        self.__c = db.getCursor()
+
         # Initialize Location Event Handler
-        self.__locationEventHandler = LocationEventHandler(db, user, ORSApiKey)
+        self.__locationEventHandler = LocationEventHandler(self.__c, user, ORSApiKey)
 
-    # Main Event Handler
     def handler(self, action: str, tableGroup: str, tableName: str) -> None:
-        try:
-            while True:
-                try:
-                    # Check if it's a Location Table
-                    if tableGroup == TABLE_LOCATION_CMD:
-                        # Call Location Event Handler
-                        self.__locationEventHandler.handler(action, tableName)
+        """
+        Main Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Commands
 
-                except Exception as err:
-                    console.print(err, style="warning")
+        :param str action: Command (``add``, ``all``, ``get``, ``mod`` or ``rm``)
+        :param str tableGroup: Group of Tables at Remote Database that are Similar at their Model Design-Level
+        :param str tableName: Table Name at Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        """
 
-                # Ask to Change Action
-                if Confirm.ask("\nDo you want to Continue with this Command?"):
-                    # Clear Terminal
-                    clear()
-                    continue
+        while True:
+            try:
+                # Clear Terminal
+                clear()
+
+                # Check if it's a Location-related Table
+                if tableGroup == TABLE_LOCATION_CMD:
+                    # Call Location Event Handler
+                    self.__locationEventHandler.handler(action, tableName)
 
                 # Clear Terminal
                 clear()
 
-                # Get Event Handler Arguments
                 arguments = getEventHandlerArguments()
 
                 # Check if the User wants to Exit the Program
@@ -65,7 +83,21 @@ class EventHandler:
                 # Get Arguments
                 action, tableGroup, tableName = arguments
 
-        except KeyboardInterrupt:
             # End Program
-            console.print(END_MSG, style="warning")
-            return
+            except KeyboardInterrupt:
+                console.print(END_MSG, style="warning")
+                return
+
+            except Exception as err:
+                try:
+                    console.print(err, style="warning")
+
+                    # Press ENTER to Continue
+                    Prompt.ask(PRESS_ENTER)
+
+                    continue
+
+                # End Program
+                except KeyboardInterrupt:
+                    console.print(END_MSG, style="warning")
+                    return

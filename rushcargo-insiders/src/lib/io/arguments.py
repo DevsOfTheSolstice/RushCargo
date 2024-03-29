@@ -4,35 +4,34 @@ from .constants import *
 
 from ..model.database import console
 
-from ..terminal.constants import TITLE_MSG, WELCOME_MSG
+from ..terminal.constants import TITLE_MSG, WELCOME_MSG, TABLE_MSG
 
 
-# Function to Get Arguments for the Main Event Handler
-def getEventHandlerArguments() -> None | tuple[str, str, str]:
-    # Print Rush Cargo Title Message
-    console.print(TITLE_MSG, justify="center", style="title")
+def getEventHandlerArguments() -> tuple[str, str, str] | None:
+    """
+    Method to Get Main Event Handler Command Arguemnts
 
-    # Print New Line
-    console.print("\n")
+    :return: Tuple of 'action', 'tableGroup' and 'tableName' Commands. If there's No Input by the User, returns None
+    :rtype: tuple, NoneType
+    """
 
-    # Print Rush Cargo Welcome Messasge
+    # Print Rush Cargo Title and Welcome Message
+    console.print(TITLE_MSG, justify="center", style="mainTitle")
     console.print(WELCOME_MSG, justify="center", style="caption")
 
-    tableMsg = "At which Table?"
-
-    # Ask Next Action
+    # Get Command
     action = Prompt.ask("\nWhat do you want to do?", choices=ACTION_CMDS)
 
     # Check if the User wants to Exit the Program
     if action == EXIT:
         return None
 
-    # Ask for Table Group to Work with
+    # Ask for the Table Group to Work with
     tableGroup = Prompt.ask("At which Table Group?", choices=TABLE_GROUP_CMDS)
     table = None
 
-    # Ask for Table to Work with
+    # Ask for the Table to Work with
     if tableGroup == TABLE_LOCATION_CMD:
-        table = Prompt.ask(tableMsg, choices=TABLE_LOCATION_CMDS)
+        table = Prompt.ask(TABLE_MSG, choices=TABLE_LOCATION_CMDS)
 
     return action, tableGroup, table

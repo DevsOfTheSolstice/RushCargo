@@ -34,36 +34,26 @@ CREATE TABLE City (
     FOREIGN KEY (region_id) REFERENCES Region(region_id)
 );
 
---5
-CREATE TABLE City_Area ( 
-    area_id BIGSERIAL PRIMARY KEY, 
-    city_id BIGINT, 
-    area_name VARCHAR(255) NOT NULL, 
-    area_description VARCHAR(255),
-    main_warehouse BIGINT,
-    FOREIGN KEY (city_id) REFERENCES City(city_id) 
-);
-
---6
+--
 CREATE TABLE Building (
     building_id BIGSERIAL PRIMARY KEY,
-    area_id BIGINT,
+    city_id BIGINT,
     address_description VARCHAR(255) NOT NULL;  
     building_name VARCHAR(50) NOT NULL; 
     email VARCHAR(255),  
     phone VARCHAR(20),  
     gps_latitude DECIMAL(9,6),  
     gps_longitude DECIMAL(9,6);
-    FOREIGN KEY (area_id) REFERENCES City_Area(area_id)
+    FOREIGN KEY (city_id) REFERENCES City(city_id)
 );
 
---7
+--6
 CREATE TABLE Warehouse (
     warehouse_id BIGSERIAL PRIMARY KEY,
     FOREIGN KEY (warehouse_id) REFERENCES Building(building_id)
 );
 
---8
+--7
 CREATE TABLE Warehouse_Connection (
     connection_id BIGSERIAL PRIMARY KEY,
     warehouse_from_id BIGINT,
@@ -74,7 +64,7 @@ CREATE TABLE Warehouse_Connection (
     FOREIGN KEY (warehouse_to_id) REFERENCES Warehouse(warehouse_id)
 );
 
---9
+--8
 CREATE TABLE Branch (
     branch_id BIGSERIAL PRIMARY KEY,
     warehouse_id BIGINT,
@@ -84,9 +74,6 @@ CREATE TABLE Branch (
 );
 
 --Modifications
-ALTER TABLE City_Area
-ADD FOREIGN KEY (main_warehouse) REFERENCES Warehouse(warehouse_id);
-
 ALTER TABLE City
 ADD FOREIGN KEY (main_warehouse) REFERENCES Warehouse(warehouse_id);
 

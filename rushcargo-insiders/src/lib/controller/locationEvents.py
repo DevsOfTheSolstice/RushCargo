@@ -3,18 +3,19 @@ from rich.prompt import Prompt, IntPrompt, Confirm
 from .constants import *
 from .exceptions import (
     RowNotFound,
+    EmptyTable,
     InvalidLocation,
-    BuildingFound,
     WarehouseNotFound,
-    InvalidWarehouse,
+    MainWarehouseError,
 )
 
+from ..geocoding.exceptions import LocationNotFound, PlaceNotFound
 from ..geocoding.geopy import (
-    GeoPyGeocoder,
+    NominatimGeocoder,
     NOMINATIM_LATITUDE,
     NOMINATIM_LONGITUDE,
 )
-from ..geocoding.routingpy import RoutingPyGeocoder
+from ..geocoding.routingpy import ORSGeocoder
 
 from ..io.constants import (
     ADD,
@@ -23,430 +24,709 @@ from ..io.constants import (
     GET,
     MOD,
 )
+from ..io.exceptions import GoToMenu
 from ..io.validator import *
 
-from ..local_database.database import GeoPyDatabase, GeoPyTables
+from ..local_database.database import NominatimDatabase, NominatimTables
 
-from ..model.database_tables import uniqueInsertedMult, uniqueInserted
 from ..model.database_territory import *
 from ..model.database_building import *
-from ..model.database_warehouse_conn import *
+from ..model.database_connections import *
+
+from ..terminal.constants import *
 
 
-# Location Table-related Event Handler
 class LocationEventHandler:
-    # Table Classes
-    _countryTable = None
-    _provinceTable = None
-    _regionTable = None
-    _cityTable = None
-    _cityAreaTable = None
-    _warehouseTable = None
-    _warehouseConnTable = None
-    _branchTable = None
+    """
+    Class that Handles the Location-related Subcommands
+    """
 
-    # GeoPy Local Database
-    _localdb = None
-    _tables = None
+    # Table Classes
+    __countryTable = None
+    __provinceTable = None
+    __regionTable = None
+    __cityTable = None
+    __warehouseTable = None
+    __warehouseConnTable = None
+    __branchTable = None
+
+    # Nominatim GeoPy Local Database Tables
+    __localDatabase = None
+    __localTables = None
 
     # Geocoders
-    _geoPyGeocoder = None
-    _routingPyGeocoder = None
+    __nominatimGeocoder = None
+    __ORSGeocoder = None
 
     # Get Location Messages
-    _GET_COUNTRY_MSG = "Enter Country Name"
-    _GET_PROVINCE_MSG = "Enter Province Name"
-    _GET_REGION_MSG = "Enter Region Name"
-    _GET_CITY_MSG = "Enter City Name"
-    _GET_CITY_AREA_MSG = "Enter City Area Name"
+    __GET_COUNTRY_MSG = "Enter Country Name"
+    __GET_PROVINCE_MSG = "Enter Province Name"
+    __GET_REGION_MSG = "Enter Region Name"
+    __GET_CITY_MSG = "Enter City Name"
 
     # Constructor
-    def __init__(self, db: Database, user: str, ORSApiKey: str):
+    def __init__(self, remoteCursor, user: str, ORSApiKey: str):
+        """
+        Location Event Handler Class Constructor
+
+        :param Cursor[TupleRow] remoteCursor: Remote Database Connection Cursor
+        :param str user: Remote Database Role Name
+        :param str ORSApiKey: Open Routing Service API Key
+        """
+
         # Initialize Table Classes
-        self._countryTable = CountryTable(db)
-        self._provinceTable = ProvinceTable(db)
-        self._regionTable = RegionTable(db)
-        self._cityTable = CityTable(db)
-        self._cityAreaTable = CityAreaTable(db)
-        self._warehouseTable = WarehouseTable(db)
-        self._warehouseConnTable = WarehouseConnectionTable(db)
-        self._branchTable = BranchTable(db)
+        self.__countryTable = CountryTable(remoteCursor)
+        self.__provinceTable = ProvinceTable(remoteCursor)
+        self.__regionTable = RegionTable(remoteCursor)
+        self.__cityTable = CityTable(remoteCursor)
+        self.__warehouseTable = WarehouseTable(remoteCursor)
+        self.__warehouseConnTable = WarehouseConnectionTable(remoteCursor)
+        self.__branchTable = BranchTable(remoteCursor)
 
-        # Initialize GeoPy Local Database
-        self._localdb = GeoPyDatabase()
+        # Initialize Nominatim GeoPy Local Database and Get Connection Cursor
+        self.__localDatabase = NominatimDatabase()
+        localCursor = self.__localDatabase.getCursor()
 
-        # Get GeoPy Local Database Cursor
-        cursor = self._localdb.getCursor()
+        # Initialize Local Nominatim GeoPy Database Tables Class
+        self.__localTables = NominatimTables(localCursor)
 
-        # Initialize Local Database Tables Class
-        self._tables = GeoPyTables(cursor)
+        # Initialize Nominatim GeoPy and RoutingPy Geocoders
+        self.__nominatimGeocoder = NominatimGeocoder(user)
+        self.__ORSGeocoder = ORSGeocoder(ORSApiKey, user)
 
-        # Initialize GeoPy and RoutingPy Geocoders
-        self._geoPyGeocoder = GeoPyGeocoder(user)
-        self._routingPyGeocoder = RoutingPyGeocoder(ORSApiKey, user)
+    def __getRouteDistance(self, warehouseId: int, locationCoords: dict) -> int:
+        """
+        Method to Get the Route Distance between a Warehouse and a Given Location
 
-        # Check if Building Exists
+        :param int warehouseId: Warehouse ID at its Remote Table
+        :param dict location: Dictionary that Contains the Coordinates for a Given Place
+        :return: Route Distance between the Warehouse and the Given Location
+        :rtype: int
+        """
 
-    def __buildingExists(self, areaId: str, buildingName: str) -> bool:
-        buildingFields = [BUILDING_FK_CITY_AREA, BUILDING_NAME]
-        buildingValues = [areaId, buildingName]
-
-        # Check if Building Name has already been Inserted for the City Area
-        if self._warehouseTable._getMultParentTable(buildingFields, buildingValues):
-            uniqueInsertedMult(buildingValues, buildingFields, buildingValues)
-            return
-
-    # Returns Building Type Corresponding for the Given Table
-    def __buildingType(self, tableName: str) -> None | str:
-        if tableName == WAREHOUSE_TABLENAME:
-            return "Warehouse"
-
-        elif tableName == BRANCH_TABLENAME:
-            return "Branch"
-
-        return None
-
-    # Returns Complete Building Name
-    def __buildingName(self, buildingType: str, buildingName: str) -> str:
-        return f"{buildingType} {buildingName}"
-
-    # Ask for Building Common Fields
-    def __askBuildingFields(
-        self,
-        tableName: str,
-        buildingType: str,
-        areaId: int,
-    ) -> None | tuple[str, int, str, str]:
-        # Get Building Name
-        buildingName = Prompt.ask(f"Enter {buildingType} Name")
-
-        # Check Building Name
-        isAddressValid(tableName, BUILDING_NAME, buildingName)
-
-        # Get Building Complete Name
-        buildingName = self.__buildingName(buildingType, buildingName)
-
-        # Check if Building Name for the Given City Area Already Exists
-        if self.__buildingExists(areaId, buildingName):
-            console.print(
-                f"There's a Building Named as '{buildingName}' in '{areaId}'",
-                style="warning",
-            )
-            raise BuildingFound(buildingName, areaId)
-
-        # Get New Building Fields
-        buildingPhone = Prompt.ask(f"Enter {buildingType} Phone Number")
-        buildingEmail = Prompt.ask(f"Enter {buildingType} Email")
-        addressDescription = Prompt.ask(f"Enter {buildingType} Address Description")
-
-        # Check Building Warehouse Name, Phone, Email and Description
-        isPhoneValid(tableName, BUILDING_PHONE, buildingPhone)
-        isEmailValid(buildingEmail)
-        isAddressValid(tableName, BUILDING_ADDRESS_DESCRIPTION, addressDescription)
-
-        return buildingName, buildingPhone, buildingEmail, addressDescription
-
-    # Ask for Building Common Values
-    def __askBuildingValue(self, buildingType: str, field: str):
-        if field == BUILDING_PHONE:
-            value = str(IntPrompt.ask(MOD_VALUE_MSG))
-
-        elif field == BUILDING_EMAIL:
-            value = Prompt.ask(MOD_VALUE_MSG)
-
-            # Check Building Email and Get its Normalized Form
-            value = isEmailValid(value)
-
-        elif field == BUILDING_NAME:
-            value = Prompt.ask(MOD_VALUE_MSG)
-
-            # Check Building Name
-            isAddressValid(BUILDING_TABLENAME, field, value)
-
-            # Get Building Complete Name
-            value = self.__buildingName(buildingType, value)
-
-        # Not a Building Table Column
-        else:
-            return None
-
-        return value
-
-    # Returns Warehouse Connection ID and Route Distance from a Given Branch
-    def __getBranchWarehouseConnection(
-        self, areaId: int, location: dict
-    ) -> None | tuple[int, int]:
-        # Clear Terminal
-        clear()
+        # Get Warehouse Object
+        warehouse = self.__warehouseTable.find(warehouseId)
 
         # Initialize Warehouse Coordinates Dictionary
         warehouseCoords = {}
 
-        # Print Warehouses at the Given City Area
-        if not self._warehouseTable.get(BUILDING_FK_CITY_AREA, areaId):
-            raise WarehouseNotFound(areaId)
-
-        while True:
-            try:
-                # Select Branch Warehouse Connection from the Given City Area
-                warehouseId = IntPrompt.ask("Select the Warehouse Connection")
-
-                # Get Warehouse Object
-                warehouse = self._warehouseTable.find(warehouseId)
-
-                # Check if Warehouse ID Exists and is in the Given City Area
-                if warehouse == None or warehouse.areaId != areaId:
-                    raise InvalidWarehouse(areaId)
-
-                # Get Warehouse Coordinates
-                warehouseCoords[NOMINATIM_LATITUDE] = warehouse.gpsLatitude
-                warehouseCoords[NOMINATIM_LONGITUDE] = warehouse.gpsLongitude
-
-                break
-
-            except Exception as err:
-                console.print(err, style="warning")
-                continue
+        # Get Warehouse Coordinates
+        warehouseCoords[NOMINATIM_LATITUDE] = warehouse.gpsLatitude
+        warehouseCoords[NOMINATIM_LONGITUDE] = warehouse.gpsLongitude
 
         # Calculate Route Distance
-        routeDistance = self._routingPyGeocoder.getRouteDistance(
-            warehouseCoords, location
+        routeDistance = self.__ORSGeocoder.getDrivingRouteDistance(
+            warehouseCoords, locationCoords
         )
 
-        return warehouseId, routeDistance
+        return routeDistance
 
-    # Returns Warehouse ID from a Given City Area
-    def __getCityAreaWarehouse(self, areaId: int) -> Warehouse | None:
-        # Print Warehouses at the Given City Area
-        if not self._warehouseTable.get(BUILDING_FK_CITY_AREA, areaId):
-            raise WarehouseNotFound(areaId)
+    def __getWarehouseDict(self, warehouseId: int) -> dict:
+        """
+        Method to Get a Valid Warehouse Dictionary to be Used by a Warehouse-related Table Class
 
-        while True:
-            try:
-                # Select Main Warehouse for the Given Region
-                warehouseId = IntPrompt.ask("Select the Warehouse")
+        :param int warehouseId: Warehouse ID at its Remote Table
+        :return: Warehouse Dictionary that Contains its Building ID and its Coordinates
+        :rtype: dict
+        """
 
-                # Get Warehouse Object
-                warehouse = self._warehouseTable.find(warehouseId)
+        # Get Warehouse Object
+        warehouse = self.__warehouseTable.find(warehouseId)
 
-                # Check if Warehouse ID Exists and is in the Given City Area
-                if warehouse == None or warehouse.areaId != areaId:
-                    raise InvalidWarehouse(areaId)
-
-                return warehouse
-
-            except Exception as err:
-                console.print(err, style="warning")
-                continue
-
-    # Get Valid Warehouse Dictionary to be Used by a Warehouse Table Class
-    def __getWarehouseDict(self, w: Warehouse) -> dict:
-        # Initialize Dictionary
+        # Initialize Warehouse Dictionary
         warehouseDict = {}
 
         # Assign Dictionary Fields
-        warehouseDict[DICT_WAREHOUSES_ID] = w.buildingId
-        warehouseDict[DICT_WAREHOUSES_COORDS] = {
-            NOMINATIM_LONGITUDE: w.gpsLongitude,
-            NOMINATIM_LATITUDE: w.gpsLatitude,
+        warehouseDict[DICT_WAREHOUSE_ID] = warehouseId
+        warehouseDict[DICT_WAREHOUSE_COORDS] = {
+            NOMINATIM_LONGITUDE: warehouse.gpsLongitude,
+            NOMINATIM_LATITUDE: warehouse.gpsLatitude,
         }
 
         return warehouseDict
 
-    # Get Country ID and Name
-    def getCountryId(self) -> dict | None:
+    def getCountryName(self) -> dict | None:
+        """
+        Method to Search for a Country Name in the Local Database
+
+        :return: A Dictionary that Contains the Country Name and its ID from its Local SQLite Table if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
+
+        # Initialize Location Data Dictionary
+        location = {}
+
         while True:
-            countrySearch = Prompt.ask(self._GET_COUNTRY_MSG)
+            try:
+                countrySearch = Prompt.ask(self.__GET_COUNTRY_MSG)
 
-            # Check Country Name
-            isAddressValid(COUNTRY_TABLENAME, COUNTRY_NAME, countrySearch)
+                # Check Country Name
+                isAddressValid(COUNTRY_TABLENAME, COUNTRY_NAME, countrySearch)
 
-            # Initialize Data Dictionary
-            location = {}
+                # Check if the Search is Stored in the Local Database
+                countryNameId = self.__localTables.getCountrySearchNameId(countrySearch)
+                location[DICT_COUNTRY_NAME_ID] = countryNameId
 
-            # Check if Country Search is Stored in Local Database
-            countryNameId = self._tables.getCountrySearchNameId(countrySearch)
-            location[DICT_COUNTRY_NAME_ID] = countryNameId
-            countryName = None
+                # Check Country Name ID
+                if countryNameId != None:
+                    # Get Country Name from Local Database
+                    countryName = self.__localTables.getCountryName(countryNameId)
+                    location[DICT_COUNTRY_NAME] = countryName
 
-            # Check Country Name ID
-            if countryNameId != None:
-                # Get Country Name from Local Database
-                countryName = self._tables.getCountryName(countryNameId)
-                location[DICT_COUNTRY_NAME] = countryName
-            else:
-                # Get Country Name from GeoPy API based on the Name Provided
-                try:
-                    countryName = self._geoPyGeocoder.getCountry(countrySearch)
-                except Exception as err:
-                    console.print(err, style="warning")
+                else:
+                    # Get Country Name from Nominatim GeoPy API based on the Name Provided
+                    countryName = self.__nominatimGeocoder.getCountry(countrySearch)
+                    location[DICT_COUNTRY_NAME] = countryName
+
+                    # Store Country Search in Local Database
+                    self.__localTables.addCountry(countrySearch, countryName)
+
+                    # Get Country Name ID from Local Database
+                    location[DICT_COUNTRY_NAME_ID] = (
+                        self.__localTables.getCountryNameId(countryName)
+                    )
+
+                return location
+
+            # Raise GoToMenu Error
+            except GoToMenu as err:
+                raise err
+
+            # Go Back to the While-loop
+            except (LocationNotFound, FieldValueError) as err:
+                console.print(err, style="warning")
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Country Name?"):
+                    # Clear Terminal
+                    clear()
                     continue
 
-                location[DICT_COUNTRY_NAME] = countryName
+                return None
 
-                # Store Country Search in Local Database
-                self._tables.addCountry(countrySearch, countryName)
+    def getCountryDict(self) -> dict:
+        """
+        Method to Get Country ID and Name from its Remote Table. If Found, Returns a Dictionary with its Info. Otherwise, raise a GoToMenu Exception
 
-                # Get Country Name ID from Local Database
-                location[DICT_COUNTRY_NAME_ID] = self._tables.getCountryNameId(
-                    countryName
-                )
+        :return: A Dictionary that Contains the Country ID from its Remote Table, and the Columns that were Inserted at ``self.getCountryName()`` Call
+        :rtype: dict
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
 
-            break
+        # Get Location Dictionary (that Contains the Country Name) to Search for it in its Table
+        location = self.getCountryName()
+        countryName = location[DICT_COUNTRY_NAME]
 
-        # Get Country
-        c = self._countryTable.find(COUNTRY_NAME, countryName)
+        try:
+            # Check if the Country Name is Stored at the Remote Database
+            if not self.__countryTable.get(COUNTRY_NAME, countryName, False):
+                raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
-        if c == None:
-            raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+        except RowNotFound:
+            # Clear Terminal
+            clear()
+
+            # Insert Country
+            self.__countryTable.add(countryName)
+
+        # Get Country Object from the Remote Database
+        c = self.__countryTable.find(COUNTRY_NAME, countryName)
 
         # Set Country ID to Data Dictionary
         location[DICT_COUNTRY_ID] = c.countryId
 
         return location
 
-    # Get Province ID based on its Name and the Country ID where it's Located
-    def getProvinceId(self) -> dict | None:
-        # Get Country ID
-        location = self.getCountryId()
+    def getProvinceName(self) -> dict | None:
+        """
+        Method to Search for a Province Name in the Local Database
+
+        :return: A Dictionary that Contains the Province Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getCountryDict()`` Call if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
+
+        # Get Location Dictionary (that Contains the Country Name and its ID in the Local SQLite and Remote Database)
+        location = self.getCountryDict()
 
         while True:
-            provinceSearch = Prompt.ask(self._GET_PROVINCE_MSG)
+            try:
+                provinceSearch = Prompt.ask(self.__GET_PROVINCE_MSG)
 
-            # Check Province Name
-            isAddressValid(PROVINCE_TABLENAME, PROVINCE_NAME, provinceSearch)
+                # Check Province Name
+                isAddressValid(PROVINCE_TABLENAME, PROVINCE_NAME, provinceSearch)
 
-            # Check if Province Search is Stored in Local Database
-            provinceNameId = self._tables.getProvinceSearchNameId(
-                location[DICT_COUNTRY_NAME_ID], provinceSearch
-            )
-            location[DICT_PROVINCE_NAME_ID] = provinceNameId
-            provinceName = None
+                # Check if the Search is Stored in the Local Database
+                provinceNameId = self.__localTables.getProvinceSearchNameId(
+                    location[DICT_COUNTRY_NAME_ID], provinceSearch
+                )
+                location[DICT_PROVINCE_NAME_ID] = provinceNameId
 
-            # Check Province Name ID
-            if provinceNameId != None:
-                # Get Province Name from Local Database
-                provinceName = self._tables.getProvinceName(provinceNameId)
-                location[DICT_PROVINCE_NAME] = provinceName
-            else:
-                # Get Province Name from GeoPy API based on the Name Provided
-                try:
-                    provinceName = self._geoPyGeocoder.getProvince(
+                # Check Province Name ID
+                if provinceNameId != None:
+                    # Get Province Name from Local Database
+                    provinceName = self.__localTables.getProvinceName(provinceNameId)
+                    location[DICT_PROVINCE_NAME] = provinceName
+
+                else:
+                    # Get Province Name from Nominatim GeoPy API based on the Name Provided
+                    provinceName = self.__nominatimGeocoder.getProvince(
                         location, provinceSearch
                     )
-                except Exception as err:
-                    console.print(err, style="warning")
+                    location[DICT_PROVINCE_NAME] = provinceName
+
+                    # Store Province Search at Local Database
+                    self.__localTables.addProvince(
+                        location[DICT_COUNTRY_NAME_ID], provinceSearch, provinceName
+                    )
+
+                    # Get Province Name ID from Local Database
+                    location[DICT_PROVINCE_NAME_ID] = (
+                        self.__localTables.getProvinceNameId(
+                            location[DICT_COUNTRY_NAME_ID], provinceName
+                        )
+                    )
+
+                return location
+
+            # Raise GoToMenu Error
+            except GoToMenu as err:
+                raise err
+
+            except (LocationNotFound, FieldValueError) as err:
+                console.print(err, style="warning")
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Province Name?"):
+                    # Clear Terminal
+                    clear()
                     continue
 
-                location[DICT_PROVINCE_NAME] = provinceName
+                return None
 
-                # Store Province Search at Local Database
-                self._tables.addProvince(
-                    location[DICT_COUNTRY_NAME_ID], provinceSearch, provinceName
-                )
+    def getProvinceDict(self) -> dict:
+        """
+        Method to Get Province ID and Name from its Remote Table. If Found, Returns a Dictionary with its Info. Otherwise, raise a GoToMenu Exception
 
-                # Get Province Name ID from Local Database
-                location[DICT_PROVINCE_NAME_ID] = self._tables.getProvinceNameId(
-                    location[DICT_COUNTRY_NAME_ID], provinceName
-                )
+        :return: A Dictionary that Contains the Province ID from its Remote Table, and the Columns that were Inserted at ``self.getProvinceName()`` Call
+        :rtype: dict
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
 
-            break
+        # Get Location Dictionary (that Contains the Province Name) to Search for it in its Table
+        location = self.getProvinceName()
+        countryId = location[DICT_COUNTRY_ID]
+        provinceName = location[DICT_PROVINCE_NAME]
 
-        # Get Province
-        p = self._provinceTable.findMult(location[DICT_COUNTRY_ID], provinceName)
+        provinceFields = [PROVINCE_FK_COUNTRY, PROVINCE_NAME]
+        provinceValues = [countryId, provinceName]
 
-        if p == None:
-            raise RowNotFound(PROVINCE_TABLENAME, PROVINCE_NAME, provinceName)
+        try:
 
-        # Drop Country ID and Country Name ID from Data Dictionary
-        location.pop(DICT_COUNTRY_ID)
-        location.pop(DICT_COUNTRY_NAME_ID)
+            # Check if the Province Name at the Given Country ID is Stored at the Remote Database
+            if not self.__provinceTable.getMult(provinceFields, provinceValues, False):
+                raise InvalidLocation(provinceName, COUNTRY_TABLENAME, countryId)
+
+        except InvalidLocation:
+            # Clear Terminal
+            clear()
+
+            # Insert Province
+            self.__provinceTable.add(countryId, provinceName)
+
+        # Get Province Object from the Remote Database
+        p = self.__provinceTable.findMult(countryId, provinceName)
 
         # Set Province ID to Data Dictionary
         location[DICT_PROVINCE_ID] = p.provinceId
 
         return location
 
-    # Get Region ID based on its Name and the Province ID where it's Located
-    def getRegionId(self) -> dict | None:
-        # Get Province ID
-        location = self.getProvinceId()
+    def getRegionName(self) -> dict | None:
+        """
+        Method to Search for a Region Name in the Local Database
+
+        :return: A Dictionary that Contains the Region Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getProvinceDict()`` Call if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
+
+        # Get Location Dictionary (that Contains the Province Name and its ID in the Local SQLite and Remote Database)
+        location = self.getProvinceDict()
 
         while True:
-            regionSearch = Prompt.ask(self._GET_REGION_MSG)
+            try:
+                regionSearch = Prompt.ask(self.__GET_REGION_MSG)
 
-            # Check Region Name
-            isAddressValid(REGION_TABLENAME, REGION_NAME, regionSearch)
+                # Check Region Name
+                isAddressValid(REGION_TABLENAME, REGION_NAME, regionSearch)
 
-            # Check if Region Search is Stored in Local Database
-            regionNameId = self._tables.getRegionSearchNameId(
-                location[DICT_PROVINCE_NAME_ID], regionSearch
-            )
-            location[DICT_REGION_NAME_ID] = regionNameId
-            regionName = None
+                # Check if the Search is Stored in the Local Database
+                regionNameId = self.__localTables.getRegionSearchNameId(
+                    location[DICT_PROVINCE_NAME_ID], regionSearch
+                )
+                location[DICT_REGION_NAME_ID] = regionNameId
 
-            # Check Region Name ID
-            if regionNameId != None:
-                # Get Region Name from Local Database
-                regionName = self._tables.getRegionName(regionNameId)
-                location[DICT_REGION_NAME] = regionName
-            else:
-                # Get Region Name from GeoPy API based on the Name Provided
-                try:
-                    regionName = self._geoPyGeocoder.getRegion(location, regionSearch)
-                except Exception as err:
-                    console.print(err, style="warning")
+                # Check Region Name ID
+                if regionNameId != None:
+                    # Get Region Name from Local Database
+                    regionName = self.__localTables.getRegionName(regionNameId)
+                    location[DICT_REGION_NAME] = regionName
+
+                else:
+                    # Get Region Name from Nominatim GeoPy API based on the Name Provided
+                    regionName = self.__nominatimGeocoder.getRegion(
+                        location, regionSearch
+                    )
+
+                    location[DICT_REGION_NAME] = regionName
+
+                    # Store Region Search at Local Database
+                    self.__localTables.addRegion(
+                        location[DICT_PROVINCE_NAME_ID], regionSearch, regionName
+                    )
+
+                    # Get Region Name ID from Local Database
+                    location[DICT_REGION_NAME_ID] = self.__localTables.getRegionNameId(
+                        location[DICT_PROVINCE_NAME_ID], regionName
+                    )
+
+                return location
+
+            # Raise GoToMenu Error
+            except GoToMenu as err:
+                raise err
+
+            except (LocationNotFound, FieldValueError) as err:
+                console.print(err, style="warning")
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Region Name?"):
+                    # Clear Terminal
+                    clear()
                     continue
 
-                location[DICT_REGION_NAME] = regionName
+                return None
 
-                # Store Region Search in Local Database
-                self._tables.addRegion(
-                    location[DICT_PROVINCE_NAME_ID], regionSearch, regionName
-                )
+    def getRegionDict(self) -> dict:
+        """
+        Method to Get Region ID and Name from its Remote Table. If Found, Returns a Dictionary with its Info. Otherwise, raise a GoToMenu Exception
 
-                # Get Region Name ID from Local Database
-                location[DICT_REGION_NAME_ID] = self._tables.getRegionNameId(
-                    location[DICT_PROVINCE_NAME_ID], regionName
-                )
+        :return: A Dictionary that Contains the Region ID from its Remote Table, and the Columns that were Inserted at ``self.getRegionName()`` Call
+        :rtype: dict
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
 
-            break
+        # Get Location Dictionary (that Contains the Region Name) to Search for it in its Table
+        location = self.getRegionName()
+        provinceId = location[DICT_PROVINCE_ID]
+        regionName = location[DICT_REGION_NAME]
 
-        # Get Region
-        r = self._regionTable.findMult(location[DICT_PROVINCE_ID], regionName)
+        regionFields = [REGION_FK_PROVINCE, REGION_NAME]
+        regionValues = [provinceId, regionName]
 
-        if r == None:
-            raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
+        try:
+            # Check if the Region Name at the Given Province ID is Stored at the Remote Database
+            if not self.__regionTable.getMult(regionFields, regionValues, False):
+                raise InvalidLocation(regionName, PROVINCE_TABLENAME, provinceId)
 
-        # Drop Province ID and Province Name ID from Data Dictionary
-        location.pop(DICT_PROVINCE_ID)
-        location.pop(DICT_PROVINCE_NAME_ID)
+        except InvalidLocation:
+            # Clear Terminal
+            clear()
+
+            # Insert Region
+            self.__regionTable.add(provinceId, regionName)
+
+        # Get Region Object from the Remote Database
+        r = self.__regionTable.findMult(provinceId, regionName)
 
         # Set Region ID to Data Dictionary
         location[DICT_REGION_ID] = r.regionId
 
         return location
 
-    # Get Region ID from a Given Province ID
-    def __buildingRegionId(self, provinceId: int) -> None | int:
+    def getCityName(self) -> dict | None:
+        """
+        Method to Search for a City Name in the Local Database
+
+        :return: A Dictionary that Contains the City Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getRegionDict()`` Call if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
+
+        # Get Location Dictionary (that Contains the Region Name and its ID in the Local SQLite and Remote Database)
+        location = self.getRegionDict()
+
+        while True:
+            try:
+                citySearch = Prompt.ask(self.__GET_CITY_MSG)
+
+                # Check City Name
+                isAddressValid(CITY_TABLENAME, CITY_NAME, citySearch)
+
+                # Check if the Search is Stored in the Local Database
+                cityNameId = self.__localTables.getCitySearchNameId(
+                    location[DICT_REGION_NAME_ID], citySearch
+                )
+                location[DICT_CITY_NAME_ID] = cityNameId
+
+                # Check City Name ID
+                if cityNameId != None:
+                    # Get City Name from Local Database
+                    cityName = self.__localTables.getCityName(cityNameId)
+                    location[DICT_CITY_NAME] = cityName
+
+                else:
+                    # Get City Name from Nominatim GeoPy API based on the Name Provided
+                    cityName = self.__nominatimGeocoder.getCity(location, citySearch)
+
+                    location[DICT_CITY_NAME] = cityName
+
+                    # Store City Search at Local Database
+                    self.__localTables.addCity(
+                        location[DICT_REGION_NAME_ID], citySearch, cityName
+                    )
+
+                    # Get City Name ID from Local Database
+                    location[DICT_CITY_NAME_ID] = self.__localTables.getCityNameId(
+                        location[DICT_REGION_NAME_ID], cityName
+                    )
+
+                return location
+
+            # Raise GoToMenu Error
+            except GoToMenu as err:
+                raise err
+
+            except (LocationNotFound, FieldValueError) as err:
+                console.print(err, style="warning")
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another City Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
+
+    def getCityDict(self) -> dict:
+        """
+        Method to Get City ID and Name from its Remote Table. If Found, Returns a Dictionary with its Info. Otherwise, raise a GoToMenu Exception
+
+        :return: A Dictionary that Contains the City ID from its Remote Table, and the Columns that were Inserted at ``self.getCityName()`` Call
+        :rtype: dict
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
+
+        # Get Location Dictionary (that Contains the City Name) to Search for it in its Table
+        location = self.getCityName()
+        regionId = location[DICT_REGION_ID]
+        cityName = location[DICT_CITY_NAME]
+
+        cityFields = [CITY_FK_REGION, CITY_NAME]
+        cityValues = [regionId, cityName]
+
+        try:
+
+            # Check if the City Name at the Given Region ID is Stored at the Remote Database
+            if not self.__cityTable.getMult(cityFields, cityValues, False):
+                raise InvalidLocation(cityName, REGION_TABLENAME, regionId)
+
+        except InvalidLocation:
+            # Clear Terminal
+            clear()
+
+            # Insert City
+            self.__cityTable.add(regionId, cityName)
+
+        # Get City Object from the Remote Database
+        c = self.__cityTable.findMult(regionId, cityName)
+
+        # Set City ID to Data Dictionary
+        location[DICT_CITY_ID] = c.cityId
+
+        return location
+
+    def getPlaceCoordinates(self) -> dict | None:
+        """
+        Method to Get Place Coordinates in a Given City ID
+
+        :return: A Dictionary that Contains the City ID from its Remote Table, and the Latitude and Longitude of the Given Place Obtained through the ``self.__nominatimGeocoder`` Object if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
+
+        # Get Location Dictionary (that Contains the City ID)
+        location = self.getCityDict()
+
+        while True:
+            try:
+                # Get Place Name to Search
+                placeSearch = Prompt.ask("Enter Place Name Near to the Building")
+
+                isPlaceNameValid(placeSearch)
+
+                # Get Place Coordinates from Nominatim GeoPy API based on the Data Provided
+                coords = self.__nominatimGeocoder.getPlaceCoordinates(
+                    location, placeSearch
+                )
+
+                location[NOMINATIM_LATITUDE] = coords[NOMINATIM_LATITUDE]
+                location[NOMINATIM_LONGITUDE] = coords[NOMINATIM_LONGITUDE]
+
+                return location
+
+            # Raise GoToMenu Error
+            except GoToMenu as err:
+                raise err
+
+            except (LocationNotFound, PlaceNotFound) as err:
+                console.print(err, style="warning")
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Place Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
+
+    def __getCountry(self) -> int:
+        """
+        Method to Get Country ID from its Remote Table by Printing the Tables, and Selecting the Row Country ID
+
+        :return: Country ID at its Remote Table
+        :rtype: int
+        """
+
         # Clear Terminal
         clear()
 
-        # Print Regions at the Given Province
-        if not self._regionTable.get(REGION_FK_PROVINCE, provinceId):
+        # Print All Countries
+        if self.__countryTable.all(COUNTRY_NAME, False) == 0:
+            raise EmptyTable(COUNTRY_TABLENAME)
+
+        while True:
+            try:
+                # Select Country ID
+                countryId = IntPrompt.ask("\nSelect Country ID")
+
+                # Get Country Object
+                country = self.__countryTable.find(COUNTRY_ID, countryId)
+
+                # Check if Country ID Exists
+                if country == None:
+                    raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_ID, countryId)
+
+                return countryId
+
+            except Exception as err:
+                console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
+                continue
+
+    def getCountryId(self) -> int:
+        """
+        Method to Select a Country ID from its Remote Table
+
+        :return: Country ID at its Remote Table
+        :rtype: int
+        """
+
+        return self.__getCountry()
+
+    def __getProvince(self, countryId: int) -> int:
+        """
+        Method to Get Province ID from its Remote Table by Printing the Tables, and Selecting the Row Province ID, Given a Country ID
+
+        :param int countryId: Country ID at its Remote Table where the Province is Located
+        :return: Province ID at its Remote Table
+        :rtype: int
+        """
+
+        # Clear Terminal
+        clear()
+
+        # Print Provinces at the Given Country ID
+        if not self.__provinceTable.get(PROVINCE_FK_COUNTRY, countryId):
+            raise RowNotFound(PROVINCE_TABLENAME, PROVINCE_FK_COUNTRY, countryId)
+
+        while True:
+            try:
+                # Select Province ID
+                provinceId = IntPrompt.ask("\nSelect Province ID")
+
+                # Get Province Object
+                province = self.__provinceTable.find(provinceId)
+
+                # Check if Province ID Exists
+                if province == None:
+                    raise RowNotFound(PROVINCE_TABLENAME, PROVINCE_ID, provinceId)
+
+                elif province.countryId != countryId:
+                    raise InvalidLocation(province.name, COUNTRY_TABLENAME, countryId)
+
+                return provinceId
+
+            except Exception as err:
+                console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
+                continue
+
+    def getProvinceId(self) -> int:
+        """
+        Method to Select a Province ID from its Remote Table
+
+        :return: Province ID at its Remote Table
+        :rtype: int
+        """
+
+        # Get Country ID where the Province is Located
+        countryId = self.getCountryId()
+
+        return self.__getProvince(countryId)
+
+    def __getRegion(self, provinceId: int) -> int:
+        """
+        Method to Get Region ID from its Remote Table by Printing the Tables, and Selecting the Row Region ID, Given a Province ID
+
+        :param int provinceId: Province ID at its Remote Table where the Region is Located
+        :return: Region ID at its Remote Table
+        :rtype: int
+        """
+
+        # Clear Terminal
+        clear()
+
+        # Print Regions at the Given Province ID
+        if not self.__regionTable.get(REGION_FK_PROVINCE, provinceId):
             raise RowNotFound(REGION_TABLENAME, REGION_FK_PROVINCE, provinceId)
 
         while True:
             try:
-                # Select Region ID from the Given Province
-                regionId = IntPrompt.ask("\nSelect Building Region ID")
+                # Select Region ID
+                regionId = IntPrompt.ask("\nSelect Region ID")
 
                 # Get Region Object
-                region = self._regionTable.find(regionId)
+                region = self.__regionTable.find(regionId)
 
-                # Check if Region ID Exists and is in the Given Province
+                # Check if Region ID Exists
                 if region == None:
                     raise RowNotFound(REGION_TABLENAME, REGION_ID, regionId)
+
                 elif region.provinceId != provinceId:
                     raise InvalidLocation(region.name, PROVINCE_TABLENAME, provinceId)
 
@@ -454,91 +734,69 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
-    # Get City ID based on its Name and the Region ID where it's Located
-    def getCityId(self) -> dict | None:
-        # Get Region ID
-        location = self.getRegionId()
+    def getRegionId(self) -> int:
+        """
+        Method to Select a Region ID from its Remote Table
 
-        while True:
-            citySearch = Prompt.ask(self._GET_CITY_MSG)
+        :return: Region ID at its Remote Table
+        :rtype: int
+        """
 
-            # Check City Name
-            isAddressValid(CITY_TABLENAME, CITY_NAME, citySearch)
+        # Get Province ID where the Region is Located
+        provinceId = self.getProvinceId()
 
-            # Check if City Search is Stored in Local Database
-            cityNameId = self._tables.getCitySearchNameId(
-                location[DICT_REGION_NAME_ID], citySearch
-            )
-            location[DICT_CITY_NAME_ID] = cityNameId
-            cityName = None
+        return self.__getRegion(provinceId)
 
-            # Check City Name ID
-            if cityNameId != None:
-                # Get City Name from Local Database
-                cityName = self._tables.getCityName(cityNameId)
-                location[DICT_CITY_NAME] = cityName
-            else:
-                # Get City Name from GeoPy API based on the Name Provided
-                try:
-                    cityName = self._geoPyGeocoder.getCity(
-                        location,
-                        citySearch,
-                    )
-                except Exception as err:
-                    console.print(err, style="warning")
-                    continue
+    def getProvinceBuildingCityId(self, provinceId: int) -> int:
+        """
+        Method to Select a Building City ID from its Remote Table by Getting All of its Parent Location Given a Province ID
 
-                location[DICT_CITY_NAME] = cityName
+        :param int province: Province ID at its Remote Table where the Building is Located
+        :return: Building City ID at its Remote Table
+        :rtype: int
+        """
 
-                # Store City Search at Local Database
-                self._tables.addCity(
-                    location[DICT_REGION_NAME_ID], citySearch, cityName
-                )
+        regionId = self.__getRegion(provinceId)
 
-                # Get City Name ID from Local Database
-                location[DICT_CITY_NAME_ID] = self._tables.getCityNameId(
-                    location[DICT_REGION_NAME_ID], cityName
-                )
+        return self.getRegionBuildingCityId(regionId)
 
-            break
+    def __getCity(self, regionId: int) -> int:
+        """
+        Method to Get City ID from its Remote Table by Printing the Tables, and Selecting the Row City ID, Given a Region ID
 
-        # Get City
-        c = self._cityTable.findMult(location[DICT_REGION_ID], cityName)
+        :param int regionId: Region ID at its Remote Table where the City is Located
+        :return: City ID at its Remote Table
+        :rtype: int
+        """
 
-        if c == None:
-            raise RowNotFound(CITY_TABLENAME, CITY_NAME, cityName)
-
-        # Drop Region ID and Region Name ID from Data Dictionary
-        location.pop(DICT_REGION_ID)
-        location.pop(DICT_REGION_NAME_ID)
-
-        # Set City ID to Data Dictionary
-        location[DICT_CITY_ID] = c.cityId
-
-        return location
-
-    # Get City ID from a Given Region ID
-    def __buildingCityId(self, regionId: int) -> None | int:
         # Clear Terminal
         clear()
 
-        # Print Cities at the Given Region
-        if not self._cityTable.get(CITY_FK_REGION, regionId):
+        # Print Cities at the Given Region ID
+        if not self.__cityTable.get(CITY_FK_REGION, regionId):
             raise RowNotFound(CITY_TABLENAME, CITY_FK_REGION, regionId)
 
         while True:
             try:
-                # Select City ID from the Given Region
-                cityId = IntPrompt.ask("\nSelect Building City ID")
+                # Select City ID
+                cityId = IntPrompt.ask("\nSelect City ID")
 
                 # Get City Object
-                city = self._cityTable.find(cityId)
+                city = self.__cityTable.find(cityId)
 
-                # Check if City ID Exists and is in the Given Region
+                # Check if City ID Exists
                 if city == None:
                     raise RowNotFound(CITY_TABLENAME, CITY_ID, cityId)
+
                 elif city.regionId != regionId:
                     raise InvalidLocation(city.name, REGION_TABLENAME, regionId)
 
@@ -546,128 +804,137 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
-    # Get City Area ID based on its Name and the City ID where it's Located
-    def getCityAreaId(self) -> dict | None:
-        # Get City ID
-        location = self.getCityId()
+    def getCityId(self) -> int:
+        """
+        Method to Select a City ID from its Remote Table
 
-        while True:
-            areaSearch = Prompt.ask(self._GET_CITY_AREA_MSG)
+        :return: City ID at its Remote Table
+        :rtype: int
+        """
 
-            # Check City Area Name
-            isAddressValid(CITY_AREA_TABLENAME, CITY_AREA_NAME, areaSearch)
+        # Get Region ID where the City is Located
+        regionId = self.getRegionId()
 
-            # Check if City Area Search is Stored in Local Database
-            areaNameId = self._tables.getCityAreaSearchNameId(
-                location[DICT_CITY_NAME_ID], areaSearch
-            )
-            location[DICT_CITY_AREA_NAME_ID] = areaNameId
-            areaName = None
+        return self.__getCity(regionId)
 
-            # Check City Name ID
-            if areaNameId != None:
-                # Get City Name from Local Database
-                areaName = self._tables.getCityAreaName(areaNameId)
-                location[DICT_CITY_AREA_NAME] = areaName
-            else:
-                # Get City Area Name from GeoPy API based on the Name Provided
-                try:
-                    areaName = self._geoPyGeocoder.getCityArea(
-                        location,
-                        areaSearch,
-                    )
-                except Exception as err:
-                    console.print(err, style="warning")
-                    continue
+    def getRegionBuildingCityId(self, regionId: int) -> int:
+        """
+        Method to Select a Building City ID from its Remote Table by Getting All of its Parent Location Given a Region ID
 
-                location[DICT_CITY_AREA_NAME] = areaName
+        :param int regionId: Region ID at its Remote Table where the Building is Located
+        :return: Building City ID at its Remote Table
+        :rtype: int
+        """
 
-                # Store City Area Search at Local Database
-                self._tables.addCityArea(
-                    location[DICT_CITY_NAME_ID], areaSearch, areaName
-                )
+        return self.__getCity(regionId)
 
-                # Get City Area Name ID from Local Database
-                location[DICT_CITY_AREA_NAME_ID] = self._tables.getCityAreaNameId(
-                    location[DICT_CITY_NAME_ID], areaName
-                )
+    def getWarehouseId(self, cityId: int) -> int:
+        """
+        Method to Get Warehouse ID from its Remote Table by Printing the Tables, and Selecting the Row Warehouse ID, Given a City ID
 
-            break
+        :param int cityId: City ID at its Remote Table where the Warehouse is Located
+        :return: Warehouse ID at its Remote Table
+        :rtype: int
+        """
 
-        # Get City Area
-        a = self._cityAreaTable.findMult(location[DICT_CITY_ID], areaName)
-
-        if a == None:
-            raise RowNotFound(CITY_AREA_TABLENAME, CITY_AREA_NAME, areaName)
-
-        # Drop City ID and City Name ID from Data Dictionary
-        location.pop(DICT_CITY_ID)
-        location.pop(DICT_CITY_NAME_ID)
-
-        # Set City Area ID to Data Dictionary
-        location[DICT_CITY_AREA_ID] = a.areaId
-
-        return location
-
-    # Get City ID Area from a Given City ID
-    def __buildingCityAreaId(self, cityId: int) -> None | int:
         # Clear Terminal
         clear()
 
-        # Print City Areas at the Given City
-        if not self._cityAreaTable.get(CITY_AREA_FK_CITY, cityId):
-            raise RowNotFound(CITY_AREA_TABLENAME, CITY_AREA_FK_CITY, cityId)
+        # Print Warehouses at the Given City ID
+        if not self.__warehouseTable.get(BUILDING_FK_CITY, cityId):
+            raise WarehouseNotFound(cityId)
 
         while True:
             try:
-                # Select City Area ID from the Given City
-                areaId = IntPrompt.ask("\nSelect Building City Area ID")
+                # Select Warehouse ID
+                buildingId = IntPrompt.ask("\nSelect Warehouse ID")
 
-                # Get City Area Object
-                area = self._cityAreaTable.find(areaId)
+                # Get Warehouse Object
+                warehouse = self.__warehouseTable.find(buildingId)
 
-                # Check if City Area ID Exists and is in the Given City
-                if area == None:
-                    raise RowNotFound(CITY_AREA_TABLENAME, CITY_AREA_ID, areaId)
-                elif area.cityId != cityId:
-                    raise InvalidLocation(area.areaName, CITY_TABLENAME, cityId)
+                # Check if Warehouse ID Exists
+                if warehouse == None:
+                    raise RowNotFound(WAREHOUSE_TABLENAME, WAREHOUSE_ID, buildingId)
 
-                return areaId
+                elif warehouse.cityId != cityId:
+                    raise InvalidLocation(
+                        warehouse.buildingName, CITY_TABLENAME, cityId
+                    )
+
+                return buildingId
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
-    # Get Place Coordinates
-    def getPlaceCoordinates(self, msg: str) -> dict | None:
-        # Get City Area ID
-        location = self.getCityAreaId()
+    def getBranchId(self, cityId: int) -> int:
+        """
+        Method to Get Branch ID from its Remote Table by Printing the Tables, and Selecting the Row Branch ID, Given a City ID
+
+        :param int cityId: City ID at its Remote Table where the Branch is Located
+        :return: Branch ID at its Remote Table
+        :rtype: int
+        """
+
+        # Clear Terminal
+        clear()
+
+        # Print Branchs at the Given City ID
+        if not self.__branchTable.get(BUILDING_FK_CITY, cityId):
+            raise RowNotFound(BUILDING_TABLENAME, BUILDING_FK_CITY, cityId)
 
         while True:
             try:
-                # Get Place Name to Search
-                placeSearch = Prompt.ask(msg)
+                # Select Branch ID
+                buildingId = IntPrompt.ask("\nSelect Branch ID")
 
-                # Check Place Search
-                isPlaceNameValid(placeSearch)
+                # Get Branch Object
+                branch = self.__branchTable.find(buildingId)
 
-                # Get Place Coordinates from GeoPy API based on the Data Provided
-                location = self._geoPyGeocoder.getPlaceCoordinates(
-                    location, placeSearch
-                )
+                # Check if Branch ID Exists
+                if branch == None:
+                    raise RowNotFound(WAREHOUSE_TABLENAME, WAREHOUSE_ID, buildingId)
 
-                return location
+                elif branch.cityId != cityId:
+                    raise InvalidLocation(branch.buildingName, CITY_TABLENAME, cityId)
 
-            # Handle LocationError Exception
+                return buildingId
+
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
-    # Get All Table Handler
     def _allHandler(self, tableName: str) -> None:
-        sortBy = None
+        """
+        Handler of ``all`` Location-related Subcommand
+
+        :param str tableName: Location Table Name at the Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        """
 
         # Asks if the User wants to Print it in Descending Order
         desc = Confirm.ask(ALL_DESC_MSG)
@@ -679,11 +946,8 @@ class LocationEventHandler:
                 choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
             )
 
-            # Clear Terminal
-            clear()
-
             # Print Table
-            self._countryTable.all(sortBy, desc)
+            self.__countryTable.all(sortBy, desc)
 
         elif tableName == PROVINCE_TABLENAME:
             # Ask the Sort Order
@@ -699,11 +963,8 @@ class LocationEventHandler:
                 ],
             )
 
-            # Clear Terminal
-            clear()
-
             # Print Table
-            self._provinceTable.all(sortBy, desc)
+            self.__provinceTable.all(sortBy, desc)
 
         elif tableName == REGION_TABLENAME:
             # Ask the Sort Order
@@ -717,11 +978,8 @@ class LocationEventHandler:
                 ],
             )
 
-            # Clear Terminal
-            clear()
-
             # Print Table
-            self._regionTable.all(sortBy, desc)
+            self.__regionTable.all(sortBy, desc)
 
         elif tableName == CITY_TABLENAME:
             # Ask the Sort Order
@@ -730,42 +988,18 @@ class LocationEventHandler:
                 choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
             )
 
-            # Clear Terminal
-            clear()
-
             # Print Table
-            self._cityTable.all(sortBy, desc)
-
-        elif tableName == CITY_AREA_TABLENAME:
-            # Ask the Sort Order
-            sortBy = Prompt.ask(
-                ALL_SORT_BY_MSG,
-                choices=[
-                    CITY_AREA_ID,
-                    CITY_AREA_FK_CITY,
-                    CITY_AREA_NAME,
-                    CITY_AREA_FK_WAREHOUSE,
-                ],
-            )
-
-            # Clear Terminal
-            clear()
-
-            # Print Table
-            self._cityAreaTable.all(sortBy, desc)
+            self.__cityTable.all(sortBy, desc)
 
         elif tableName == WAREHOUSE_TABLENAME:
             # Ask the Sort Order
             sortBy = Prompt.ask(
                 ALL_SORT_BY_MSG,
-                choices=[WAREHOUSE_ID, BUILDING_NAME, BUILDING_FK_CITY_AREA],
+                choices=[WAREHOUSE_ID, BUILDING_NAME, BUILDING_FK_CITY],
             )
 
-            # Clear Terminal
-            clear()
-
             # Print Table
-            self._warehouseTable.all(sortBy, desc)
+            self.__warehouseTable.all(sortBy, desc)
 
         elif tableName == BRANCH_TABLENAME:
             # Ask the Sort Order
@@ -776,232 +1010,202 @@ class LocationEventHandler:
                     BRANCH_FK_WAREHOUSE_CONNECTION,
                     BRANCH_ROUTE_DISTANCE,
                     BUILDING_NAME,
-                    BUILDING_FK_CITY_AREA,
+                    BUILDING_FK_CITY,
                 ],
             )
-
-            # Clear Terminal
-            clear()
 
             # Print Table
-            self._branchTable.all(sortBy, desc)
+            self.__branchTable.all(sortBy, desc)
 
-    # Get Table Handler
+        # Press ENTER to Continue
+        Prompt.ask(PRESS_ENTER)
+
     def _getHandler(self, tableName: str) -> None:
-        field = value = None
+        """
+        Handler of ``get`` Location-related Subcommand
 
-        if tableName == COUNTRY_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
-            )
+        :param str tableName: Location Table Name at the Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
 
-            # Prompt to Ask the Value to be Compared
-            if field == COUNTRY_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
+        while True:
+            try:
+                if tableName == COUNTRY_TABLENAME:
+                    # Asks for Field to Compare
+                    field = Prompt.ask(
+                        GET_FIELD_MSG,
+                        choices=[COUNTRY_ID, COUNTRY_NAME, COUNTRY_PHONE_PREFIX],
+                    )
 
-                # Check Value
-                isAddressValid(tableName, field, value)
+                    # Prompt to Ask the Value to be Compared
+                    if field == COUNTRY_NAME:
+                        value = Prompt.ask(GET_VALUE_MSG)
 
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
+                        isAddressValid(tableName, field, value)
 
-            # Clear Terminal
-            clear()
+                    else:
+                        value = str(IntPrompt.ask(GET_VALUE_MSG))
 
-            # Print Table Coincidences
-            self._countryTable.get(field, value)
+                    # Print Table Coincidences
+                    self.__countryTable.get(field, value)
 
-        elif tableName == PROVINCE_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[
-                    PROVINCE_ID,
-                    PROVINCE_FK_COUNTRY,
-                    PROVINCE_NAME,
-                    PROVINCE_FK_AIR_FORWARDER,
-                    PROVINCE_FK_OCEAN_FORWARDER,
-                    PROVINCE_FK_WAREHOUSE,
-                ],
-            )
+                elif tableName == PROVINCE_TABLENAME:
+                    # Asks for Field to Compare
+                    field = Prompt.ask(
+                        GET_FIELD_MSG,
+                        choices=[
+                            PROVINCE_ID,
+                            PROVINCE_FK_COUNTRY,
+                            PROVINCE_NAME,
+                            PROVINCE_FK_AIR_FORWARDER,
+                            PROVINCE_FK_OCEAN_FORWARDER,
+                            PROVINCE_FK_WAREHOUSE,
+                        ],
+                    )
 
-            # Prompt to Ask the Value to be Compared
-            if field == PROVINCE_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
+                    # Prompt to Ask the Value to be Compared
+                    if field == PROVINCE_NAME:
+                        value = Prompt.ask(GET_VALUE_MSG)
 
-                # Check Value
-                isAddressValid(tableName, field, value)
+                        isAddressValid(tableName, field, value)
 
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
+                    else:
+                        value = str(IntPrompt.ask(GET_VALUE_MSG))
 
-            # Clear Terminal
-            clear()
+                    # Print Table Coincidences
+                    self.__provinceTable.get(field, value)
 
-            # Print Table Coincidences
-            self._provinceTable.get(field, value)
+                elif tableName == REGION_TABLENAME:
+                    # Asks for Field to Compare
+                    field = Prompt.ask(
+                        GET_FIELD_MSG,
+                        choices=[
+                            REGION_ID,
+                            REGION_FK_PROVINCE,
+                            REGION_NAME,
+                            REGION_FK_WAREHOUSE,
+                        ],
+                    )
 
-        elif tableName == REGION_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[
-                    REGION_ID,
-                    REGION_FK_PROVINCE,
-                    REGION_NAME,
-                    REGION_FK_WAREHOUSE,
-                ],
-            )
+                    # Prompt to Ask the Value to be Compared
+                    if field == REGION_NAME:
+                        value = Prompt.ask(GET_VALUE_MSG)
 
-            # Prompt to Ask the Value to be Compared
-            if field == REGION_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
+                        isAddressValid(tableName, field, value)
 
-                # Check Value
-                isAddressValid(tableName, field, value)
+                    else:
+                        value = str(IntPrompt.ask(GET_VALUE_MSG))
 
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
+                    # Print Table Coincidences
+                    self.__regionTable.get(field, value)
 
-            # Clear Terminal
-            clear()
+                elif tableName == CITY_TABLENAME:
+                    # Asks for Field to Compare
+                    field = Prompt.ask(
+                        GET_FIELD_MSG,
+                        choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
+                    )
 
-            # Print Table Coincidences
-            self._regionTable.get(field, value)
+                    # Prompt to Ask the Value to be Compared
+                    if field == CITY_NAME:
+                        value = Prompt.ask(GET_VALUE_MSG)
 
-        elif tableName == CITY_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[CITY_ID, CITY_FK_REGION, CITY_NAME, CITY_FK_WAREHOUSE],
-            )
+                        isAddressValid(tableName, field, value)
 
-            # Prompt to Ask the Value to be Compared
-            if field == CITY_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
+                    else:
+                        value = str(IntPrompt.ask(GET_VALUE_MSG))
 
-                # Check Value
-                isAddressValid(tableName, field, value)
+                    # Print Table Coincidences
+                    self.__cityTable.get(field, value)
 
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
+                elif tableName == WAREHOUSE_TABLENAME:
+                    # Asks for Field to Compare
+                    field = Prompt.ask(
+                        GET_FIELD_MSG,
+                        choices=[
+                            WAREHOUSE_ID,
+                            BUILDING_NAME,
+                            BUILDING_PHONE,
+                            BUILDING_FK_CITY,
+                        ],
+                    )
 
-            # Clear Terminal
-            clear()
+                    # Prompt to Ask the Value to be Compared
+                    if field == BUILDING_NAME:
+                        value = Prompt.ask(GET_VALUE_MSG)
 
-            # Print Table Coincidences
-            self._cityTable.get(field, value)
+                        isAddressValid(tableName, field, value)
 
-        elif tableName == CITY_AREA_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[
-                    CITY_AREA_ID,
-                    CITY_AREA_FK_CITY,
-                    CITY_AREA_NAME,
-                    CITY_AREA_FK_WAREHOUSE,
-                ],
-            )
+                    else:
+                        value = str(IntPrompt.ask(GET_VALUE_MSG))
 
-            # Prompt to Ask the Value to be Compared
-            if field == CITY_AREA_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
+                    # Print Table Coincidences
+                    self.__warehouseTable.get(field, value)
 
-                # Check Value
-                isAddressValid(tableName, field, value)
+                elif tableName == BRANCH_TABLENAME:
+                    # Asks for Field to Compare
+                    field = Prompt.ask(
+                        GET_FIELD_MSG,
+                        choices=[
+                            BRANCH_ID,
+                            BRANCH_FK_WAREHOUSE_CONNECTION,
+                            BUILDING_NAME,
+                            BUILDING_PHONE,
+                            BUILDING_FK_CITY,
+                        ],
+                    )
 
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
+                    # Prompt to Ask the Value to be Compared
+                    if field == BUILDING_NAME:
+                        value = Prompt.ask(GET_VALUE_MSG)
 
-            # Clear Terminal
-            clear()
+                        isAddressValid(tableName, field, value)
 
-            # Print Table Coincidences
-            self._cityAreaTable.get(field, value)
+                    else:
+                        value = str(IntPrompt.ask(GET_VALUE_MSG))
 
-        elif tableName == WAREHOUSE_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[
-                    WAREHOUSE_ID,
-                    BUILDING_NAME,
-                    BUILDING_PHONE,
-                    BUILDING_FK_CITY_AREA,
-                ],
-            )
+                    # Print Table Coincidences
+                    self.__branchTable.get(field, value)
 
-            # Prompt to Ask the Value to be Compared
-            if field == BUILDING_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
+                if Confirm.ask("Do you want to Continue Searching for?"):
+                    # Clear Terminal
+                    clear()
+                    continue
 
-                # Check Value
-                isAddressValid(tableName, field, value)
+                break
 
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
+            # Raise GoToMenu Error
+            except GoToMenu as err:
+                raise err
 
-            # Clear Terminal
-            clear()
+            # Go Back to the While-loop
+            except (LocationNotFound, PlaceError) as err:
+                console.print(err, style="warning")
 
-            # Print Table Coincidences
-            self._warehouseTable.get(field, value)
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
 
-        elif tableName == BRANCH_TABLENAME:
-            # Asks for Field to Compare
-            field = Prompt.ask(
-                GET_FIELD_MSG,
-                choices=[
-                    BRANCH_ID,
-                    BRANCH_FK_WAREHOUSE_CONNECTION,
-                    BUILDING_NAME,
-                    BUILDING_PHONE,
-                    BUILDING_FK_CITY_AREA,
-                ],
-            )
+                # Clear Terminal
+                clear()
 
-            # Prompt to Ask the Value to be Compared
-            if field == BUILDING_NAME:
-                value = Prompt.ask(GET_VALUE_MSG)
-
-                # Check Value
-                isAddressValid(tableName, field, value)
-
-            else:
-                value = str(IntPrompt.ask(GET_VALUE_MSG))
-
-            # Clear Terminal
-            clear()
-
-            # Print Table Coincidences
-            self._branchTable.get(field, value)
-
-    # Modify Row from Table Handler
     def _modHandler(self, tableName: str) -> None:
-        field = value = None
+        """
+        Handler of ``mod`` Location-related Subcommand
 
-        # Building Type
-        buildingType = None
-
-        # Initialize Warehouse Dictionary
-        warehouseDict = {}
-
-        # Get Building Type
-        if tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_ID:
-            buildingType = self.__buildingType(tableName)
+        :param str tableName: Location Table Name at the Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
+        """
 
         if tableName == COUNTRY_TABLENAME:
-            # Ask for Country ID to Modify
-            countryId = IntPrompt.ask("\nEnter Country ID to Modify")
-
-            # Clear Terminal
-            clear()
+            # Select Country ID to Modify
+            countryId = self.getCountryId()
 
             # Print Fetched Results
-            if not self._countryTable.get(COUNTRY_ID, countryId):
+            if not self.__countryTable.get(COUNTRY_ID, countryId):
                 return
 
             # Ask for Confirmation
@@ -1016,17 +1220,14 @@ class LocationEventHandler:
                 value = str(IntPrompt.ask(MOD_VALUE_MSG))
 
             # Modify Country
-            self._countryTable.modify(countryId, field, value)
+            self.__countryTable.modify(countryId, field, value)
 
         elif tableName == PROVINCE_TABLENAME:
-            # Ask for Province ID to Modify
-            provinceId = IntPrompt.ask("\nEnter Province ID to Modify")
-
-            # Clear Terminal
-            clear()
+            # Select Province ID to Modify
+            provinceId = self.getProvinceId()
 
             # Print Fetched Results
-            if not self._provinceTable.get(PROVINCE_ID, provinceId):
+            if not self.__provinceTable.get(PROVINCE_ID, provinceId):
                 return
 
             # Ask for Confirmation
@@ -1053,55 +1254,45 @@ class LocationEventHandler:
                 # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
 
             elif field == PROVINCE_FK_WAREHOUSE:
-                # Select Main City Area ID
-                regionId = self.__buildingRegionId(provinceId)
-                cityId = self.__buildingCityId(regionId)
-                areaId = self.__buildingCityAreaId(cityId)
+                # Select Warehouse ID
+                cityId = self.getProvinceBuildingCityId(provinceId)
+                warehouseId = self.getWarehouseId(cityId)
 
-                # Clear Terminal
-                clear()
-
-                # Get Main Warehouse for the Given City Area
-                warehouse = self.__getCityAreaWarehouse(areaId)
-
-                # Get Warehouse Dictionary Fields from Warehouse Object
-                warehouseDict = self.__getWarehouseDict(warehouse)
+                # Get Warehouse Dictionary from Warehouse ID
+                warehouseDict = self.__getWarehouseDict(warehouseId)
 
                 # Get Province Object
-                province = self._provinceTable.find(provinceId)
+                province = self.__provinceTable.find(provinceId)
 
                 # Check if there's a Main Warehouse
                 if province.warehouseId != None:
                     currWarehouseId = province.warehouseId
 
                     # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
-                    self._warehouseConnTable.removeProvinceMainWarehouse(
+                    self.__warehouseConnTable.removeProvinceMainWarehouse(
                         provinceId, currWarehouseId
                     )
 
                 # Get Province Country ID
                 countryId = province.countryId
 
-                # Add Warehouse Connections for the Current Warehouse All the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
-                self._warehouseConnTable.insertProvinceMainWarehouse(
-                    self._routingPyGeocoder, countryId, provinceId, warehouseDict
+                # Add Warehouse Connections for the Current Warehouse with All the Main Province Warehouses at the Given Country and all the Main Region Warehouses at the Given Province
+                self.__warehouseConnTable.insertProvinceMainWarehouse(
+                    self.__ORSGeocoder, countryId, provinceId, warehouseDict
                 )
 
                 # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
+                value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify Province
-            self._provinceTable.modify(provinceId, field, value)
+            self.__provinceTable.modify(provinceId, field, value)
 
         elif tableName == REGION_TABLENAME:
-            # Ask for Region ID to Modify
-            regionId = IntPrompt.ask("\nEnter Region ID to Modify")
-
-            # Clear Terminal
-            clear()
+            # Select Region ID to Modify
+            regionId = self.getRegionId()
 
             # Print Fetched Results
-            if not self._regionTable.get(REGION_ID, regionId):
+            if not self.__regionTable.get(REGION_ID, regionId):
                 return
 
             # Ask for Confirmation
@@ -1116,48 +1307,56 @@ class LocationEventHandler:
 
             # Prompt to Ask the New Value
             if field == REGION_FK_WAREHOUSE:
-                # Select Main City Area ID
-                cityId = self.__buildingCityId(regionId)
-                areaId = self.__buildingCityAreaId(cityId)
+                # Select Warehouse ID
+                cityId = self.getRegionBuildingCityId(regionId)
+                warehouseId = self.getWarehouseId(cityId)
 
-                # Clear Terminal
-                clear()
-
-                # Get Main Warehouse for the Given City Area
-                warehouse = self.__getCityAreaWarehouse(areaId)
-
-                # Get Warehouse Dictionary Fields from Warehouse Object
-                warehouseDict = self.__getWarehouseDict(warehouse)
+                # Get Warehouse Dictionary Fields from Warehouse ID
+                warehouseDict = self.__getWarehouseDict(warehouseId)
 
                 # Get Region Object
-                region = self._regionTable.find(regionId)
+                region = self.__regionTable.find(regionId)
 
                 # Check if there's a Main Warehouse
                 if region.warehouseId != None:
                     currWarehouseId = region.warehouseId
 
-                    # TO DEVELOP: Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
-                    self._warehouseConnTable.removeRegionMainWarehouse(
+                    # Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
+                    self.__warehouseConnTable.removeRegionMainWarehouse(
                         regionId, currWarehouseId
                     )
 
-                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Province Warehouse, all the Main Region Warehouses at the Given Province and all the Main City Warehouses at the Given Region
+                # Get Region Province ID
+                provinceId = region.provinceId
+
+                # Get Province Main Warehouse ID
+                province = self.__provinceTable.find(provinceId)
+                provinceWarehouseId = province.warehouseId
+
+                # Get Province Warehouse Dictionary Fields from Province Warehouse ID
+                provinceWarehouseDict = self.__getWarehouseDict(provinceWarehouseId)
+
+                # Add Warehouse Connections for the Current Warehouse with the Main Province Warehouse, all the Main Region Warehouses at the Given Province and all the Main City Warehouses at the Given Region
+                self.__warehouseConnTable.insertRegionMainWarehouse(
+                    self.__ORSGeocoder,
+                    provinceId,
+                    regionId,
+                    provinceWarehouseDict,
+                    warehouseDict,
+                )
 
                 # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
+                value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify Region
-            self._regionTable.modify(regionId, field, value)
+            self.__regionTable.modify(regionId, field, value)
 
         elif tableName == CITY_TABLENAME:
-            # Ask for City ID to Modify
-            cityId = IntPrompt.ask("\nEnter City ID to Modify")
-
-            # Clear Terminal
-            clear()
+            # Select City ID to Modify
+            cityId = self.getCityId()
 
             # Print Fetched Results
-            if not self._cityTable.get(CITY_ID, cityId):
+            if not self.__cityTable.get(CITY_ID, cityId):
                 return
 
             # Ask for Confirmation
@@ -1172,109 +1371,56 @@ class LocationEventHandler:
 
             # Prompt to Ask the New Value
             if field == CITY_FK_WAREHOUSE:
-                # Select Main City Area ID
-                areaId = self.__buildingCityAreaId(cityId)
+                # Select Warehouse ID
+                warehouseId = self.getWarehouseId(cityId)
 
-                # Clear Terminal
-                clear()
-
-                # Get Main Warehouse for the Given City Area
-                warehouseId = self.__getCityAreaWarehouse(areaId)
-
-                # Get Warehouse Dictionary Fields from Warehouse Object
-                warehouseDict = self.__getWarehouseDict(warehouse)
+                # Get Warehouse Dictionary Fields from Warehouse ID
+                warehouseDict = self.__getWarehouseDict(warehouseId)
 
                 # Get City Object
-                city = self._cityTable.find(cityId)
+                city = self.__cityTable.find(cityId)
 
                 # Check if there's a Main Warehouse
                 if city.warehouseId != None:
                     currWarehouseId = city.warehouseId
 
-                    # TO DEVELOP: Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the Main City Area Warehouses at the Given City
-                    self._warehouseConnTable.removeCityMainWarehouse(
+                    # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the City Warehouses at the Given City
+                    self.__warehouseConnTable.removeCityMainWarehouse(
                         cityId, currWarehouseId
                     )
 
-                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the Main City Area Warehouses at the Given City
+                # Get City Region ID
+                regionId = city.regionId
+
+                # Get Region Main Warehouse ID
+                region = self.__regionTable.find(regionId)
+                regionWarehouseId = region.warehouseId
+
+                # Get Region Warehouse Dictionary Fields from Region Warehouse ID
+                regionWarehouseDict = self.__getWarehouseDict(regionWarehouseId)
+
+                # Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the City Warehouses at the Given City
+                self.__warehouseConnTable.insertCityMainWarehouse(
+                    self.__ORSGeocoder,
+                    regionId,
+                    cityId,
+                    regionWarehouseDict,
+                    warehouseDict,
+                )
 
                 # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
+                value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify City
-            self._cityTable.modify(regionId, field, value)
-
-        elif tableName == CITY_AREA_TABLENAME:
-            # Ask for City Area ID to Modify
-            areaId = IntPrompt.ask("\nEnter City Area ID to Modify")
-
-            # Clear Terminal
-            clear()
-
-            # Print Fetched Results
-            if not self._cityTable.get(CITY_AREA_ID, areaId):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[CITY_AREA_DESCRIPTION],
-            )
-
-            # Prompt to Ask the New Value
-            if field == CITY_AREA_DESCRIPTION:
-                value = Prompt.ask(MOD_VALUE_MSG)
-
-                # Check City Area Description
-                isAddressValid(tableName, field, value)
-
-            # Prompt to Ask the New Value
-            elif field == CITY_AREA_FK_WAREHOUSE:
-                # Clear Terminal
-                clear()
-
-                # Get Main Warehouse for the Given City Area
-                warehouse = self.__getCityAreaWarehouse(areaId)
-
-                # Get Warehouse Dictionary Fields from Warehouse Object
-                warehouseDict = self.__getWarehouseDict(warehouse)
-
-                # Get City Area Object
-                area = self._cityAreaTable.find(areaId)
-
-                # Check if there's a Main Warehouse
-                if area.warehouseId != None:
-                    currWarehouseId = area.warehouseId
-
-                    # TO DEVELOP: Drop Old Warehouse Connections with the Main City Warehouse, all the Main City Area Warehouses at the Same City, and all the Warehouses at the Given City Area
-                    self._warehouseConnTable.removeCityAreaMainWarehouse(
-                        areaId, currWarehouseId
-                    )
-
-                # TO DEVELOP: Add Warehouse Connections for the Current Warehouse with the Main City Warehouse, all the Main City Area Warehouses at the Given City and all the Warehouses at the Given City Area
-
-                # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
-
-            # Modify City
-            self._cityTable.modify(regionId, field, value)
-
-            # Modify City Area
-            self._cityAreaTable.modify(areaId, field, value)
+            self.__cityTable.modify(regionId, field, value)
 
         elif tableName == WAREHOUSE_TABLENAME:
-            # Ask for Warehouse ID to Modify
-            warehouseId = IntPrompt.ask("\nEnter Warehouse ID to Modify")
-
-            # Clear Terminal
-            clear()
+            # Select Warehouse ID
+            cityId = self.getCityId()
+            warehouseId = self.getWarehouseId(cityId)
 
             # Print Fetched Results
-            if not self._warehouseTable.get(WAREHOUSE_ID, warehouseId):
+            if not self.__warehouseTable.get(WAREHOUSE_ID, warehouseId):
                 return
 
             # Ask for Confirmation
@@ -1288,20 +1434,17 @@ class LocationEventHandler:
             )
 
             # Prompt to Ask the New Value
-            value = self.__askBuildingValue(buildingType, field)
+            value = askBuildingValue(tableName, field)
 
             # Modify Warehouse
-            self._warehouseTable.modify(warehouseId, field, value)
+            self.__warehouseTable.modify(warehouseId, field, value)
 
         elif tableName == BRANCH_TABLENAME:
-            # Ask for Branch ID to Modify
-            branchId = IntPrompt.ask("\nEnter Branch ID to Modify")
-
-            # Clear Terminal
-            clear()
+            # Select Branch ID
+            branchId = self.getBranchId()
 
             # Print Fetched Results
-            if not self._branchTable.get(BRANCH_ID, branchId):
+            if not self.__branchTable.get(BRANCH_ID, branchId):
                 return
 
             # Ask for Confirmation
@@ -1321,530 +1464,345 @@ class LocationEventHandler:
 
             # Prompt to Ask the New Value
             if field != BRANCH_FK_WAREHOUSE_CONNECTION:
-                value = self.__askBuildingValue(buildingType, field)
+                value = askBuildingValue(tableName, field)
 
                 # Modify Branch
-                self._branchTable.modify(branchId, field, value)
+                self.__branchTable.modify(branchId, field, value)
 
             else:
                 # Get Branch Object
-                branch = self._branchTable.find(branchId)
+                branch = self.__branchTable.find(branchId)
 
-                # Get City Area ID where the Branch is Located
-                areaId = branch.areaId
+                # Get City ID where the Branch is Located, and the Warehouse at the Given City
+                cityId = branch.cityId
+                warehouseId = self.getWarehouseId(cityId)
 
-                # Get Branch Coordinate
-                location = {
+                # Get Branch Coordinates
+                coords = {
                     NOMINATIM_LATITUDE: branch.gpsLatitude,
                     NOMINATIM_LONGITUDE: branch.gpsLongitude,
                 }
 
-                # Get New Warehouse Connection ID and Route Distance
-                warehouseId, routeDistance = self.__getBranchWarehouseConnection(
-                    areaId, location
-                )
+                # Get Route Distance
+                routeDistance = self.__getRouteDistance(warehouseId, coords)
 
                 # Modify Branch
-                self._branchTable.modify(
+                self.__branchTable.modify(
                     branchId, BRANCH_FK_WAREHOUSE_CONNECTION, warehouseId
                 )
-                self._branchTable.modify(branchId, BRANCH_ROUTE_DISTANCE, routeDistance)
+                self.__branchTable.modify(
+                    branchId, BRANCH_ROUTE_DISTANCE, routeDistance
+                )
 
-    # Add Row to Table Handler
+        # Press ENTER to Continue
+        Prompt.ask(PRESS_ENTER)
+
     def _addHandler(self, tableName: str) -> None:
-        # Location Dictionary
-        location = None
+        """
+        Handler of ``add`` Location-related Subcommand
 
-        # Building Type
-        buildingType = None
-
-        # Get Building Type
-        if tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_ID:
-            buildingType = self.__buildingType(tableName)
+        :param str tableName: Location Table Name at the Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        """
 
         while True:
             if tableName == COUNTRY_TABLENAME:
-                countryName = None
+                # Get the Country Name to Insert
+                location = self.getCountryName()
+                if location == None:
+                    return
 
-                while True:
-                    try:
-                        # Asks for Country Name to Search
-                        countrySearch = Prompt.ask(self._GET_COUNTRY_MSG)
+                countryName = location[DICT_COUNTRY_NAME]
 
-                        # Check Country Name
-                        isAddressValid(tableName, COUNTRY_NAME, countrySearch)
+                # Ask for the Other Country Fields and Insert the Country to Its Table
+                self.__countryTable.add(countryName)
 
-                        # Check if Country is Stored in Local Database
-                        countryNameId = self._tables.getCountrySearchNameId(
-                            countrySearch
-                        )
-                        countryName = None
-
-                        # Check Country Name ID
-                        if countryNameId != None:
-                            # Get Country Name from Local Database
-                            countryName = self._tables.getCountryName(countryNameId)
-                        else:
-                            # Get Country Name from GeoPy API based on the Name Provided
-                            countryName = self._geoPyGeocoder.getCountry(countrySearch)
-
-                            # Store Country Search in Local Database
-                            self._tables.addCountry(countrySearch, countryName)
-
-                        # Check if Country Name has already been Inserted
-                        if self._countryTable.get(COUNTRY_NAME, countryName, False):
-                            uniqueInserted(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
-                            return
-                        break
-
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Ask for Country Fields
-                phonePrefix = IntPrompt.ask("Enter Phone Prefix")
-
-                # Insert Country
-                self._countryTable.add(Country(countryName, phonePrefix))
+                return
 
             elif tableName == PROVINCE_TABLENAME:
-                # Get Territory Location
+                # Get the Province Name to Insert and the Country ID where It's Located
+                location = self.getProvinceName()
                 if location == None:
-                    location = self.getCountryId()
+                    return
 
-                provinceName = None
+                countryId = location[DICT_COUNTRY_ID]
+                provinceName = location[DICT_PROVINCE_NAME]
 
-                while True:
-                    try:
-                        # Asks for Province Name to Search
-                        provinceSearch = Prompt.ask(self._GET_PROVINCE_MSG)
-
-                        # Check Province Name
-                        isAddressValid(tableName, PROVINCE_NAME, provinceSearch)
-
-                        # Check if Province is Stored in Local Database
-                        provinceNameId = self._tables.getProvinceSearchNameId(
-                            location[DICT_COUNTRY_NAME_ID], provinceSearch
-                        )
-                        provinceName = None
-
-                        # Check Province Name ID
-                        if provinceNameId != None:
-                            # Get Province Name from Local Database
-                            provinceName = self._tables.getProvinceName(provinceNameId)
-                        else:
-                            # Get Province Name from GeoPy API based on the Name Provided
-                            provinceName = self._geoPyGeocoder.getProvince(
-                                location, provinceSearch
-                            )
-
-                            # Store Province Search in Local Database
-                            self._tables.addProvince(
-                                location[DICT_COUNTRY_NAME_ID],
-                                provinceSearch,
-                                provinceName,
-                            )
-
-                        provinceFields = [PROVINCE_FK_COUNTRY, PROVINCE_NAME]
-                        provinceValues = [location[DICT_COUNTRY_ID], provinceName]
-
-                        # Check if Province Name has already been Inserted for the Given Country
-                        if self._provinceTable.getMult(
-                            provinceFields, provinceValues, False
-                        ):
-                            uniqueInsertedMult(
-                                PROVINCE_TABLENAME, provinceFields, provinceValues
-                            )
-                            return
-
-                        break
-
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Insert Province
-                self._provinceTable.add(
-                    Province(provinceName, location[DICT_COUNTRY_ID])
-                )
+                # Ask for the Other Province Fields and Insert the Province to Its Table
+                self.__provinceTable.add(countryId, provinceName)
 
             elif tableName == REGION_TABLENAME:
-                # Get Territory Location
+                # Get the Region Name to Insert and the Province ID where It's Located
+                location = self.getRegionName()
                 if location == None:
-                    location = self.getProvinceId()
+                    return
 
-                regionName = None
+                provinceId = location[DICT_PROVINCE_ID]
+                regionName = location[DICT_REGION_NAME]
 
-                while True:
-                    try:
-                        # Asks for Region Name to Search
-                        regionSearch = Prompt.ask(self._GET_REGION_MSG)
-
-                        # Check Region Name
-                        isAddressValid(tableName, REGION_NAME, regionSearch)
-
-                        # Check if Region is Stored in Local Database
-                        regionNameId = self._tables.getRegionSearchNameId(
-                            location[DICT_PROVINCE_NAME_ID], regionSearch
-                        )
-                        regionName = None
-
-                        # Check Region Name ID
-                        if regionNameId != None:
-                            # Get Region Name from Local Database
-                            regionName = self._tables.getRegionName(regionNameId)
-                        else:
-                            # Get Region Name from GeoPy API based on the Name Provided
-                            regionName = self._geoPyGeocoder.getRegion(
-                                location, regionSearch
-                            )
-
-                            # Store Region Search in Local Database
-                            self._tables.addRegion(
-                                location[DICT_PROVINCE_NAME_ID],
-                                regionSearch,
-                                regionName,
-                            )
-
-                        regionFields = [REGION_FK_PROVINCE, REGION_NAME]
-                        regionValues = [location[DICT_PROVINCE_ID], regionName]
-
-                        # Check if Region Name has already been Inserted for the Given Province
-                        if self._regionTable.getMult(regionFields, regionValues, False):
-                            uniqueInsertedMult(
-                                REGION_TABLENAME, regionFields, regionValues
-                            )
-                            return
-
-                        break
-
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Insert Region
-                self._regionTable.add(Region(regionName, location[DICT_PROVINCE_ID]))
+                # Ask for the Other Region Fields and Insert the Region to Its Table
+                self.__regionTable.add(provinceId, regionName)
 
             elif tableName == CITY_TABLENAME:
-                # Get Territory Location
+                # Get the City Name to Insert and the Region ID where It's Located
+                location = self.getCityName()
                 if location == None:
-                    location = self.getRegionId()
+                    return
 
-                cityName = None
+                regionId = location[DICT_REGION_ID]
+                cityName = location[DICT_CITY_NAME]
 
-                while True:
-                    try:
-                        # Asks for City Name to Search
-                        citySearch = Prompt.ask(self._GET_CITY_MSG)
-
-                        # Check City Name
-                        isAddressValid(tableName, CITY_NAME, citySearch)
-
-                        # Check if City is Stored in Local Database
-                        cityNameId = self._tables.getCitySearchNameId(
-                            location[DICT_REGION_NAME_ID], citySearch
-                        )
-                        cityName = None
-
-                        # Check City Name ID
-                        if cityNameId != None:
-                            # Get City Name from Local Database
-                            cityName = self._tables.getCityName(cityNameId)
-                        else:
-                            # Get City Name from GeoPy API based on the Name Provided
-                            cityName = self._geoPyGeocoder.getCity(location, citySearch)
-
-                            # Store City Search in Local Database
-                            self._tables.addCity(
-                                location[DICT_REGION_NAME_ID], citySearch, cityName
-                            )
-
-                        cityFields = [CITY_FK_REGION, CITY_NAME]
-                        cityValues = [location[DICT_REGION_ID], cityName]
-
-                        # Check if City Name has already been Inserted for the Given Province
-                        if self._cityTable.getMult(cityFields, cityValues, False):
-                            uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
-                            return
-
-                        break
-
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Insert City
-                self._cityTable.add(City(cityName, location[DICT_REGION_ID]))
-
-            elif tableName == CITY_AREA_TABLENAME:
-                # Get Territory Location
-                if location == None:
-                    location = self.getCityId()
-
-                areaName = None
-
-                while True:
-                    try:
-                        # Asks for City Area Name to Search
-                        areaSearch = Prompt.ask(self._GET_CITY_AREA_MSG)
-
-                        # Check City Area Name
-                        isAddressValid(tableName, CITY_AREA_NAME, areaSearch)
-
-                        # Check if City Area is Stored in Local Database
-                        areaNameId = self._tables.getCityAreaSearchNameId(
-                            location[DICT_CITY_ID], areaSearch
-                        )
-                        areaName = None
-
-                        # Check City Area Name ID
-                        if areaNameId != None:
-                            # Get City Area Name from Local Database
-                            areaName = self._tables.getCityAreaName(areaNameId)
-                        else:
-                            # Get City Area Name from GeoPy API based on the Name Provided
-                            areaName = self._geoPyGeocoder.getCityArea(
-                                location, areaSearch
-                            )
-
-                            # Store City Area Search in Local Database
-                            self._tables.addCityArea(
-                                location[DICT_CITY_NAME_ID], areaSearch, areaName
-                            )
-
-                        areaFields = [CITY_AREA_FK_CITY, CITY_AREA_NAME]
-                        areaValues = [location[DICT_CITY_ID], areaName]
-
-                        # Check if City Area Name has already been Inserted for the Given City
-                        if self._cityAreaTable.getMult(areaFields, areaValues, False):
-                            uniqueInsertedMult(
-                                CITY_AREA_TABLENAME, areaFields, areaValues
-                            )
-                            return
-
-                        break
-
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Asks for City Area Fields
-                areaDescription = Prompt.ask("Enter City Area Description")
-
-                # Check City Area Fields
-                isAddressValid(tableName, CITY_AREA_DESCRIPTION, areaDescription)
-
-                # Insert City Area
-                self._cityAreaTable.add(
-                    CityArea(areaName, areaDescription, location[DICT_CITY_ID])
-                )
+                # Ask for the Other City Fields and Insert the City to Its Table
+                self.__cityTable.add(regionId, cityName)
 
             elif tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_TABLENAME:
                 # Get Building Coordinates
-                while location == None:
-                    try:
-                        location = self.getPlaceCoordinates(
-                            f"Enter Place Name Near to {buildingType}"
-                        )
+                location = self.getPlaceCoordinates()
+                if location == None:
+                    return
 
-                        break
+                # Get Building Name
+                buildingName = Prompt.ask("Enter Building Name")
 
-                    except Exception as err:
-                        console.print(err, style="warning")
-                        continue
-
-                # Get City Area ID
-                areaId = location[DICT_CITY_AREA_ID]
-
-                # Get Building Fields
-                buildingFields = self.__askBuildingFields(
-                    tableName, buildingType, areaId
-                )
-
-                buildingName, buildingPhone, buildingEmail, addressDescription = (
-                    buildingFields
-                )
+                # Check Building Name
+                isAddressValid(tableName, BUILDING_NAME, buildingName)
 
                 if tableName == WAREHOUSE_TABLENAME:
-                    # Insert Warehouse
-                    self._warehouseTable.add(
-                        Warehouse(
-                            buildingName,
-                            location[NOMINATIM_LATITUDE],
-                            location[NOMINATIM_LONGITUDE],
-                            buildingEmail,
-                            buildingPhone,
-                            areaId,
-                            addressDescription,
-                        )
-                    )
+                    # Ask for the Other Warehouse Fields and Insert the Warehouse to Its Table
+                    warehouseId = self.__warehouseTable.add(location, buildingName)
 
-                    # TO DEVELOP: Add Warehouse Connections or set it as Main
+                    # Get Warehouse Dictionary
+                    warehouseDict = self.__getWarehouseDict(warehouseId)
+                    parentWarehouseDict = None
+
+                    # Check if there's a Main Warehouse at the Province ID where It's Located
+                    province = self.__provinceTable.find(location[DICT_PROVINCE_ID])
+
+                    if province.warehouseId == None:
+                        self.__warehouseConnTable.insertProvinceMainWarehouse(
+                            self.__ORSGeocoder,
+                            location[DICT_COUNTRY_ID],
+                            location[DICT_PROVINCE_ID],
+                            warehouseDict,
+                        )
+                        parentWarehouseDict = warehouseDict
+
+                        # Set as Main Province Warehouse
+                        self.__provinceTable.modify(
+                            location[DICT_PROVINCE_ID],
+                            PROVINCE_FK_WAREHOUSE,
+                            warehouseId,
+                        )
+
+                    else:
+                        parentWarehouseDict = self.__getWarehouseDict(
+                            province.warehouseId
+                        )
+
+                    # Check if there's a Main Warehouse at the Region ID where It's Located
+                    region = self.__regionTable.find(location[DICT_REGION_ID])
+
+                    if region.warehouseId == None:
+                        self.__warehouseConnTable.insertRegionMainWarehouse(
+                            self.__ORSGeocoder,
+                            location[DICT_PROVINCE_ID],
+                            location[DICT_REGION_ID],
+                            parentWarehouseDict,
+                            warehouseDict,
+                        )
+                        parentWarehouseDict = warehouseDict
+
+                        # Set as Main Region Warehouse
+                        self.__regionTable.modify(
+                            location[DICT_REGION_ID], REGION_FK_WAREHOUSE, warehouseId
+                        )
+
+                    else:
+                        parentWarehouseDict = self.__getWarehouseDict(
+                            region.warehouseId
+                        )
+
+                    # Check if there's a Main Warehouse at the City ID where It's Located
+                    city = self.__cityTable.find(location[DICT_CITY_ID])
+
+                    if city.warehouseId == None:
+                        self.__warehouseConnTable.insertCityMainWarehouse(
+                            self.__ORSGeocoder,
+                            location[DICT_REGION_ID],
+                            location[DICT_CITY_ID],
+                            parentWarehouseDict,
+                            warehouseDict,
+                        )
+                        parentWarehouseDict = warehouseDict
+
+                        # Set as Main City Warehouse
+                        self.__cityTable.modify(
+                            location[DICT_CITY_ID], CITY_FK_WAREHOUSE, warehouseId
+                        )
+
+                    else:
+                        parentWarehouseDict = self.__getWarehouseDict(city.warehouseId)
+
+                        # Insert City Warehouse Connection
+                        self.__warehouseConnTable.insertCityWarehouse(
+                            self.__ORSGeocoder, parentWarehouseDict, warehouseDict
+                        )
 
                 elif tableName == BRANCH_TABLENAME:
-                    # Get New Warehouse Connection ID and Route Distance
-                    warehouseId, routeDistance = self.__getBranchWarehouseConnection(
-                        areaId, location
-                    )
+                    # Get Warehouse at the Given City
+                    warehouseId = self.getWarehouseId(location[DICT_CITY_ID])
 
-                    # Insert Branch
-                    self._branchTable.add(
-                        Branch(
-                            buildingName,
-                            location[NOMINATIM_LATITUDE],
-                            location[NOMINATIM_LONGITUDE],
-                            buildingEmail,
-                            buildingPhone,
-                            areaId,
-                            addressDescription,
-                            warehouseId,
-                            routeDistance,
-                        )
+                    # Get Route Distance
+                    routeDistance = self.__getRouteDistance(warehouseId, location)
+
+                    # Ask for the Other Branch Fields and Insert the Branch to Its Table
+                    self.__branchTable.add(
+                        location,
+                        buildingName,
+                        warehouseId,
+                        routeDistance,
                     )
 
             # Ask to Add More
             if not Confirm.ask(ADD_MORE_MSG):
                 break
 
-    # Remove Row from Table Handler
-    def _rmHandler(self, tableName: str) -> None:
-        if tableName == COUNTRY_TABLENAME:
-            # Ask for Country ID to Remove
-            countryId = IntPrompt.ask("\nEnter Country ID to Remove")
-
             # Clear Terminal
             clear()
 
+    def _rmHandler(self, tableName: str) -> None:
+        """
+        Handler of ``rm`` Location-related Subcommand
+
+        :param str tableName: Location Table Name at the Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        :raises MainWarehouseError: Raised if the Warehouse that's being Removed is Referenced as the Main One at Any Location Table
+        """
+
+        if tableName == COUNTRY_TABLENAME:
+            # Select Country ID to Remove
+            countryId = self.getCountryId()
+
             # Print Fetched Results
-            if not self._countryTable.get(COUNTRY_ID, countryId):
+            if not self.__countryTable.get(COUNTRY_ID, countryId):
                 return
 
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
 
-            self._countryTable.remove(countryId)
+            self.__countryTable.remove(countryId)
 
         elif tableName == PROVINCE_TABLENAME:
-            # Ask for Province ID to Remove
-            provinceId = IntPrompt.ask("\nEnter Province ID to Remove")
-
-            # Clear Terminal
-            clear()
+            # Select Province ID to Remove
+            provinceId = self.getProvinceId()
 
             # Print Fetched Results
-            if not self._provinceTable.get(PROVINCE_ID, provinceId):
+            if not self.__provinceTable.get(PROVINCE_ID, provinceId):
                 return
 
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
 
-            self._provinceTable.remove(provinceId)
+            self.__provinceTable.remove(provinceId)
 
         elif tableName == REGION_TABLENAME:
-            # Ask for Region ID to Remove
-            regionId = IntPrompt.ask("\nEnter Region ID to Remove")
-
-            # Clear Terminal
-            clear()
+            # Select Region ID to Remove
+            regionId = self.getRegionId()
 
             # Print Fetched Results
-            if not self._regionTable.get(REGION_ID, regionId):
+            if not self.__regionTable.get(REGION_ID, regionId):
                 return
 
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
 
-            self._regionTable.remove(regionId)
+            self.__regionTable.remove(regionId)
 
         elif tableName == CITY_TABLENAME:
-            # Ask for City ID to Remove
-            cityId = IntPrompt.ask("\nEnter City ID to Remove")
-
-            # Clear Terminal
-            clear()
+            # Select City ID to Remove
+            cityId = self.getCityId
 
             # Print Fetched Results
-            if not self._cityTable.get(CITY_ID, cityId):
+            if not self.__cityTable.get(CITY_ID, cityId):
                 return
 
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
 
-            self._cityTable.remove(cityId)
-
-        elif tableName == CITY_AREA_TABLENAME:
-            # Ask for City Area ID to Remove
-            areaId = IntPrompt.ask("\nEnter City Area ID to Remove")
-
-            # Clear Terminal
-            clear()
-
-            # Print Fetched Results
-            if not self._cityAreaTable.get(CITY_AREA_ID, areaId):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(RM_CONFIRM_MSG):
-                return
-
-            self._cityAreaTable.remove(areaId)
+            self.__cityTable.remove(cityId)
 
         elif tableName == WAREHOUSE_TABLENAME:
-            # Ask for Warehouse ID to Remove
-            warehouseId = IntPrompt.ask("\nEnter Warehouse ID to Remove")
-
-            # Clear Terminal
-            clear()
+            # Select Warehouse ID to Remove
+            cityId = self.getCityId()
+            warehouseId = self.getWarehouseId(cityId)
 
             # Print Fetched Results
-            if not self._warehouseTable.get(WAREHOUSE_ID, warehouseId):
+            if not self.__warehouseTable.get(WAREHOUSE_ID, warehouseId):
                 return
 
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
 
-            # TO DEVELOP: Remove Warehouse Connections
+            # Check if it's the Main Warehouse at Any Location
+            location = self.__warehouseConnTable.isMainWarehouse(warehouseId)
 
-            self._warehouseTable.remove(warehouseId)
+            if location != None:
+                locationTableName, locationId = location
+                raise MainWarehouseError(locationTableName, locationId)
+
+            else:
+                # Remove City Warehouse Connections
+                self.__warehouseConnTable.removeCityWarehouse(warehouseId)
+
+                # Remove Warehouse
+                self.__warehouseTable.remove(warehouseId)
 
         elif tableName == BRANCH_TABLENAME:
-            # Ask for Branch ID to Remove
-            branchId = IntPrompt.ask("\nEnter Branch ID to Remove")
-
-            # Clear Terminal
-            clear()
+            # Select Branch ID to Remove
+            cityId = self.getCityId()
+            branchId = self.getWarehouseId(cityId)
 
             # Print Fetched Results
-            if not self._branchTable.get(BRANCH_ID, branchId):
+            if not self.__branchTable.get(BRANCH_ID, branchId):
                 return
 
             # Ask for Confirmation
             if not Confirm.ask(RM_CONFIRM_MSG):
                 return
 
-            self._branchTable.remove(branchId)
+            self.__branchTable.remove(branchId)
 
-    # Location Event Handler
+        # Press ENTER to Continue
+        Prompt.ask(PRESS_ENTER)
+
     def handler(self, action: str, tableName: str) -> None:
-        # Clear Terminal
-        clear()
+        """
+        Main Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Location-related Subcommands
 
-        if action == ALL:
-            self._allHandler(tableName)
+        :param str action: Location-related Command (``add``, ``all``, ``get``, ``mod`` or ``rm``)
+        :param str tableName: Location-related Table Name at Remote Database
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        if action == ADD:
+            self._addHandler(tableName)
 
         elif action == GET:
             self._getHandler(tableName)
 
+        elif action == ALL:
+            self._allHandler(tableName)
+
         elif action == MOD:
             self._modHandler(tableName)
-
-        elif action == ADD:
-            self._addHandler(tableName)
 
         elif action == RM:
             self._rmHandler(tableName)

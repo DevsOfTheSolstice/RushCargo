@@ -9,7 +9,7 @@ scriptFile = "./src/main.py"
 try:
     # Open Script File
     subprocess.Popen([pythonBin, scriptFile])
+
 except Exception as err:
-    # Print an Error if Something Happens
     print(err)
     input("Press ENTER to Exit")

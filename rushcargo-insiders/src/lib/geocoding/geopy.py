@@ -1,189 +1,223 @@
 from geopy.geocoders import Nominatim
 
 from .constants import *
-from .exceptions import LocationError, PlaceNotFound
+from .exceptions import LocationNotFound, PlaceNotFound
 
 from ..controller.constants import (
-    DICT_CITY_AREA_NAME,
-    DICT_CITY_AREA_ID,
+    DICT_CITY_ID,
     DICT_CITY_NAME,
+    DICT_REGION_ID,
     DICT_REGION_NAME,
     DICT_PROVINCE_NAME,
     DICT_COUNTRY_NAME,
 )
 
-from ..model.constants import CITY_AREA_ID
+from ..model.constants import CITY_ID
 
 
-# GeoPy Geocoder Class
-class GeoPyGeocoder:
+class NominatimGeocoder:
+    """
+    Class that Handles GeoPy (Nominatim API) Requests
+    """
+
     # Geolocator
-    _geolocator = None
+    __geolocator = None
 
-    # Constructor
     def __init__(self, user: str):
+        """
+        Nominatim GeoPy Geocoder Class Constructor
+
+        :param str user: Remote Database Role Name
+        """
+
         try:
             # Initialize Geolocator
-            self._geolocator = Nominatim(
+            self.__geolocator = Nominatim(
                 user_agent=f"{NOMINATIM_USER_AGENT}-{user}", timeout=5
             )
 
         except Exception as err:
             raise err
 
-    # Get Name
-    def __getName(self, locationRaw: dict):
-        return locationRaw[NOMINATIM_NAME]
+    def __getName(self, location: dict) -> str:
+        """
+        Method to Get Location Name from the Coincidence Dictionary Returned by Nominatim API
 
-    # Get Country Name
-    def getCountry(self, country: str) -> str | None:
+        :param dict location: Coincidence Dictionary Returned by Nominatim API
+        :return: Location Name
+        :rtype: str
+        """
+
+        return location.raw[NOMINATIM_NAME]
+
+    def getCountry(self, countryName: str) -> str:
+        """
+        Method to Check if a Country Name is Valid and its Normalized Form through the Nominatim API
+
+        :param str countryName: Country Name to be Validated and Normalized
+        :return: Country Normalized Name
+        :rtype: str
+        :raise LocationNotFound: Raised when there's no Country Coincidence for the Given Name
+        """
+
         try:
             # Get Country Location
-            geopyLocation = self._geolocator.geocode(country)
+            geopyLocation = self.__geolocator.geocode(countryName, exactly_one=False)
 
             # Check Location
             if geopyLocation == None:
-                raise LocationError(country, NOMINATIM_COUNTRY)
+                raise LocationNotFound(countryName, NOMINATIM_COUNTRY)
 
-            # Check if it's a Country
-            if geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_COUNTRY:
-                return self.__getName(geopyLocation.raw)
+            # Iterate over Coincidences
+            for coincidence in geopyLocation:
+                # Check if it's a Country
+                if coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_COUNTRY:
+                    return self.__getName(coincidence)
 
             # Invalid Location
-            raise LocationError(country, NOMINATIM_COUNTRY)
+            raise LocationNotFound(countryName, NOMINATIM_COUNTRY)
 
-        except Exception as err:
+        except LocationNotFound as err:
             raise err
 
-    # Get Province Name
-    def getProvince(self, location: dict, province: str) -> str | None:
+    def getProvince(self, location: dict, provinceName: str) -> str:
+        """
+        Method to Check if a Province Name is Valid and its Normalized Form through the Nominatim API
+
+        :param dict location: Location Dictionary that Contains the Province Parent Locations Information
+        :param str provinceName: Province Name to be Validated and Normalized
+        :return: Province Normalized Name
+        :rtype: str
+        :raise LocationError: Raised when there's no Province Coincidence for the Given Name at the Given Parent Location
+        """
+
         try:
             # Get Province Location
-            geopyLocation = self._geolocator.geocode(
-                ", ".join([province, location[DICT_COUNTRY_NAME]])
+            geopyLocation = self.__geolocator.geocode(
+                ", ".join([provinceName, location[DICT_COUNTRY_NAME]]),
+                exactly_one=False,
             )
 
             # Check Location
             if geopyLocation == None:
-                raise LocationError(province, NOMINATIM_PROVINCE)
+                raise LocationNotFound(provinceName, NOMINATIM_PROVINCE)
 
-            # Check if it's a Province
-            if (
-                geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
-                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE_ALT
-            ):
-                return self.__getName(geopyLocation.raw)
+            # Iterate over Coincidences
+            for coincidence in geopyLocation:
+                # Check if it's a Province
+                if (
+                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
+                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE_ALT
+                ):
+                    return self.__getName(coincidence)
 
             # Invalid Location
-            raise LocationError(province, NOMINATIM_PROVINCE)
+            raise LocationNotFound(provinceName, NOMINATIM_PROVINCE)
 
-        except Exception as err:
+        except LocationNotFound as err:
             raise err
 
-    # Get Region Name
-    def getRegion(self, location: dict, region: str) -> str | None:
+    def getRegion(self, location: dict, regionName: str) -> str:
+        """
+        Method to Check if a Region Name is Valid and its Normalized Form through the Nominatim API
+
+        :param dict location: Location Dictionary that Contains the Region Parent Locations Information
+        :param str regionName: Region Name to be Validated and Normalized
+        :return: Region Normalized Name
+        :rtype: str
+        :raise LocationError: Raised when there's no Region Coincidence for the Given Name at the Given Parent Location
+        """
+
         try:
             # Get Region Location
-            geopyLocation = self._geolocator.geocode(
+            geopyLocation = self.__geolocator.geocode(
                 ", ".join(
                     [
-                        region,
+                        regionName,
                         location[DICT_PROVINCE_NAME],
                         location[DICT_COUNTRY_NAME],
                     ]
-                )
+                ),
+                exactly_one=False,
             )
 
             # Check Location
             if geopyLocation == None:
-                raise LocationError(region, NOMINATIM_REGION)
+                raise LocationNotFound(regionName, NOMINATIM_REGION)
 
-            # Check if it's a Region
-            if (
-                geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION
-                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION_ALT
-            ):
-                return self.__getName(geopyLocation.raw)
+            # Iterate over Coincidences
+            for coincidence in geopyLocation:
+                # Check if it's a Region
+                if (
+                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION
+                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION_ALT
+                ):
+                    return self.__getName(coincidence)
 
             # Invalid Location
-            raise LocationError(region, NOMINATIM_REGION)
+            raise LocationNotFound(regionName, NOMINATIM_REGION)
 
-        except Exception as err:
+        except LocationNotFound as err:
             raise err
 
-    # Get City Name
-    def getCity(self, location: dict, city: str) -> str | None:
+    def getCity(self, location: dict, cityName: str) -> str:
+        """
+        Method to Check if a City Name is Valid and its Normalized Form through the Nominatim API
+
+        :param dict location: Location Dictionary that Contains the City Parent Locations Information
+        :param str cityName: City Name to be Validated and Normalized
+        :return: City Normalized Name
+        :rtype: str
+        :raise LocationError: Raised when there's no City Coincidence for the Given Name at the Given Parent Location
+        """
+
         try:
             # Get City Location
-            geopyLocation = self._geolocator.geocode(
+            geopyLocation = self.__geolocator.geocode(
                 ", ".join(
                     [
-                        city,
+                        cityName,
                         location[DICT_REGION_NAME],
                         location[DICT_PROVINCE_NAME],
                         location[DICT_COUNTRY_NAME],
                     ]
-                )
+                ),
+                exactly_one=False,
             )
 
             # Check Location
             if geopyLocation == None:
-                raise LocationError(city, NOMINATIM_CITY)
+                raise LocationNotFound(cityName, NOMINATIM_CITY)
 
-            # Check if it's a City
-            if geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY:
-                return self.__getName(geopyLocation.raw)
-
-            # Invalid Location
-            raise LocationError(city, NOMINATIM_CITY)
-
-        except Exception as err:
-            raise err
-
-    # Get City Area Name
-    def getCityArea(self, location: dict, cityArea: str) -> str | None:
-        try:
-            # Get City Area Location
-            geopyLocation = self._geolocator.geocode(
-                ", ".join(
-                    [
-                        cityArea,
-                        location[DICT_CITY_NAME],
-                        location[DICT_REGION_NAME],
-                        location[DICT_PROVINCE_NAME],
-                        location[DICT_COUNTRY_NAME],
-                    ]
-                )
-            )
-
-            # Check Location
-            if geopyLocation == None:
-                raise LocationError(cityArea, NOMINATIM_CITY_AREA)
-
-            # Check if it's a City Area
-            if (
-                geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA
-                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA_ALT1
-                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA_ALT2
-                or geopyLocation.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY_AREA_ALT3
-            ):
-                return self.__getName(geopyLocation.raw)
+            # Iterate over Coincidences
+            for coincidence in geopyLocation:
+                # Check if it's a City
+                if coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY:
+                    return self.__getName(coincidence)
 
             # Invalid Location
-            raise LocationError(cityArea, NOMINATIM_CITY_AREA)
+            raise LocationNotFound(cityName, NOMINATIM_CITY)
 
-        except Exception as err:
+        except LocationNotFound as err:
             raise err
 
-    # Get Place Coordinates
-    def getPlaceCoordinates(self, location: dict, place: str) -> dict | None:
+    def getPlaceCoordinates(self, location: dict, placeName: str) -> dict:
+        """
+        Method to Check if a Place Name is Valid and Get its Latitude and Longitude Coordinates through the Nominatim API
+
+        :param dict location: Location Dictionary that Contains the Place Parent Locations Information
+        :param str placeName: Place Name to be Validated
+        :return: Dictionary that Holds the City ID where the Placed is Located, and the Place Latitude and Longitude Coordinates
+        :rtype: dict
+        :raise PlaceNotFound: Raised when there's no Place Coincidence for the Given Name at the Given Parent Location
+        """
+
         try:
             # Get Place Location
-            geopyLocation = self._geolocator.geocode(
+            geopyLocation = self.__geolocator.geocode(
                 ", ".join(
                     [
-                        place,
-                        location[DICT_CITY_AREA_NAME],
+                        placeName,
                         location[DICT_CITY_NAME],
                         location[DICT_REGION_NAME],
                         location[DICT_PROVINCE_NAME],
@@ -197,16 +231,16 @@ class GeoPyGeocoder:
 
             # Check Coordinates
             if geopyLocation == None:
-                raise PlaceNotFound(place, "place")
+                raise PlaceNotFound(location[DICT_REGION_ID], location[DICT_CITY_NAME])
 
-            # Set City Area ID from City Area Table
-            coords[CITY_AREA_ID] = location[DICT_CITY_AREA_ID]
+            # Set City ID from City Table
+            coords[CITY_ID] = location[DICT_CITY_ID]
 
-            # Set Coordinates
+            # Set Latitude and Longitude Coordinates Received by the Nominatim API
             coords[NOMINATIM_LATITUDE] = geopyLocation.raw[NOMINATIM_LATITUDE]
             coords[NOMINATIM_LONGITUDE] = geopyLocation.raw[NOMINATIM_LONGITUDE]
 
             return coords
 
-        except Exception as err:
+        except PlaceNotFound as err:
             raise err

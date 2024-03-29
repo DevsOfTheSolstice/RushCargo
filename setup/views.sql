@@ -1,11 +1,10 @@
 --1
 CREATE VIEW Warehouses AS
-SELECT country.country_id, province.province_id, region.region_id, city.city_id, area.area_id, building.gps_latitude,building.gps_longitude,warehouse.warehouse_id
+SELECT country.country_id, province.province_id, region.region_id, city.city_id, building.gps_latitude,building.gps_longitude,warehouse.warehouse_id
 FROM Country AS country INNER JOIN PROVINCE AS province ON country.country_id = province.country_id
 INNER JOIN Region AS region ON province.province_id = region.province_id
 INNER JOIN City AS city ON region.region_id = city.region_id
-INNER JOIN City_Area AS area ON city.city_id = area.city_id
-INNER JOIN Building AS building ON area.area_id = building.area_id
+INNER JOIN Building AS building ON city.city_id = building.city_id
 INNER JOIN Warehouse AS warehouse ON building.building_id = warehouse.warehouse_id;
 
 --2
@@ -28,8 +27,5 @@ SELECT warehouses.* FROM Warehouses AS warehouses INNER JOIN Region AS region ON
 CREATE VIEW City_Main_Warehouses AS
 SELECT warehouses.* FROM Warehouses AS warehouses INNER JOIN City AS city ON city.main_warehouse = warehouses.warehouse_id;
 
---7
-CREATE VIEW City_Areas_Main_Warehouses AS
-SELECT warehouses.* FROM Warehouses AS warehouses INNER JOIN City_Area AS area ON area.main_warehouse = warehouses.warehouse_id;
 
 

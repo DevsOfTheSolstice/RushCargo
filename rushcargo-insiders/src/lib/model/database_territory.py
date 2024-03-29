@@ -1,51 +1,73 @@
 from psycopg import sql
 
-from .classes import Country, Province, Region, City, CityArea
+from rich.prompt import IntPrompt
+
+from .classes import Country, Province, Region, City
 from .constants import *
-from .database import Database, console
+from .database import console
 from .database_tables import (
-    BasicTable,
-    noCoincidenceFetched,
+    BaseTable,
+    uniqueInserted,
+    uniqueInsertedMult,
+    noCoincidence,
     insertedRow,
     getTable,
 )
 
+from ..io.validator import clear
 
-# Country Table Class
-class CountryTable(BasicTable):
-    # Constructor
-    def __init__(self, database: Database):
-        # Initialize Basic Table Class
-        super().__init__(COUNTRY_TABLENAME, COUNTRY_ID, database)
 
-    # Print Items
+class CountryTable(BaseTable):
+    """
+    Class that Handles the SQL Operations related to the Remote SQL Country Table
+    """
+
+    def __init__(self, remoteCursor):
+        """
+        Country Remote Table Class Constructor
+
+        :param Cursor remoteCursor: Remote Database Connection Cursor
+        """
+
+        # Initialize Base Table Class
+        super().__init__(COUNTRY_TABLENAME, COUNTRY_ID, remoteCursor)
+
     def __print(self) -> None:
-        c = None
+        """
+        Method that Prints the Countries Fetched from its Remote Table
 
-        # Number of Items
-        nItems = len(self._items)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Number of Countries to Print
+        nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Country", nItems)
+        table = getTable("Country", nRows)
 
-        # Add Table Columns
+        # Add Country Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
         table.add_column("Phone Prefix", justify="left", max_width=PHONE_PREFIX_NCHAR)
 
-        # Loop Over Items
         for item in self._items:
-            # Intialize Country from Item Fetched
-            c = Country.fromItemFetched(item)
+            # Intialize Country from the SQL Row Fetched
+            c = Country.fromFetchedItem(item)
 
-            # Add Row to Rich Table
+            # Add Country Row to Rich Table
             table.add_row(str(c.countryId), c.name, str(c.phonePrefix))
 
-        # Print Table
         console.print(table)
 
-    # Returns Country Insert Query
     def __insertQuery(self):
+        """
+        Method that Retuns a Query to Insert a New Country to its Remote Table
+
+        :return: SQL Query to Insert a New Country
+        :rtype: Composed
+        """
+
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -53,82 +75,145 @@ class CountryTable(BasicTable):
             ),
         )
 
-    # Insert Country to Table
-    def add(self, c: Country) -> None:
-        # Get Query
-        query = self.__insertQuery()
+    def add(self, countryName: str) -> None:
+        """
+        Method to Insert a New Country to the Country Table
 
-        # Execute Query
+        :param str countryName: Country Name to Insert
+        :returns: None
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
+        """
+
+        # Check if the Country has already been Inserted
+        if self.get(COUNTRY_NAME, countryName, False):
+            uniqueInserted(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
+            return
+
+        # Ask for the Country Fields
+        phonePrefix = IntPrompt.ask("Enter Phone Prefix")
+
+        # Get Query to Insert the New Country
+        insertQuery = self.__insertQuery()
+
+        # Execute the Query and Print a Success Message
         try:
-            self._c.execute(query, [c.name, c.phonePrefix])
-
-            console.print(
-                insertedRow(c.name, self._tableName),
-                style="success",
-            )
+            self._c.execute(insertQuery, [countryName, phonePrefix])
+            insertedRow(countryName, self._tableName)
 
         except Exception as err:
             raise err
 
-    # Filter Items from Country Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not BasicTable._get(self, field, value):
+        """
+        Method to Filter Countries from its Remote Table based on a Given Field-Value Pair
+
+        :param str field: Country Field that will be Used to Compare in the Country Table
+        :param value: Value to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if printItems:
+            # Clear Terminal
+            clear()
+
+        if not BaseTable._get(self, field, value):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Find Country from Country Table
     def find(self, field: str, value) -> Country | None:
         """
-        Returns Country Object if it was Found. Otherwise, False
+        Method to Find a Country at its Remote Table based on its Unique Fields
 
-        NOTE: All Columns from this Table Contain Unique Values
+        :param str field: Country Field that will be Used to Compare in the Country Table
+        :param value: Unique Value to Compare
+        :return: Country Object if Found. Otherwise, ``None``
+        :rtype: Country if Found. Otherwise, NoneType
         """
 
-        # Get Country
+        # Get Country from its Remote Table
         if not self.get(field, value, False):
             return None
 
-        # Get Country Object from Item Fetched
-        return Country.fromItemFetched(self._items[0])
+        # Get Country Object from the Fetched Item
+        return Country.fromFetchedItem(self._items[0])
 
-    # Get All Items from Country Table
     def all(self, orderBy: str, desc: bool) -> None:
-        BasicTable._all(self, orderBy, desc)
+        """
+        Method that Prints the All the Countries Stored at its Remote Table
 
-        # Print Items
+        :param str orderBy: Country Field that will be Used to Sort the Country Table
+        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Fetch All Countries
+        BaseTable._all(self, orderBy, desc)
+
+        # Print All Countries
         self.__print()
 
-    # Modify Row from Country Table
     def modify(self, countryId: int, field: str, value) -> None:
-        BasicTable._modify(self, countryId, field, value)
+        """
+        Method to Modify a Country Field to its Remote Table
 
-    # Remove Row from Country Table
+        :param int countryId: Country ID from its Remote Table
+        :param str field: Country Field to Modify
+        :param value: Country Field Value to be Assigned
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._modify(self, countryId, field, value)
+
     def remove(self, countryId: int) -> None:
-        BasicTable._remove(self, countryId)
+        """
+        Method to Remove a Country Row from its Remote Table
+
+        :param int countryId: Country ID from its Remote Table
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._remove(self, countryId)
 
 
-# Province Table Class
-class ProvinceTable(BasicTable):
-    # Constructor
-    def __init__(self, database: Database):
-        # Initialize Basic Table Class
-        super().__init__(PROVINCE_TABLENAME, PROVINCE_ID, database)
+class ProvinceTable(BaseTable):
+    """
+    Class that Handles the SQL Operations related to the Remote SQL Province Table
+    """
 
-    # Print Items
+    def __init__(self, remoteCursor):
+        """
+        Province Remote Table Class Constructor
+
+        :param Cursor remoteCursor: Remote Database Connection Cursor
+        """
+
+        # Initialize Base Table Class
+        super().__init__(PROVINCE_TABLENAME, PROVINCE_ID, remoteCursor)
+
     def __print(self) -> None:
-        p = None
+        """
+        Method that Prints the Provinces Fetched from its Remote Table
 
-        # Number of Items
-        nItems = len(self._items)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Number of Provinces to Print
+        nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Province", nItems)
+        table = getTable("Province", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -140,10 +225,9 @@ class ProvinceTable(BasicTable):
         )
         table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
-        # Loop Over Items
         for item in self._items:
-            # Intialize Province from Item Fetched
-            p = Province.fromItemFetched(item)
+            # Intialize Province from the Fetched Item
+            p = Province.fromFetchedItem(item)
 
             # Add Row to Rich Table
             table.add_row(
@@ -152,14 +236,19 @@ class ProvinceTable(BasicTable):
                 str(p.countryId),
                 str(p.airForwarderId),
                 str(p.oceanForwarderId),
-                str(p.warehouseId)
+                str(p.warehouseId),
             )
 
-        # Print Table
         console.print(table)
 
-    # Returns Province Insert Query
     def __insertQuery(self):
+        """
+        Method that Retuns a Query to Insert a New Province to its Remote Table
+
+        :return: SQL Query to Insert a New Province
+        :rtype: Composed
+        """
+
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -167,107 +256,184 @@ class ProvinceTable(BasicTable):
             ),
         )
 
-    # Insert Province to Table
-    def add(self, p: Province) -> None:
-        # Get Query
+    def add(self, countryId: int, provinceName: str) -> None:
+        """
+        Method to Insert a New Province to the Province Table
+
+        :param int countryId: Country ID at its Remote Table where the Province is Located
+        :param str provinceName: Province Name to Insert
+        :returns: None
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
+        """
+
+        provinceFields = [PROVINCE_FK_COUNTRY, PROVINCE_NAME]
+        provinceValues = [countryId, provinceName]
+
+        # Check if the Province Name has already been Inserted for the Given Country
+        if self.getMult(provinceFields, provinceValues, False):
+            uniqueInsertedMult(PROVINCE_TABLENAME, provinceFields, provinceValues)
+            return
+
+        # Get Query to Insert the New Province
         query = self.__insertQuery()
 
-        # Execute Query
+        # Execute the Query and Print a Success Message
         try:
-            self._c.execute(query, [p.countryId, p.name])
-
-            console.print(
-                insertedRow(p.name, self._tableName),
-                style="success",
-            )
+            self._c.execute(query, [countryId, provinceName])
+            insertedRow(provinceName, self._tableName)
 
         except Exception as err:
             raise err
 
-    # Filter Items from Province Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not BasicTable._get(self, field, value):
+        """
+        Method to Filter Provinces from its Remote Table based on a Given Field-Value Pair
+
+        :param str field: Province Field that will be Used to Compare in the Province Table
+        :param value: Value to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if printItems:
+            # Clear Terminal
+            clear()
+
+        if not BaseTable._get(self, field, value):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Filter Items with Multiple Conditions from Province Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, fields, values):
+        """
+        Method to Filter Provinces from its Remote Table based on Some Given Field-Value Pair
+
+        :param list fields: Province Fields that will be Used to Compare in the Province Table
+        :param list values: Values to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if not BaseTable._getMult(self, fields, values):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Find Province from Province Table with the Province Name and the Country ID where it's Located
     def findMult(self, countryId: int, provinceName: str) -> Province | None:
         """
-        Returns Province Object if it was Found. Otherwise, False
+        Method to Find a Province at its Remote Table based on its Name and the Country ID where it's Located
+
+        :param int countryId: Country ID where the Province is Located
+        :param str provinceName: Province Name to Search for
+        :return: Province Object if Found. Otherwise, ``None``
+        :rtype: Province if Found. Otherwise, NoneType
         """
 
-        # Get Province
+        # Get Province from its Remote Table
         if not self.getMult(
             [PROVINCE_FK_COUNTRY, PROVINCE_NAME], [countryId, provinceName], False
         ):
             return None
 
-        # Get Province Object from Item Fetched
-        return Province.fromItemFetched(self._items[0])
+        # Get Province Object from the Fetched Item
+        return Province.fromFetchedItem(self._items[0])
 
-    # Find Province from Province Table with the Province ID
     def find(self, provinceId: int) -> Province | None:
         """
-        Returns Province Object if it was Found. Otherwise, False
+        Method to Find a Province at its Remote Table based on its ID
+
+        :param str provinceId: Province ID to Search for
+        :return: Province Object if Found. Otherwise, ``None``
+        :rtype: Province if Found. Otherwise, NoneType
         """
 
-        # Get Province
+        # Get Province from its Remote Table
         if not self.get(self._tablePKName, provinceId, False):
             return None
 
-        # Get Province Object from Item Fetched
-        return Province.fromItemFetched(self._items[0])
+        # Get Province Object from the Fetched Item
+        return Province.fromFetchedItem(self._items[0])
 
-    # Get All Items from Province Table
     def all(self, orderBy: str, desc: bool) -> None:
-        BasicTable._all(self, orderBy, desc)
+        """
+        Method that Prints the All the Provinces Stored at its Remote Table
 
-        # Print Items
+        :param str orderBy: Province Field that will be Used to Sort the Province Table
+        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Fetch All Provinces
+        BaseTable._all(self, orderBy, desc)
+
+        # Print All Provinces
         self.__print()
 
-    # Modify Row from Province Table
     def modify(self, provinceId: int, field: str, value) -> None:
-        BasicTable._modify(self, provinceId, field, value)
+        """
+        Method to Modify a Province Field to its Remote Table
 
-    # Remove Row from Province Table
+        :param int provinceId: Province ID from its Remote Table
+        :param str field: Province Field to Modify
+        :param value: Province Field Value to be Assigned
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._modify(self, provinceId, field, value)
+
     def remove(self, provinceId: int) -> None:
-        BasicTable._remove(self, provinceId)
+        """
+        Method to Remove a Province Row from its Remote Table
+
+        :param int provinceId: Province ID from its Remote Table
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._remove(self, provinceId)
 
 
-# Region Table Class
-class RegionTable(BasicTable):
-    # Constructor
-    def __init__(self, database: Database):
-        # Initialize Basic Table Class
-        super().__init__(REGION_TABLENAME, REGION_ID, database)
+class RegionTable(BaseTable):
+    """
+    Class that Handles the SQL Operations related to the Remote SQL Region Table
+    """
 
-    # Print Items
+    def __init__(self, remoteCursor):
+        """
+        Region Remote Table Class Constructor
+
+        :param Cursor remoteCursor: Remote Database Connection Cursor
+        """
+
+        # Initialize Base Table Class
+        super().__init__(REGION_TABLENAME, REGION_ID, remoteCursor)
+
     def __print(self) -> None:
-        r = None
+        """
+        Method that Prints the Regions Fetched from its Remote Table
 
-        # Number of Items
-        nItems = len(self._items)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Number of Regions to Print
+        nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Region", nItems)
+        table = getTable("Region", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -275,21 +441,25 @@ class RegionTable(BasicTable):
         table.add_column("Province ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
-        # Loop Over Items
         for item in self._items:
-            # Intialize Region from Item Fetched
-            r = Region.fromItemFetched(item)
+            # Intialize Region from the Fetched Item
+            r = Region.fromFetchedItem(item)
 
             # Add Row to Rich Table
             table.add_row(
                 str(r.regionId), r.name, str(r.provinceId), str(r.warehouseId)
             )
 
-        # Print Table
         console.print(table)
 
-    # Returns Region Insert Query
     def __insertQuery(self):
+        """
+        Method that Retuns a Query to Insert a New Region to its Remote Table
+
+        :return: SQL Query to Insert a New Region
+        :rtype: Composed
+        """
+
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -297,106 +467,184 @@ class RegionTable(BasicTable):
             ),
         )
 
-    # Insert Region to Table
-    def add(self, r: Region) -> None:
-        # Get Query
+    def add(self, provinceId: int, regionName: str) -> None:
+        """
+        Method to Insert a New Region to the Region Table
+
+        :param int provinceId: Province ID at its Remote Table where the Region is Located
+        :param str regionName: Region Name to Insert
+        :returns: None
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
+        """
+
+        regionFields = [REGION_FK_PROVINCE, REGION_NAME]
+        regionValues = [provinceId, regionName]
+
+        # Check if the Region Name has already been Inserted for the Given Province
+        if self._regionTable.getMult(regionFields, regionValues, False):
+            uniqueInsertedMult(REGION_TABLENAME, regionFields, regionValues)
+            return
+
+        # Get Query to Insert the New Region
         query = self.__insertQuery()
 
-        # Execute Query
+        # Execute the Query and Print a Success Message
         try:
-            self._c.execute(query, [r.provinceId, r.name])
-            console.print(
-                insertedRow(r.name, self._tableName),
-                style="success",
-            )
+            self._c.execute(query, [provinceId, regionName])
+            insertedRow(regionName, self._tableName)
 
         except Exception as err:
             raise err
 
-    # Filter Items from Region Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not BasicTable._get(self, field, value):
+        """
+        Method to Filter Regions from its Remote Table based on a Given Field-Value Pair
+
+        :param str field: Region Field that will be Used to Compare in the Region Table
+        :param value: Value to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if printItems:
+            # Clear Terminal
+            clear()
+
+        if not BaseTable._get(self, field, value):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Filter Items with Multiple Conditions from Region Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, fields, values):
+        """
+        Method to Filter Regions from its Remote Table based on Some Given Field-Value Pair
+
+        :param list fields: Region Fields that will be Used to Compare in the Region Table
+        :param list values: Values to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if not BaseTable._getMult(self, fields, values):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Find Region from Region Table with the Region Name and the Province ID where it's Located
     def findMult(self, provinceId: int, regionName: str) -> Region | None:
         """
-        Returns Region Object if it was Found. Otherwise, False
+        Method to Find a Region at its Remote Table based on its Name and the Province ID where it's Located
+
+        :param int provinceId: Province ID where the Region is Located
+        :param str regionName: Region Name to Search for
+        :return: Region Object if Found. Otherwise, ``None``
+        :rtype: Region if Found. Otherwise, NoneType
         """
 
-        # Get Region
+        # Get Region from its Remote Table
         if not self.getMult(
             [REGION_FK_PROVINCE, REGION_NAME], [provinceId, regionName], False
         ):
             return None
 
-        # Get Region Object from Item Fetched
-        return Region.fromItemFetched(self._items[0])
+        # Get Region Object from the Fetched Item
+        return Region.fromFetchedItem(self._items[0])
 
-    # Find Region from Region Table with the Region ID
     def find(self, regionId: int) -> Region | None:
         """
-        Returns Region Object if it was Found. Otherwise, False
+        Method to Find a Region at its Remote Table based on its ID
+
+        :param str regionId: Region ID to Search for
+        :return: Region Object if Found. Otherwise, ``None``
+        :rtype: Region if Found. Otherwise, NoneType
         """
 
-        # Get Region
+        # Get Region from its Remote Table
         if not self.get(self._tablePKName, regionId, False):
             return None
 
-        # Get Region Object from Item Fetched
-        return Region.fromItemFetched(self._items[0])
+        # Get Region Object from the Fetched Item
+        return Region.fromFetchedItem(self._items[0])
 
-    # Get All Items from Region Table
     def all(self, orderBy: str, desc: bool) -> None:
-        BasicTable._all(self, orderBy, desc)
+        """
+        Method that Prints the All the Regions Stored at its Remote Table
 
-        # Print Items
+        :param str orderBy: Region Field that will be Used to Sort the Region Table
+        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Fetch All Regions
+        BaseTable._all(self, orderBy, desc)
+
+        # Print All Regions
         self.__print()
 
-    # Modify Row from Region Table
     def modify(self, regionId: int, field: str, value) -> None:
-        BasicTable._modify(self, regionId, field, value)
+        """
+        Method to Modify a Region Field to its Remote Table
 
-    # Remove Row from Region Table
+        :param int regionId: Region ID from its Remote Table
+        :param str field: Region Field to Modify
+        :param value: Region Field Value to be Assigned
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._modify(self, regionId, field, value)
+
     def remove(self, regionId: int) -> None:
-        BasicTable._remove(self, regionId)
+        """
+        Method to Remove a Region Row from its Remote Table
+
+        :param int regionId: Region ID from its Remote Table
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._remove(self, regionId)
 
 
-# City Table Class
-class CityTable(BasicTable):
-    # Constructor
-    def __init__(self, database: Database):
-        # Initialize Basic Table Class
-        super().__init__(CITY_TABLENAME, CITY_ID, database)
+class CityTable(BaseTable):
+    """
+    Class that Handles the SQL Operations related to the Remote SQL City Table
+    """
 
-    # Print Items
+    def __init__(self, remoteCursor):
+        """
+        City Table Remote Class Constructor
+
+        :param Cursor remoteCursor: Remote Database Connection Cursor
+        """
+
+        # Initialize Base Table Class
+        super().__init__(CITY_TABLENAME, CITY_ID, remoteCursor)
+
     def __print(self) -> None:
-        c = None
+        """
+        Method that Prints the Cities Fetched from its Remote Table
 
-        # Number of Items
-        nItems = len(self._items)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Number of Cities to Print
+        nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("City", nItems)
+        table = getTable("City", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -404,19 +652,23 @@ class CityTable(BasicTable):
         table.add_column("Region ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
 
-        # Loop Over Items
         for item in self._items:
-            # Intialize City from Item Fetched
-            c = City.fromItemFetched(item)
+            # Intialize City from the Fetched Item
+            c = City.fromFetchedItem(item)
 
             # Add Row to Rich Table
             table.add_row(str(c.cityId), c.name, str(c.regionId), str(c.warehouseId))
 
-        # Print Table
         console.print(table)
 
-    # Returns City Insert Query
     def __insertQuery(self):
+        """
+        Method that Retuns a Query to Insert a New City to its Remote Table
+
+        :return: SQL Query to Insert a New City
+        :rtype: Composed
+        """
+
         return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
@@ -424,211 +676,149 @@ class CityTable(BasicTable):
             ),
         )
 
-    # Insert City to Table
-    def add(self, c: City) -> None:
-        # Get Query
+    def add(self, regionId: int, cityName: str) -> None:
+        """
+        Method to Insert a New City to the City Table
+
+        :param int regionId: Region ID at its Remote Table where the City is Located
+        :param str cityName: City Name to Insert
+        :returns: None
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
+        """
+
+        cityFields = [CITY_FK_REGION, CITY_NAME]
+        cityValues = [regionId, cityName]
+
+        # Check if the City Name has already been Inserted for the Given Region
+        if self._cityTable.getMult(cityFields, cityValues, False):
+            uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
+            return
+
+        # Get Query to Insert the New City
         query = self.__insertQuery()
 
-        # Execute Query
+        # Execute the Query and Print a Success Message
         try:
-            self._c.execute(query, [c.regionId, c.name])
-            console.print(
-                insertedRow(c.name, self._tableName),
-                style="success",
-            )
+            self._c.execute(query, [regionId, cityName])
+            insertedRow(cityName, self._tableName)
 
         except Exception as err:
             raise err
 
-    # Filter Items from City Table
     def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not BasicTable._get(self, field, value):
+        """
+        Method to Filter Cities from its Remote Table based on a Given Field-Value Pair
+
+        :param str field: City Field that will be Used to Compare in the City Table
+        :param value: Value to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if printItems:
+            # Clear Terminal
+            clear()
+
+        if not BaseTable._get(self, field, value):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Filter Items with Multiple Conditions from City Table
     def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, fields, values):
+        """
+        Method to Filter Cities from its Remote Table based on Some Given Field-Value Pair
+
+        :param list fields: City Fields that will be Used to Compare in the City Table
+        :param list values: Values to Compare
+        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        if not BaseTable._getMult(self, fields, values):
             if printItems:
-                noCoincidenceFetched()
+                noCoincidence()
             return False
 
-        # Print Items
         if printItems:
             self.__print()
         return True
 
-    # Find City from City Table with the City Name and the Region ID where it's Located
     def findMult(self, regionId: int, cityName: str) -> City | None:
         """
-        Returns City Object if it was Found. Otherwise, False
+        Method to Find a City at its Remote Table based on its Name and the Region ID where it's Located
+
+        :param int regionId: Region ID where the City is Located
+        :param str cityName: City Name to Search for
+        :return: City Object if Found. Otherwise, ``None``
+        :rtype: City if Found. Otherwise, NoneType
         """
 
-        # Get City
+        # Get City from its Remote Table
         if not self.getMult([CITY_FK_REGION, CITY_NAME], [regionId, cityName], False):
             return None
 
-        # Get City Object from Item Fetched
-        return City.fromItemFetched(self._items[0])
+        # Get City Object from Fetched Item
+        return City.fromFetchedItem(self._items[0])
 
-    # Find City from City Table with the City ID
-    def find(self, cityId:int) -> City | None:
+    def find(self, cityId: int) -> City | None:
         """
-        Returns City Object if it was Found. Otherwise, False
+        Method to Find a City at its Remote Table based on its ID
+
+        :param str cityId: City ID to Search for
+        :return: City Object if Found. Otherwise, ``None``
+        :rtype: City if Found. Otherwise, NoneType
         """
 
-        # Get City
+        # Get City from its Remote Table
         if not self.get(self._tablePKName, cityId, False):
             return None
 
-        # Get City Object from Item Fetched
-        return City.fromItemFetched(self._items[0])
+        # Get City Object from the Fetched Item
+        return City.fromFetchedItem(self._items[0])
 
-    # Get All Items from City Table
     def all(self, orderBy: str, desc: bool) -> None:
-        BasicTable._all(self, orderBy, desc)
+        """
+        Method that Prints the All the Cities Stored at its Remote Table
 
-        # Print Items
+        :param str orderBy: City Field that will be Used to Sort the City Table
+        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Fetch All Cities
+        BaseTable._all(self, orderBy, desc)
+
+        # Print All Cities
         self.__print()
 
-    # Modify Row from City Table
     def modify(self, cityId: int, field: str, value) -> None:
-        BasicTable._modify(self, cityId, field, value)
+        """
+        Method to Modify a City Field to its Remote Table
 
-    # Remove Row from City Table
+        :param int cityId: City ID from its Remote Table
+        :param str field: City Field to Modify
+        :param value: City Field Value to be Assigned
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        BaseTable._modify(self, cityId, field, value)
+
     def remove(self, cityId: int) -> None:
-        BasicTable._remove(self, cityId)
-
-
-# City Area Table Class
-class CityAreaTable(BasicTable):
-    # Constructor
-    def __init__(self, database: Database):
-        # Initialize Basic Table Class
-        super().__init__(CITY_AREA_TABLENAME, CITY_AREA_ID, database)
-
-    # Print Items
-    def __print(self) -> None:
-        a = None
-
-        # Number of Items
-        nItems = len(self._items)
-
-        # Initialize Rich Table
-        table = getTable("City", nItems)
-
-        # Add Table Columns
-        table.add_column("ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Name", justify="left", max_width=LOCATION_NAME_NCHAR)
-        table.add_column("Description", justify="left", max_width=DESCRIPTION_NCHAR)
-        table.add_column("City ID", justify="left", max_width=ID_NCHAR)
-        table.add_column("Warehouse ID", justify="left", max_width=WAREHOUSE_NCHAR)
-
-        # Loop Over Items
-        for item in self._items:
-            # Intialize City Area from Item Fetched
-            a = CityArea.fromItemFetched(item)
-
-            # Add Row to Rich Table
-            table.add_row(str(a.areaId), a.areaName, a.areaDescription, str(a.cityId), str(a.warehouseId))
-
-        # Print Table
-        console.print(table)
-
-    # Returns City Area Insert Query
-    def __insertQuery(self):
-        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
-            tableName=sql.Identifier(self._tableName),
-            fields=sql.SQL(",").join(
-                [sql.Identifier(CITY_AREA_FK_CITY), sql.Identifier(CITY_AREA_NAME)]
-            ),
-        )
-
-    # Insert City Area to Table
-    def add(self, a: CityArea) -> None:
-        # Get Query
-        query = self.__insertQuery()
-
-        # Execute Query
-        try:
-            self._c.execute(query, [a.cityId, a.areaName])
-            console.print(
-                insertedRow(a.areaName, self._tableName),
-                style="success",
-            )
-
-        except Exception as err:
-            raise err
-
-    # Filter Items from City Areas Table
-    def get(self, field: str, value, printItems: bool = True) -> bool:
-        if not BasicTable._get(self, field, value):
-            if printItems:
-                noCoincidenceFetched()
-            return False
-
-        # Print Items
-        if printItems:
-            self.__print()
-        return True
-
-    # Filter Items with Multiple Conditions from City Areas Table
-    def getMult(self, fields: list[str], values: list, printItems: bool = True) -> bool:
-        if not BasicTable._getMult(self, fields, values):
-            if printItems:
-                noCoincidenceFetched()
-            return False
-
-        # Print Items
-        if printItems:
-            self.__print()
-        return True
-
-    # Find City Area from City Area Table with the City Area Name and the City ID where it's Located
-    def findMult(self, cityId: int, areaName: str) -> City | None:
         """
-        Returns City Area Object if it was Found. Otherwise, False
+        Method to Remove a City Row from its Remote Table
+
+        :param int cityId: City ID from its Remote Table
+        :return: Nothing
+        :rtype: NoneType
         """
 
-        # Get City Area
-        if not self.getMult(
-            [CITY_AREA_FK_CITY, CITY_AREA_NAME], [cityId, areaName], False
-        ):
-            return None
-
-        # Get City Area Object from Item Fetched
-        return CityArea.fromItemFetched(self._items[0])
-
-    # Find City Area from City Area Table with the City Area ID
-    def find(self, areaId: int) -> CityArea | None:
-        """
-        Returns City Area Object if it was Found. Otherwise, False
-        """
-
-        # Get City Area
-        if not self.get(self._tablePKName, areaId, False):
-            return None
-
-        # Get City Area Object from Item Fetched
-        return CityArea.fromItemFetched(self._items[0])
-
-    # Get All Items from City Area Table
-    def all(self, orderBy: str, desc: bool) -> None:
-        BasicTable._all(self, orderBy, desc)
-
-        # Print Items
-        self.__print()
-
-    # Modify Row from City Area Table
-    def modify(self, areaId: int, field: str, value) -> None:
-        BasicTable._modify(self, areaId, field, value)
-
-    # Remove Row from City Area Table
-    def remove(self, areaId: int) -> None:
-        BasicTable._remove(self, areaId)
+        BaseTable._remove(self, cityId)

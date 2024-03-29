@@ -3,9 +3,7 @@ from ..model.constants import (
     PROVINCE_TABLENAME,
     REGION_TABLENAME,
     CITY_TABLENAME,
-    CITY_AREA_TABLENAME,
     WAREHOUSE_TABLENAME,
-    WAREHOUSE_CONN_TABLENAME,
     BRANCH_TABLENAME,
 )
 
@@ -20,8 +18,6 @@ EXIT = "exit"
 # Table-related Available Action Commands
 ACTION_CMDS = [ADD, RM, MOD, GET, ALL, EXIT]
 
-# Tables that can be Interacted with
-
 # Location-related Commands
 TABLE_LOCATION_CMD = "location"
 TABLE_LOCATION_CMDS = [
@@ -29,7 +25,6 @@ TABLE_LOCATION_CMDS = [
     PROVINCE_TABLENAME,
     REGION_TABLENAME,
     CITY_TABLENAME,
-    CITY_AREA_TABLENAME,
     WAREHOUSE_TABLENAME,
     BRANCH_TABLENAME,
 ]

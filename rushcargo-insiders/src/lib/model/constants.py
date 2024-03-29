@@ -74,14 +74,6 @@ CITY_NAME = "city_name"
 CITY_FK_REGION = "region_id"
 CITY_FK_WAREHOUSE = "main_warehouse"
 
-# City Area ...
-CITY_AREA_TABLENAME = "city_area"
-CITY_AREA_ID = "area_id"
-CITY_AREA_NAME = "area_name"
-CITY_AREA_DESCRIPTION = "area_description"
-CITY_AREA_FK_CITY = "city_id"
-CITY_AREA_FK_WAREHOUSE = "main_warehouse"
-
 # Building ...
 BUILDING_TABLENAME = "building"
 BUILDING_ID = "building_id"
@@ -91,7 +83,7 @@ BUILDING_PHONE = "phone"
 BUILDING_GPS_LATITUDE = "gps_latitude"
 BUILDING_GPS_LONGITUDE = "gps_longitude"
 BUILDING_ADDRESS_DESCRIPTION = "address_description"
-BUILDING_FK_CITY_AREA = "area_id"
+BUILDING_FK_CITY = "city_id"
 
 # Warehouse ...
 WAREHOUSE_TABLENAME = "warehouse"
@@ -115,6 +107,9 @@ BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
 DICT_WAREHOUSES_COORDS = "coords"
 DICT_WAREHOUSES_ID = "id"
 
+# Warehouses View Columns
+WAREHOUSES_VIEWNAME = "warehouses"
+
 # Warehouse Receivers ...
 WAREHOUSES_RECEIVERS_VIEWNAME = "warehouse_receivers"
 RECEIVERS = "receivers"
@@ -131,13 +126,11 @@ SENDERS_WAREHOUSE_CONN_ID = "connection_id"
 PROVINCE_MAIN_WAREHOUSES = "province_main_warehouses"
 REGION_MAIN_WAREHOUSES = "region_main_warehouses"
 CITY_MAIN_WAREHOUSES = "city_main_warehouses"
-CITY_AREA_MAIN_WAREHOUSES = "city_area_main_warehouses"
 
 # Warehouse Connection Types
 CONN_TYPE_PROVINCE = "Province"
 CONN_TYPE_REGION = "Region"
 CONN_TYPE_CITY = "City"
-CONN_TYPE_AREA = "City Area"
 
 # Async Sleep Time in Seconds
 ASYNC_SLEEP = 0.1

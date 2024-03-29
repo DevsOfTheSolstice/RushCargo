@@ -10,24 +10,43 @@ from .constants import (
 from .exceptions import RouteNotFound
 
 
-# RoutingPy Geocoder Class
-class RoutingPyGeocoder:
-    # Geolocator
-    _geolocator = None
+class ORSGeocoder:
+    """
+    Class that Handles RoutingPy (Open Routing Service API) Requests
+    """
 
-    # Constructor
+    # Geolocator
+    __geolocator = None
+
     def __init__(self, ORSApiKey: str, user: str):
+        """
+        ORS RoutingPy Geocoder Class Constructor
+
+        :param str ORSApiKey: Open Routing Service API Key
+        :param str user: Remote Database Role Name
+        """
+
         try:
             # Initialize Geolocator
-            self._geolocator = ORS(
+            self.__geolocator = ORS(
                 api_key=ORSApiKey, user_agent=f"{ORS_USER_AGENT}-{user}", timeout=5
             )
 
         except Exception as err:
             raise err
 
-    # Get Driving Route Distance between Two Coordinates from GeoPy Geolocator (in Kilometers)
-    def getRouteDistance(self, coords1: dict, coords2: dict) -> int | None:
+    def __getRouteDistance(self, coords1: dict, coords2: dict, profile: str) -> int:
+        """
+        Method to Get Route Distance between Two Coordinates through the ORS API (in meters)
+
+        :param dict coords1: Coordinates Route Dictionary of the Starting Point
+        :param str coords2: Coordinates Route Dictionary of the End Point
+        :param str profile: Route Profile
+        :return: Route Distance between the Two Points in meters
+        :rtype: int
+        :raise RouteNotFound: Raised when there's no Physical Route between the Two Coordinates
+        """
+
         try:
             # Get List of Coordinates
             coords = [
@@ -35,10 +54,10 @@ class RoutingPyGeocoder:
                 [str(coords2[NOMINATIM_LONGITUDE]), str(coords2[NOMINATIM_LATITUDE])],
             ]
 
-            # Get Client Directions
-            route = self._geolocator.directions(
+            # Get Route Directions
+            route = self.__geolocator.directions(
                 locations=coords,
-                profile=ORS_PROFILE_DRIVING,
+                profile=profile,
                 preference=ORS_PREF_FASTEST,
             )
 
@@ -47,3 +66,15 @@ class RoutingPyGeocoder:
 
         except:
             raise RouteNotFound(coords1, coords2)
+
+    def getDrivingRouteDistance(self, coords1: dict, coords2: dict) -> int:
+        """
+        Method to Get Driving Route Distance between Two Coordinates through the ORS API (in meters)
+
+        :param dict coords1: Coordinates Dictionary of the Starting Point
+        :param str coords2: Coordinates Dictionary of the End Point
+        :return: Route Distance between the Two Points in meters
+        :rtype: int
+        """
+
+        return self.__getRouteDistance(coords1, coords2, ORS_PROFILE_DRIVING)

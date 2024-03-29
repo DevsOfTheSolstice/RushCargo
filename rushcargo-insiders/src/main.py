@@ -9,13 +9,20 @@ from lib.io.constants import *
 from lib.io.arguments import getEventHandlerArguments
 from lib.io.validator import clear
 
-from lib.model.database import initDb, console
+from lib.model.database import initdb, console
 
 from lib.terminal.constants import TITLE_MSG, WELCOME_MSG
 
 
 # Initialize argParse Parser and Get Parser Arguments
 def getParserArguments() -> tuple[str, str, str]:
+    """
+    Function to Initialize Argument Parser from ``argparse`` Standard Library and Get the User Commands
+
+    :return: ``action``, ``tableGroup`` and ``table`` Commands
+    :rtype: tuple
+    """
+
     # Intialize Parser
     parser = argparse.ArgumentParser(
         prog=TITLE_MSG,
@@ -36,7 +43,7 @@ def getParserArguments() -> tuple[str, str, str]:
     # Get Arguments
     args = parser.parse_args()
 
-    # Get Action and Table
+    # Get Action and Table Command
     action = args.action
     table = args.table
 
@@ -53,13 +60,14 @@ if __name__ == "__main__":
         action, tableGroup, table = getParserArguments()
 
         # Initialize Database Connection
-        db, user, ORSApiKey = initDb()
+        db, user, ORSApiKey = initdb()
 
         # Initialize Event Handler
         e = EventHandler(db, user, ORSApiKey)
 
         # Call Main Event Handler
         e.handler(action, tableGroup, table)
+
     else:
         # Clear Terminal
         clear()
@@ -68,12 +76,12 @@ if __name__ == "__main__":
             # Get Event Handler Arguments
             arguments = getEventHandlerArguments()
 
+            # Check Arguments
             if arguments != None:
-                # Get Arguments
                 action, tableGroup, table = arguments
 
                 # Initialize Database Connection
-                db, user, ORSApiKey = initDb()
+                db, user, ORSApiKey = initdb()
 
                 # Initialize Event Handler
                 e = EventHandler(db, user, ORSApiKey)
@@ -81,6 +89,6 @@ if __name__ == "__main__":
                 # Call Main Event Handler
                 e.handler(action, tableGroup, table)
 
+        # End Program
         except KeyboardInterrupt:
-            # End Program
             console.print(END_MSG, style="warning")

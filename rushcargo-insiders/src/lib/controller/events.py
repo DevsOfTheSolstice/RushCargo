@@ -1,9 +1,8 @@
 import logging
 
-from rich.prompt import Confirm
+from rich.prompt import Confirm, Prompt
 from rich.logging import RichHandler
 
-from .constants import END_MSG
 from .locationEvents import LocationEventHandler
 
 from ..io.arguments import getEventHandlerArguments
@@ -13,6 +12,7 @@ from ..io.validator import clear
 from ..model.database import Database
 from ..model.database_tables import console
 
+from ..terminal.constants import END_MSG, PRESS_ENTER
 
 # Get Rich Logger
 logging.basicConfig(
@@ -71,11 +71,8 @@ class EventHandler:
                     # Call Location Event Handler
                     self.__locationEventHandler.handler(action, tableName)
 
-                # Ask to Change the Command
-                if Confirm.ask("\nDo you want to Continue with this Command?"):
-                    # Clear Terminal
-                    clear()
-                    continue
+                # Clear Terminal
+                clear()
 
                 arguments = getEventHandlerArguments()
 
@@ -92,5 +89,15 @@ class EventHandler:
                 return
 
             except Exception as err:
-                console.print(err, style="warning")
-                continue
+                try:
+                    console.print(err, style="warning")
+
+                    # Press ENTER to Continue
+                    Prompt.ask(PRESS_ENTER)
+
+                    continue
+
+                # End Program
+                except KeyboardInterrupt:
+                    console.print(END_MSG, style="warning")
+                    return

@@ -85,7 +85,7 @@ class Province:
         :return: Province Object
         :rtype: Self@Province
         """
-        
+
         provinceId, countryId, name, airForwarderId, oceanForwarderId, warehouseId = (
             item
         )
@@ -188,6 +188,7 @@ class City:
 
         return cls(name, regionId, cityId, warehouseId)
 
+
 class Building:
     """
     Building Class that Represents a Row from its Remote Table
@@ -248,13 +249,13 @@ class Building:
 
         (
             buildingId,
-            cityId,
             email,
             phone,
             gpsLatitude,
             gpsLongitude,
             addressDescription,
             buildingName,
+            cityId,
         ) = item
 
         return cls(
@@ -323,13 +324,13 @@ class Warehouse(Building):
         (
             _,  # Warehouse ID, Same as Building ID
             buildingId,
-            cityId,
             email,
             phone,
             gpsLatitude,
             gpsLongitude,
             addressDescription,
             buildingName,
+            cityId,
         ) = item
 
         return cls(
@@ -342,6 +343,7 @@ class Warehouse(Building):
             addressDescription,
             buildingId,
         )
+
 
 class Branch(Building):
     """
@@ -412,13 +414,13 @@ class Branch(Building):
             warehouseConnection,
             routeDistance,
             buildingId,
-            cityId,
             email,
             phone,
             gpsLatitude,
             gpsLongitude,
             addressDescription,
             buildingName,
+            cityId,
         ) = item
 
         return cls(

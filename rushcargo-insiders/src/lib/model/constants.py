@@ -12,6 +12,7 @@ ENV_ORS_API_KEY = "ORS_API_KEY"
 # Theme Styles
 THEME = Theme(
     {
+        "mainTitle": "pale_turquoise1",
         "title": "italic pale_turquoise1",
         "header": "pale_turquoise1",
         "border": "pale_turquoise1",
@@ -104,8 +105,8 @@ BRANCH_ROUTE_DISTANCE = "route_distance"
 BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
 
 # Warehouse Connection Dictionary Fields from a Given Main Warehouses View
-DICT_WAREHOUSES_COORDS = "coords"
-DICT_WAREHOUSES_ID = "id"
+DICT_WAREHOUSE_COORDS = "coords"
+DICT_WAREHOUSE_ID = "warehouse_id"
 
 # Warehouses View Columns
 WAREHOUSES_VIEWNAME = "warehouses"

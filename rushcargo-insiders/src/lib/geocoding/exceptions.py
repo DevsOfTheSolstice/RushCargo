@@ -24,14 +24,17 @@ class PlaceNotFound(Exception):
     Exception Raised when a Place wasn't Found by GeoPy Geocoder
     """
 
-    def __init__(self, cityId: str):
+    def __init__(self, regionId: int, cityName: str):
         """
         PlacedNotFound Exception Constructor
 
-        :param str cityId: City ID where the Place was Searched for
+        :param int regionId: Region ID at its Remtoe Table where the City is Located
+        :param str cityName: City Name where the Place was Searched for
         """
 
-        super().__init__(f"Place Not Found at City ID '{cityId}'\n")
+        super().__init__(
+            f"Place Not Found at City '{cityName}' Located at Region ID '{regionId}'\n"
+        )
 
 
 class RouteNotFound(Exception):

@@ -9,7 +9,7 @@ from .exceptions import (
     MainWarehouseError,
 )
 
-from ..geocoding.exceptions import LocationNotFound
+from ..geocoding.exceptions import LocationNotFound, PlaceNotFound
 from ..geocoding.geopy import (
     NominatimGeocoder,
     NOMINATIM_LATITUDE,
@@ -51,6 +51,7 @@ class LocationEventHandler:
     __branchTable = None
 
     # Nominatim GeoPy Local Database Tables
+    __localDatabase = None
     __localTables = None
 
     # Geocoders
@@ -58,11 +59,10 @@ class LocationEventHandler:
     __ORSGeocoder = None
 
     # Get Location Messages
-    _GET_COUNTRY_MSG = "Enter Country Name"
-    _GET_PROVINCE_MSG = "Enter Province Name"
-    _GET_REGION_MSG = "Enter Region Name"
-    _GET_CITY_MSG = "Enter City Name"
-    _GET_CITY_AREA_MSG = "Enter City Area Name"
+    __GET_COUNTRY_MSG = "Enter Country Name"
+    __GET_PROVINCE_MSG = "Enter Province Name"
+    __GET_REGION_MSG = "Enter Region Name"
+    __GET_CITY_MSG = "Enter City Name"
 
     # Constructor
     def __init__(self, remoteCursor, user: str, ORSApiKey: str):
@@ -84,8 +84,8 @@ class LocationEventHandler:
         self.__branchTable = BranchTable(remoteCursor)
 
         # Initialize Nominatim GeoPy Local Database and Get Connection Cursor
-        localDatabase = NominatimDatabase()
-        localCursor = localDatabase.getCursor()
+        self.__localDatabase = NominatimDatabase()
+        localCursor = self.__localDatabase.getCursor()
 
         # Initialize Local Nominatim GeoPy Database Tables Class
         self.__localTables = NominatimTables(localCursor)
@@ -137,20 +137,20 @@ class LocationEventHandler:
         warehouseDict = {}
 
         # Assign Dictionary Fields
-        warehouseDict[DICT_WAREHOUSES_ID] = warehouseId
-        warehouseDict[DICT_WAREHOUSES_COORDS] = {
+        warehouseDict[DICT_WAREHOUSE_ID] = warehouseId
+        warehouseDict[DICT_WAREHOUSE_COORDS] = {
             NOMINATIM_LONGITUDE: warehouse.gpsLongitude,
             NOMINATIM_LATITUDE: warehouse.gpsLatitude,
         }
 
         return warehouseDict
 
-    def getCountryName(self) -> dict:
+    def getCountryName(self) -> dict | None:
         """
         Method to Search for a Country Name in the Local Database
 
-        :return: A Dictionary that Contains the Country Name and its ID from its Local SQLite Table
-        :rtype: dict
+        :return: A Dictionary that Contains the Country Name and its ID from its Local SQLite Table if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         """
 
@@ -196,7 +196,14 @@ class LocationEventHandler:
             # Go Back to the While-loop
             except (LocationNotFound, FieldValueError) as err:
                 console.print(err, style="warning")
-                continue
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Country Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
 
     def getCountryDict(self) -> dict:
         """
@@ -211,36 +218,32 @@ class LocationEventHandler:
         location = self.getCountryName()
         countryName = location[DICT_COUNTRY_NAME]
 
-        # Country Object
-        c = None
-
         try:
-            # Get Country Object from the Remote Database
-            c = self.__countryTable.find(COUNTRY_NAME, countryName)
-
-            if c == None:
+            # Check if the Country Name is Stored at the Remote Database
+            if not self.__countryTable.get(COUNTRY_NAME, countryName, False):
                 raise RowNotFound(COUNTRY_TABLENAME, COUNTRY_NAME, countryName)
 
-        except RowNotFound as err:
-            console.print(err, style="warning")
+        except RowNotFound:
+            # Clear Terminal
+            clear()
 
             # Insert Country
             self.__countryTable.add(countryName)
 
-            # Get Country Object from the Remote Database
-            c = self.__countryTable.find(COUNTRY_NAME, countryName)
+        # Get Country Object from the Remote Database
+        c = self.__countryTable.find(COUNTRY_NAME, countryName)
 
         # Set Country ID to Data Dictionary
         location[DICT_COUNTRY_ID] = c.countryId
 
         return location
 
-    def getProvinceName(self) -> dict:
+    def getProvinceName(self) -> dict | None:
         """
         Method to Search for a Province Name in the Local Database
 
-        :return: A Dictionary that Contains the Province Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getCountryDict()`` Call
-        :rtype: dict
+        :return: A Dictionary that Contains the Province Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getCountryDict()`` Call if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         """
 
@@ -271,7 +274,6 @@ class LocationEventHandler:
                     provinceName = self.__nominatimGeocoder.getProvince(
                         location, provinceSearch
                     )
-
                     location[DICT_PROVINCE_NAME] = provinceName
 
                     # Store Province Search at Local Database
@@ -292,10 +294,16 @@ class LocationEventHandler:
             except GoToMenu as err:
                 raise err
 
-            # Go Back to the While-loop
             except (LocationNotFound, FieldValueError) as err:
                 console.print(err, style="warning")
-                continue
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Province Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
 
     def getProvinceDict(self) -> dict:
         """
@@ -308,38 +316,39 @@ class LocationEventHandler:
 
         # Get Location Dictionary (that Contains the Province Name) to Search for it in its Table
         location = self.getProvinceName()
+        countryId = location[DICT_COUNTRY_ID]
         provinceName = location[DICT_PROVINCE_NAME]
 
-        # Province Object
-        p = None
+        provinceFields = [PROVINCE_FK_COUNTRY, PROVINCE_NAME]
+        provinceValues = [countryId, provinceName]
 
         try:
-            # Get Province Object from the Remote Database
-            p = self.__provinceTable.find(PROVINCE_NAME, provinceName)
 
-            if p == None:
-                raise RowNotFound(PROVINCE_TABLENAME, PROVINCE_NAME, provinceName)
+            # Check if the Province Name at the Given Country ID is Stored at the Remote Database
+            if not self.__provinceTable.getMult(provinceFields, provinceValues, False):
+                raise InvalidLocation(provinceName, COUNTRY_TABLENAME, countryId)
 
-        except RowNotFound as err:
-            console.print(err, style="warning")
+        except InvalidLocation:
+            # Clear Terminal
+            clear()
 
             # Insert Province
-            self.__provinceTable.add(provinceName)
+            self.__provinceTable.add(countryId, provinceName)
 
-            # Get Province Object from the Remote Database
-            p = self.__provinceTable.find(PROVINCE_NAME, provinceName)
+        # Get Province Object from the Remote Database
+        p = self.__provinceTable.findMult(countryId, provinceName)
 
         # Set Province ID to Data Dictionary
         location[DICT_PROVINCE_ID] = p.provinceId
 
         return location
 
-    def getRegionName(self) -> dict:
+    def getRegionName(self) -> dict | None:
         """
         Method to Search for a Region Name in the Local Database
 
-        :return: A Dictionary that Contains the Region Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getProvinceDict()`` Call
-        :rtype: dict
+        :return: A Dictionary that Contains the Region Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getProvinceDict()`` Call if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         """
 
@@ -389,10 +398,16 @@ class LocationEventHandler:
             except GoToMenu as err:
                 raise err
 
-            # Go Back to the While-loop
             except (LocationNotFound, FieldValueError) as err:
                 console.print(err, style="warning")
-                continue
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Region Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
 
     def getRegionDict(self) -> dict:
         """
@@ -405,38 +420,38 @@ class LocationEventHandler:
 
         # Get Location Dictionary (that Contains the Region Name) to Search for it in its Table
         location = self.getRegionName()
+        provinceId = location[DICT_PROVINCE_ID]
         regionName = location[DICT_REGION_NAME]
 
-        # Region Object
-        r = None
+        regionFields = [REGION_FK_PROVINCE, REGION_NAME]
+        regionValues = [provinceId, regionName]
 
         try:
-            # Get Region Object from the Remote Database
-            r = self.__regionTable.find(REGION_NAME, regionName)
+            # Check if the Region Name at the Given Province ID is Stored at the Remote Database
+            if not self.__regionTable.getMult(regionFields, regionValues, False):
+                raise InvalidLocation(regionName, PROVINCE_TABLENAME, provinceId)
 
-            if r == None:
-                raise RowNotFound(REGION_TABLENAME, REGION_NAME, regionName)
-
-        except RowNotFound as err:
-            console.print(err, style="warning")
+        except InvalidLocation:
+            # Clear Terminal
+            clear()
 
             # Insert Region
-            self.__regionTable.add(regionName)
+            self.__regionTable.add(provinceId, regionName)
 
-            # Get Region Object from the Remote Database
-            r = self.__regionTable.find(REGION_NAME, regionName)
+        # Get Region Object from the Remote Database
+        r = self.__regionTable.findMult(provinceId, regionName)
 
         # Set Region ID to Data Dictionary
         location[DICT_REGION_ID] = r.regionId
 
         return location
 
-    def getCityName(self) -> dict:
+    def getCityName(self) -> dict | None:
         """
         Method to Search for a City Name in the Local Database
 
-        :return: A Dictionary that Contains the City Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getRegionDict()`` Call
-        :rtype: dict
+        :return: A Dictionary that Contains the City Name and its ID from its Local SQLite Table, and the Columns that were Inserted at ``self.getRegionDict()`` Call if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         """
 
@@ -484,10 +499,16 @@ class LocationEventHandler:
             except GoToMenu as err:
                 raise err
 
-            # Go Back to the While-loop
             except (LocationNotFound, FieldValueError) as err:
                 console.print(err, style="warning")
-                continue
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another City Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
 
     def getCityDict(self) -> dict:
         """
@@ -500,38 +521,39 @@ class LocationEventHandler:
 
         # Get Location Dictionary (that Contains the City Name) to Search for it in its Table
         location = self.getCityName()
+        regionId = location[DICT_REGION_ID]
         cityName = location[DICT_CITY_NAME]
 
-        # City Object
-        c = None
+        cityFields = [CITY_FK_REGION, CITY_NAME]
+        cityValues = [regionId, cityName]
 
         try:
-            # Get City Object from the Remote Database
-            c = self.__cityTable.find(CITY_NAME, cityName)
 
-            if c == None:
-                raise RowNotFound(CITY_TABLENAME, CITY_NAME, cityName)
+            # Check if the City Name at the Given Region ID is Stored at the Remote Database
+            if not self.__cityTable.getMult(cityFields, cityValues, False):
+                raise InvalidLocation(cityName, REGION_TABLENAME, regionId)
 
-        except RowNotFound as err:
-            console.print(err, style="warning")
+        except InvalidLocation:
+            # Clear Terminal
+            clear()
 
             # Insert City
-            self.__cityTable.add(cityName)
+            self.__cityTable.add(regionId, cityName)
 
-            # Get City Object from the Remote Database
-            c = self.__cityTable.find(CITY_NAME, cityName)
+        # Get City Object from the Remote Database
+        c = self.__cityTable.findMult(regionId, cityName)
 
         # Set City ID to Data Dictionary
         location[DICT_CITY_ID] = c.cityId
 
         return location
 
-    def getPlaceCoordinates(self) -> dict:
+    def getPlaceCoordinates(self) -> dict | None:
         """
         Method to Get Place Coordinates in a Given City ID
 
-        :return: A Dictionary that Contains the City ID from its Remote Table, and the Latitude and Longitude of the Given Place Obtained through the ``self.__nominatimGeocoder`` Object
-        :rtype: dict
+        :return: A Dictionary that Contains the City ID from its Remote Table, and the Latitude and Longitude of the Given Place Obtained through the ``self.__nominatimGeocoder`` Object if there's no Error. Otherwise, if the User wants, It'll return ``None`` and Go Back to the Main Menu
+        :rtype: dict if there's no Error. Otherwise, None
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         """
 
@@ -546,9 +568,12 @@ class LocationEventHandler:
                 isPlaceNameValid(placeSearch)
 
                 # Get Place Coordinates from Nominatim GeoPy API based on the Data Provided
-                location = self.__nominatimGeocoder.getPlaceCoordinates(
+                coords = self.__nominatimGeocoder.getPlaceCoordinates(
                     location, placeSearch
                 )
+
+                location[NOMINATIM_LATITUDE] = coords[NOMINATIM_LATITUDE]
+                location[NOMINATIM_LONGITUDE] = coords[NOMINATIM_LONGITUDE]
 
                 return location
 
@@ -556,10 +581,16 @@ class LocationEventHandler:
             except GoToMenu as err:
                 raise err
 
-            # Go Back to the While-loop
-            except (LocationNotFound, PlaceError) as err:
+            except (LocationNotFound, PlaceNotFound) as err:
                 console.print(err, style="warning")
-                continue
+
+                # Go Back to the While-loop
+                if Confirm.ask("Do you want to Type Another Place Name?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                return None
 
     def __getCountry(self) -> int:
         """
@@ -573,7 +604,7 @@ class LocationEventHandler:
         clear()
 
         # Print All Countries
-        if not self.__countryTable.all():
+        if self.__countryTable.all(COUNTRY_NAME, False) == 0:
             raise EmptyTable(COUNTRY_TABLENAME)
 
         while True:
@@ -582,7 +613,7 @@ class LocationEventHandler:
                 countryId = IntPrompt.ask("\nSelect Country ID")
 
                 # Get Country Object
-                country = self.__countryTable.find(countryId)
+                country = self.__countryTable.find(COUNTRY_ID, countryId)
 
                 # Check if Country ID Exists
                 if country == None:
@@ -592,6 +623,13 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
     def getCountryId(self) -> int:
@@ -639,6 +677,13 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
     def getProvinceId(self) -> int:
@@ -689,6 +734,13 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
     def getRegionId(self) -> int:
@@ -700,7 +752,7 @@ class LocationEventHandler:
         """
 
         # Get Province ID where the Region is Located
-        provinceId = self.getCountryId()
+        provinceId = self.getProvinceId()
 
         return self.__getRegion(provinceId)
 
@@ -752,6 +804,13 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
     def getCityId(self) -> int:
@@ -815,6 +874,13 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
     def getBranchId(self, cityId: int) -> int:
@@ -852,6 +918,13 @@ class LocationEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
+
                 continue
 
     def _allHandler(self, tableName: str) -> None:
@@ -943,6 +1016,9 @@ class LocationEventHandler:
 
             # Print Table
             self.__branchTable.all(sortBy, desc)
+
+        # Press ENTER to Continue
+        Prompt.ask(PRESS_ENTER)
 
     def _getHandler(self, tableName: str) -> None:
         """
@@ -1093,6 +1169,13 @@ class LocationEventHandler:
                     # Print Table Coincidences
                     self.__branchTable.get(field, value)
 
+                if Confirm.ask("Do you want to Continue Searching for?"):
+                    # Clear Terminal
+                    clear()
+                    continue
+
+                break
+
             # Raise GoToMenu Error
             except GoToMenu as err:
                 raise err
@@ -1100,7 +1183,12 @@ class LocationEventHandler:
             # Go Back to the While-loop
             except (LocationNotFound, PlaceError) as err:
                 console.print(err, style="warning")
-                continue
+
+                # Press ENTER to Continue
+                Prompt.ask(PRESS_ENTER)
+
+                # Clear Terminal
+                clear()
 
     def _modHandler(self, tableName: str) -> None:
         """
@@ -1194,7 +1282,7 @@ class LocationEventHandler:
                 )
 
                 # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
+                value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify Province
             self.__provinceTable.modify(provinceId, field, value)
@@ -1258,7 +1346,7 @@ class LocationEventHandler:
                 )
 
                 # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
+                value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify Region
             self.__regionTable.modify(regionId, field, value)
@@ -1321,7 +1409,7 @@ class LocationEventHandler:
                 )
 
                 # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSES_ID]
+                value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify City
             self.__cityTable.modify(regionId, field, value)
@@ -1406,6 +1494,9 @@ class LocationEventHandler:
                     branchId, BRANCH_ROUTE_DISTANCE, routeDistance
                 )
 
+        # Press ENTER to Continue
+        Prompt.ask(PRESS_ENTER)
+
     def _addHandler(self, tableName: str) -> None:
         """
         Handler of ``add`` Location-related Subcommand
@@ -1419,14 +1510,22 @@ class LocationEventHandler:
             if tableName == COUNTRY_TABLENAME:
                 # Get the Country Name to Insert
                 location = self.getCountryName()
+                if location == None:
+                    return
+
                 countryName = location[DICT_COUNTRY_NAME]
 
                 # Ask for the Other Country Fields and Insert the Country to Its Table
                 self.__countryTable.add(countryName)
 
+                return
+
             elif tableName == PROVINCE_TABLENAME:
                 # Get the Province Name to Insert and the Country ID where It's Located
                 location = self.getProvinceName()
+                if location == None:
+                    return
+
                 countryId = location[DICT_COUNTRY_ID]
                 provinceName = location[DICT_PROVINCE_NAME]
 
@@ -1436,6 +1535,9 @@ class LocationEventHandler:
             elif tableName == REGION_TABLENAME:
                 # Get the Region Name to Insert and the Province ID where It's Located
                 location = self.getRegionName()
+                if location == None:
+                    return
+
                 provinceId = location[DICT_PROVINCE_ID]
                 regionName = location[DICT_REGION_NAME]
 
@@ -1445,6 +1547,9 @@ class LocationEventHandler:
             elif tableName == CITY_TABLENAME:
                 # Get the City Name to Insert and the Region ID where It's Located
                 location = self.getCityName()
+                if location == None:
+                    return
+
                 regionId = location[DICT_REGION_ID]
                 cityName = location[DICT_CITY_NAME]
 
@@ -1454,6 +1559,8 @@ class LocationEventHandler:
             elif tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_TABLENAME:
                 # Get Building Coordinates
                 location = self.getPlaceCoordinates()
+                if location == None:
+                    return
 
                 # Get Building Name
                 buildingName = Prompt.ask("Enter Building Name")
@@ -1463,12 +1570,10 @@ class LocationEventHandler:
 
                 if tableName == WAREHOUSE_TABLENAME:
                     # Ask for the Other Warehouse Fields and Insert the Warehouse to Its Table
-                    warehouseId = self.__warehouseTable.add(
-                        self.__warehouseConnTable, location, buildingName
-                    )
+                    warehouseId = self.__warehouseTable.add(location, buildingName)
 
                     # Get Warehouse Dictionary
-                    warehouseDict = self.__getWarehouseDict()
+                    warehouseDict = self.__getWarehouseDict(warehouseId)
                     parentWarehouseDict = None
 
                     # Check if there's a Main Warehouse at the Province ID where It's Located
@@ -1482,6 +1587,13 @@ class LocationEventHandler:
                             warehouseDict,
                         )
                         parentWarehouseDict = warehouseDict
+
+                        # Set as Main Province Warehouse
+                        self.__provinceTable.modify(
+                            location[DICT_PROVINCE_ID],
+                            PROVINCE_FK_WAREHOUSE,
+                            warehouseId,
+                        )
 
                     else:
                         parentWarehouseDict = self.__getWarehouseDict(
@@ -1501,6 +1613,11 @@ class LocationEventHandler:
                         )
                         parentWarehouseDict = warehouseDict
 
+                        # Set as Main Region Warehouse
+                        self.__regionTable.modify(
+                            location[DICT_REGION_ID], REGION_FK_WAREHOUSE, warehouseId
+                        )
+
                     else:
                         parentWarehouseDict = self.__getWarehouseDict(
                             region.warehouseId
@@ -1519,13 +1636,18 @@ class LocationEventHandler:
                         )
                         parentWarehouseDict = warehouseDict
 
+                        # Set as Main City Warehouse
+                        self.__cityTable.modify(
+                            location[DICT_CITY_ID], CITY_FK_WAREHOUSE, warehouseId
+                        )
+
                     else:
                         parentWarehouseDict = self.__getWarehouseDict(city.warehouseId)
 
-                    # Insert City Warehouse Connection
-                    self.__warehouseConnTable.insertCityWarehouse(
-                        self.__ORSGeocoder, parentWarehouseDict, warehouseDict
-                    )
+                        # Insert City Warehouse Connection
+                        self.__warehouseConnTable.insertCityWarehouse(
+                            self.__ORSGeocoder, parentWarehouseDict, warehouseDict
+                        )
 
                 elif tableName == BRANCH_TABLENAME:
                     # Get Warehouse at the Given City
@@ -1545,6 +1667,9 @@ class LocationEventHandler:
             # Ask to Add More
             if not Confirm.ask(ADD_MORE_MSG):
                 break
+
+            # Clear Terminal
+            clear()
 
     def _rmHandler(self, tableName: str) -> None:
         """
@@ -1653,6 +1778,9 @@ class LocationEventHandler:
                 return
 
             self.__branchTable.remove(branchId)
+
+        # Press ENTER to Continue
+        Prompt.ask(PRESS_ENTER)
 
     def handler(self, action: str, tableName: str) -> None:
         """

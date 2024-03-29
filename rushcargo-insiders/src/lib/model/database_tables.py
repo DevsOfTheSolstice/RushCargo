@@ -14,7 +14,7 @@ def noCoincidence() -> None:
     :rtype: NoneType
     """
 
-    console.print("No Results Fetched", style="warning")
+    console.print("No Results Fetched\n", style="warning")
 
 
 def uniqueInserted(tableName: str, field: str, value) -> None:
@@ -313,14 +313,14 @@ class BaseTable:
             # Get Query for Two Conditions and Execute it
             elif length == 2:
                 twoCondQuery = self.__getAndQuery(fields[0], fields[1])
-                self._item = self._c.execute(twoCondQuery, [values[0], values[1]])
+                self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
 
             # Query for One Condition. Method Implemented
             elif length == 1:
                 return self._get(fields[0], values[0])
 
             # Fetch the Items
-            self._items = self._item.fetchall()
+            self._items = self._items.fetchall()
 
         except Exception as err:
             raise err
@@ -634,11 +634,11 @@ class SpecializationTable:
                 self._items = self._c.execute(getParentQuery, [value])
 
             else:
-                getSpecQuery = self.__getTableQuery(field, value)
+                getSpecQuery = self.__getTableQuery(field)
                 self._items = self._c.execute(getSpecQuery, [value])
 
             # Fetch the Items
-            self._items = self._item.fetchall()
+            self._items = self._items.fetchall()
 
         except Exception as err:
             raise err
@@ -699,7 +699,7 @@ class SpecializationTable:
                 # Get Query for Specialization's Parent Table with Two Conditions and Execute it
                 if length == 2:
                     twoCondQuery = self.__getParentTableAndQuery(fields[0], fields[1])
-                    self._item = self._c.execute(twoCondQuery, [values[0], values[1]])
+                    self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
 
                 # Query for One Condition. Method Implemented
                 elif length == 1:
@@ -709,7 +709,7 @@ class SpecializationTable:
                 # Get Query for Specialization Table with Two Conditions and Execute it
                 if length == 2:
                     twoCondQuery = self.__getTableAndQuery(fields[0], fields[1])
-                    self._item = self._c.execute(twoCondQuery, [values[0], values[1]])
+                    self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
 
                 # Query for One Condition. Method Implemented
                 elif length == 1:

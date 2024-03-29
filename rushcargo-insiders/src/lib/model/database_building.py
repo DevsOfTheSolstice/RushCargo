@@ -24,7 +24,7 @@ from ..io.validator import isAddressValid, isEmailValid, clear
 from ..terminal.constants import MOD_VALUE_MSG
 
 
-def fullBuildingName(self, tableName: str, buildingName: str) -> str:
+def fullBuildingName(tableName: str, buildingName: str) -> str:
     """
     Function to Get the Full Building Name
 
@@ -46,7 +46,7 @@ def fullBuildingName(self, tableName: str, buildingName: str) -> str:
     return f"{buildingType} {buildingName}"
 
 
-def askBuildingValue(self, tableName: str, field: str):
+def askBuildingValue(tableName: str, field: str):
     """
     Function to Get and Check a Building-related Field
 
@@ -89,17 +89,6 @@ def getCoords(lat: float, lon: float) -> str:
     """
 
     return f"{lat}\n{lon}"
-
-
-# Check if Building Exists
-def buildingExists(self, cityId: str, buildingName: str) -> bool:
-    buildingFields = [BUILDING_FK_CITY, BUILDING_NAME]
-    buildingValues = [cityId, buildingName]
-
-    # Check if Building Name has already been Inserted for the City Area
-    if self.__warehouseTable._getMultParentTable(buildingFields, buildingValues):
-        uniqueInsertedMult(buildingValues, buildingFields, buildingValues)
-        return
 
 
 class BuildingTable(SpecializationTable):
@@ -150,11 +139,33 @@ class BuildingTable(SpecializationTable):
             ),
         )
 
-    def _find(self, cityId: str, buildingName: str) -> Building | None:
+    def __buildingExists(self, cityId: int, buildingName: str) -> bool:
+        """
+        Method to Check if a Building Name has already been Assigned to Another One at the Given City ID
+
+        :param int cityId: City ID where the Building is Located
+        :param str buildingName: Building Name to Search for at the Given City ID
+        :return: ``True`` if the Building Name has already been Assigned. Otherwise, ``False``
+        :rtype: bool
+        """
+
+        buildingFields = [BUILDING_FK_CITY, BUILDING_NAME]
+        buildingValues = [cityId, buildingName]
+
+        # Check if Building Name has already been Inserted at the Given City ID
+        if SpecializationTable._getMultParentTable(
+            self, buildingFields, buildingValues
+        ):
+            uniqueInsertedMult(buildingValues, buildingFields, buildingValues)
+            return True
+
+        return False
+
+    def _find(self, cityId: int, buildingName: str) -> Building | None:
         """
         Method to Find a Building at its Remote Table based on its Name and the City ID where It's Located
 
-        :param str cityId: City ID where the Building is Located
+        :param int cityId: City ID where the Building is Located
         :param str buildingName: Building Name to Search for at the Given City ID
         :return: Building Object if Found. Otherwise, ``None``
         :rtype: Building if Found. Otherwise, NoneType
@@ -181,18 +192,12 @@ class BuildingTable(SpecializationTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        # Get Full Building Name
-        buildingName = fullBuildingName(self._tableName, buildingName)
-
         # Check if the Building Name for the Given City ID Already Exists
-        if self.__buildingExists(location[CITY_ID], buildingName):
-            console.print(
-                f"There's a Building Named as '{buildingName}' in City Id '{location[CITY_ID]}'",
-                style="warning",
-            )
-            raise BuildingNameAssigned(buildingName, location[CITY_ID])
+        if self.__buildingExists(location[DICT_CITY_ID], buildingName):
+            raise BuildingNameAssigned(buildingName, location[DICT_CITY_ID])
 
-        # Get New Building Fields
+        # Ask for New Building Fields
+        console.print("\nAdding New Building...", style="caption")
         buildingPhone = IntPrompt.ask("Enter Building Phone Number")
         buildingEmail = Prompt.ask("Enter Building Email")
         addressDescription = Prompt.ask("Enter Building Address Description")
@@ -265,7 +270,7 @@ class WarehouseTable(BuildingTable):
         table.add_column("Coords", justify="left", max_width=COORDINATE_NCHAR)
         table.add_column("Phone", justify="left", max_width=CONTACT_NCHAR)
         table.add_column("Email", justify="left", max_width=CONTACT_NCHAR)
-        table.add_column("City Area", justify="left", max_width=ID_NCHAR)
+        table.add_column("City ID", justify="left", max_width=ID_NCHAR)
 
         for item in self._items:
             # Intialize Warehouse from Fetched Item
@@ -278,7 +283,7 @@ class WarehouseTable(BuildingTable):
                 getCoords(w.gpsLatitude, w.gpsLongitude),
                 str(w.phone),
                 w.email,
-                str(w.areaId),
+                str(w.cityId),
             )
 
         console.print(table)
@@ -307,11 +312,17 @@ class WarehouseTable(BuildingTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Get Full Building Name
+        buildingName = fullBuildingName(self._tableName, buildingName)
+
         # Insert Building to Building Table
         BuildingTable._add(self, location, buildingName)
 
         # Get Building Object of the Recently Inserted Warehouse Building
-        b = BuildingTable._find(self, location, self._, buildingName)
+        b = BuildingTable._find(self, location[DICT_CITY_ID], buildingName)
+
+        # Ask for the Warehouse Fields
+        console.print("\nAdding New Warehouse...", style="caption")
 
         # Get Warehouse Insert Query
         warehouseQuery = self.__insertQuery()
@@ -381,6 +392,9 @@ class WarehouseTable(BuildingTable):
 
         # Fetch All Warehouses
         SpecializationTable._all(self, orderBy, desc)
+
+        # Clear Terminal
+        clear()
 
         # Print All Warehouses
         self.__print()
@@ -454,7 +468,7 @@ class BranchTable(BuildingTable):
         table.add_column("Email", justify="left", max_width=CONTACT_NCHAR)
         table.add_column("Warehouse ID", justify="left", max_width=ID_NCHAR)
         table.add_column("Distance", justify="left", max_width=DISTANCE_NCHAR)
-        table.add_column("City Area ID", justify="left", max_width=ID_NCHAR)
+        table.add_column("City ID", justify="left", max_width=ID_NCHAR)
 
         for item in self._items:
             # Intialize Branch from Fetched Item
@@ -469,7 +483,7 @@ class BranchTable(BuildingTable):
                 b.email,
                 str(b.warehouseConnection),
                 str(b.routeDistance),
-                str(b.areaId),
+                str(b.cityId),
             )
 
         console.print(table)
@@ -512,11 +526,17 @@ class BranchTable(BuildingTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Get Full Building Name
+        buildingName = fullBuildingName(self._tableName, buildingName)
+
         # Insert Building to its Remote Table
         BuildingTable._add(self, buildingName)
 
         # Get Building Object of the Recently Inserted Branch Building
-        b = BuildingTable._find(self, location, buildingName)
+        b = BuildingTable._find(self, location[DICT_CITY_ID], buildingName)
+
+        # Ask for the Branch Fields
+        console.print("\nAdding New Branch...", style="caption")
 
         # Get Query to Insert Branch to its Remote Table
         branchQuery = self.__insertQuery()
@@ -584,6 +604,9 @@ class BranchTable(BuildingTable):
 
         # Fetch All Branches
         SpecializationTable._all(self, orderBy, desc)
+
+        # Clear Terminal
+        clear()
 
         # Print All Branches
         self.__print()

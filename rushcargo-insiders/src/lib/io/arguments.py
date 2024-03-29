@@ -16,7 +16,7 @@ def getEventHandlerArguments() -> tuple[str, str, str] | None:
     """
 
     # Print Rush Cargo Title and Welcome Message
-    console.print(TITLE_MSG, justify="center", style="title")
+    console.print(TITLE_MSG, justify="center", style="mainTitle")
     console.print(WELCOME_MSG, justify="center", style="caption")
 
     # Get Command

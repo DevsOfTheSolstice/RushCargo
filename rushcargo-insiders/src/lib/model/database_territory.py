@@ -32,12 +32,12 @@ class CountryTable(BaseTable):
         # Initialize Base Table Class
         super().__init__(COUNTRY_TABLENAME, COUNTRY_ID, remoteCursor)
 
-    def __print(self) -> None:
+    def __print(self) -> int:
         """
         Method that Prints the Countries Fetched from its Remote Table
 
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Countries
+        :rtype: int
         """
 
         # Number of Countries to Print
@@ -59,6 +59,8 @@ class CountryTable(BaseTable):
             table.add_row(str(c.countryId), c.name, str(c.phonePrefix))
 
         console.print(table)
+
+        return nRows
 
     def __insertQuery(self):
         """
@@ -91,6 +93,7 @@ class CountryTable(BaseTable):
             return
 
         # Ask for the Country Fields
+        console.print("\nAdding New Country...", style="caption")
         phonePrefix = IntPrompt.ask("Enter Phone Prefix")
 
         # Get Query to Insert the New Country
@@ -145,21 +148,24 @@ class CountryTable(BaseTable):
         # Get Country Object from the Fetched Item
         return Country.fromFetchedItem(self._items[0])
 
-    def all(self, orderBy: str, desc: bool) -> None:
+    def all(self, orderBy: str, desc: bool) -> int:
         """
         Method that Prints the All the Countries Stored at its Remote Table
 
         :param str orderBy: Country Field that will be Used to Sort the Country Table
         :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Countries
+        :rtype: int
         """
 
         # Fetch All Countries
         BaseTable._all(self, orderBy, desc)
 
+        # Clear Terminal
+        clear()
+
         # Print All Countries
-        self.__print()
+        return self.__print()
 
     def modify(self, countryId: int, field: str, value) -> None:
         """
@@ -201,12 +207,12 @@ class ProvinceTable(BaseTable):
         # Initialize Base Table Class
         super().__init__(PROVINCE_TABLENAME, PROVINCE_ID, remoteCursor)
 
-    def __print(self) -> None:
+    def __print(self) -> int:
         """
         Method that Prints the Provinces Fetched from its Remote Table
 
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Provinces
+        :rtype: int
         """
 
         # Number of Provinces to Print
@@ -241,6 +247,8 @@ class ProvinceTable(BaseTable):
 
         console.print(table)
 
+        return nRows
+
     def __insertQuery(self):
         """
         Method that Retuns a Query to Insert a New Province to its Remote Table
@@ -274,6 +282,9 @@ class ProvinceTable(BaseTable):
         if self.getMult(provinceFields, provinceValues, False):
             uniqueInsertedMult(PROVINCE_TABLENAME, provinceFields, provinceValues)
             return
+
+        # Ask for the Province Fields
+        console.print("\nAdding New Province...", style="caption")
 
         # Get Query to Insert the New Province
         query = self.__insertQuery()
@@ -365,21 +376,24 @@ class ProvinceTable(BaseTable):
         # Get Province Object from the Fetched Item
         return Province.fromFetchedItem(self._items[0])
 
-    def all(self, orderBy: str, desc: bool) -> None:
+    def all(self, orderBy: str, desc: bool) -> int:
         """
         Method that Prints the All the Provinces Stored at its Remote Table
 
         :param str orderBy: Province Field that will be Used to Sort the Province Table
         :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Provinces
+        :rtype: int
         """
 
         # Fetch All Provinces
         BaseTable._all(self, orderBy, desc)
 
+        # Clear Terminal
+        clear()
+
         # Print All Provinces
-        self.__print()
+        return self.__print()
 
     def modify(self, provinceId: int, field: str, value) -> None:
         """
@@ -421,12 +435,12 @@ class RegionTable(BaseTable):
         # Initialize Base Table Class
         super().__init__(REGION_TABLENAME, REGION_ID, remoteCursor)
 
-    def __print(self) -> None:
+    def __print(self) -> int:
         """
         Method that Prints the Regions Fetched from its Remote Table
 
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Regions
+        :rtype: int
         """
 
         # Number of Regions to Print
@@ -451,6 +465,8 @@ class RegionTable(BaseTable):
             )
 
         console.print(table)
+
+        return nRows
 
     def __insertQuery(self):
         """
@@ -482,9 +498,12 @@ class RegionTable(BaseTable):
         regionValues = [provinceId, regionName]
 
         # Check if the Region Name has already been Inserted for the Given Province
-        if self._regionTable.getMult(regionFields, regionValues, False):
+        if self.getMult(regionFields, regionValues, False):
             uniqueInsertedMult(REGION_TABLENAME, regionFields, regionValues)
             return
+
+        # Ask for the Region Fields
+        console.print("\nAdding New Region...", style="caption")
 
         # Get Query to Insert the New Region
         query = self.__insertQuery()
@@ -576,21 +595,24 @@ class RegionTable(BaseTable):
         # Get Region Object from the Fetched Item
         return Region.fromFetchedItem(self._items[0])
 
-    def all(self, orderBy: str, desc: bool) -> None:
+    def all(self, orderBy: str, desc: bool) -> int:
         """
         Method that Prints the All the Regions Stored at its Remote Table
 
         :param str orderBy: Region Field that will be Used to Sort the Region Table
         :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Regions
+        :rtype: int
         """
 
         # Fetch All Regions
         BaseTable._all(self, orderBy, desc)
 
+        # Clear Terminal
+        clear()
+
         # Print All Regions
-        self.__print()
+        return self.__print()
 
     def modify(self, regionId: int, field: str, value) -> None:
         """
@@ -632,12 +654,12 @@ class CityTable(BaseTable):
         # Initialize Base Table Class
         super().__init__(CITY_TABLENAME, CITY_ID, remoteCursor)
 
-    def __print(self) -> None:
+    def __print(self) -> int:
         """
         Method that Prints the Cities Fetched from its Remote Table
 
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Cities
+        :rtype: int
         """
 
         # Number of Cities to Print
@@ -660,6 +682,8 @@ class CityTable(BaseTable):
             table.add_row(str(c.cityId), c.name, str(c.regionId), str(c.warehouseId))
 
         console.print(table)
+
+        return nRows
 
     def __insertQuery(self):
         """
@@ -691,9 +715,12 @@ class CityTable(BaseTable):
         cityValues = [regionId, cityName]
 
         # Check if the City Name has already been Inserted for the Given Region
-        if self._cityTable.getMult(cityFields, cityValues, False):
+        if self.getMult(cityFields, cityValues, False):
             uniqueInsertedMult(CITY_TABLENAME, cityFields, cityValues)
             return
+
+        # Ask for the City Fields
+        console.print("\nAdding New City...", style="caption")
 
         # Get Query to Insert the New City
         query = self.__insertQuery()
@@ -783,21 +810,24 @@ class CityTable(BaseTable):
         # Get City Object from the Fetched Item
         return City.fromFetchedItem(self._items[0])
 
-    def all(self, orderBy: str, desc: bool) -> None:
+    def all(self, orderBy: str, desc: bool) -> int:
         """
         Method that Prints the All the Cities Stored at its Remote Table
 
         :param str orderBy: City Field that will be Used to Sort the City Table
         :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
-        :return: Nothing
-        :rtype: NoneType
+        :return: Number of Fetched Cities
+        :rtype: int
         """
 
         # Fetch All Cities
         BaseTable._all(self, orderBy, desc)
 
+        # Clear Terminal
+        clear()
+
         # Print All Cities
-        self.__print()
+        return self.__print()
 
     def modify(self, cityId: int, field: str, value) -> None:
         """

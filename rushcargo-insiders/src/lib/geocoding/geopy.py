@@ -6,6 +6,7 @@ from .exceptions import LocationNotFound, PlaceNotFound
 from ..controller.constants import (
     DICT_CITY_ID,
     DICT_CITY_NAME,
+    DICT_REGION_ID,
     DICT_REGION_NAME,
     DICT_PROVINCE_NAME,
     DICT_COUNTRY_NAME,
@@ -208,7 +209,7 @@ class NominatimGeocoder:
         :param str placeName: Place Name to be Validated
         :return: Dictionary that Holds the City ID where the Placed is Located, and the Place Latitude and Longitude Coordinates
         :rtype: dict
-        :raise LocationError: Raised when there's no Place Coincidence for the Given Name at the Given Parent Location
+        :raise PlaceNotFound: Raised when there's no Place Coincidence for the Given Name at the Given Parent Location
         """
 
         try:
@@ -230,7 +231,7 @@ class NominatimGeocoder:
 
             # Check Coordinates
             if geopyLocation == None:
-                raise PlaceNotFound(location[DICT_CITY_ID])
+                raise PlaceNotFound(location[DICT_REGION_ID], location[DICT_CITY_NAME])
 
             # Set City ID from City Table
             coords[CITY_ID] = location[DICT_CITY_ID]

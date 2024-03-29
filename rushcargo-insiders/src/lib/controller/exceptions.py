@@ -13,7 +13,7 @@ class RowNotFound(Exception):
         """
 
         super().__init__(
-            f"'{value}' Not Found at Column '{field}' in '{tableName}' Table\n"
+            f"'{value}' Not Found at Column '{field}' in '{tableName}' Table"
         )
 
 

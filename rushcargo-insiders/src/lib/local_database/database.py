@@ -64,7 +64,7 @@ class NominatimDatabase:
         """
 
         # Query to Create the Rows Counter Table in the Local Database
-        query = f"CREATE TABLE IF NOT EXISTS {NOMINATIM_ROWS_COUNTER_TABLENAME} ({NOMINATIM_TABLENAME} VARCHAR(50) PRIMARY KEY,{NOMINATIM_COUNTER} INT NOT NULL);"
+        query = f"CREATE TABLE IF NOT EXISTS {NOMINATIM_ROWS_COUNTER_TABLENAME} ({NOMINATIM_TABLENAME} VARCHAR(50) PRIMARY KEY, {NOMINATIM_COUNTER} INT NOT NULL);"
 
         # Execute the Query
         self.__c.execute(query)
@@ -117,13 +117,12 @@ class NominatimDatabase:
         if self.__conn != None:
             self.__conn.close()
 
-    # Get Cursor
     def getCursor(self):
         """
         Method to Get Remote Database Connection Cursor
 
         :return: Remote Database Connection Cursor
-        :rtype: Cursor[TupleRow]
+        :rtype: Cursor
         """
 
         return self.__conn.cursor()
@@ -136,9 +135,7 @@ class NominatimTables:
 
     # Database Connection
     __c = None
-
-    # Protected Fields
-    _item = None
+    __item = None
 
     def __init__(self, cursor):
         """
@@ -242,20 +239,20 @@ class NominatimTables:
 
     def __fetchone(self):
         """
-        Method to Fetch One Item from ``self._item`` and Return its Value. If there is nNo Item to Fetch, returns ``None``
+        Method to Fetch One Item from ``self.__item`` and Return its Value. If there is nNo Item to Fetch, returns ``None``
 
         :return: First Fetch Item (If Found). Otherwise, ``None``
         :rtype: Any, if the First Item was Fetched. Otherwise, NoneType
         """
 
         # Fetch Item
-        self._item = self._item.fetchone()
+        self.__item = self.__item.fetchone()
 
         # Check Fetched Item
-        if self._item == None:
+        if self.__item == None:
             return None
 
-        return self._item[0]
+        return self.__item[0]
 
     def __getCounter(self, tableName: str) -> int:
         """
@@ -270,7 +267,7 @@ class NominatimTables:
         query = f"SELECT {NOMINATIM_COUNTER} FROM {NOMINATIM_ROWS_COUNTER_TABLENAME} WHERE {NOMINATIM_TABLENAME} = ?"
 
         # Execute the Query
-        self._item = self.__c.execute(query, (tableName,))
+        self.__item = self.__c.execute(query, (tableName,))
 
         return self.__fetchone()
 
@@ -316,7 +313,7 @@ class NominatimTables:
         )
 
         # Execute the Query
-        self._item = self.__c.execute(query, (nameId,))
+        self.__item = self.__c.execute(query, (nameId,))
 
         return self.__fetchone()
 
@@ -342,7 +339,7 @@ class NominatimTables:
         )
 
         # Execute the Query
-        self._item = self.__c.execute(query, (name,))
+        self.__item = self.__c.execute(query, (name,))
 
         return self.__fetchone()
 
@@ -375,7 +372,7 @@ class NominatimTables:
         query = f"SELECT {NOMINATIM_ROWID} FROM {nameTableName} WHERE {NOMINATIM_NAME} = ? AND {parentLocationNameId} = ?"
 
         # Execute the Query
-        self._item = self.__c.execute(
+        self.__item = self.__c.execute(
             query,
             (
                 name,
@@ -406,7 +403,7 @@ class NominatimTables:
         query = f"SELECT {locationNameId} FROM {searchTableName} WHERE {NOMINATIM_SEARCH} = ?"
 
         # Execute the Query
-        self._item = self.__c.execute(query, (search,))
+        self.__item = self.__c.execute(query, (search,))
 
         return self.__fetchone()
 
@@ -441,7 +438,7 @@ class NominatimTables:
         query = f"SELECT {locationNameId} FROM {nameTableName} {NOMINATIM_NAME} INNER JOIN (SELECT * FROM {searchTableName} WHERE {NOMINATIM_SEARCH} = ?) {NOMINATIM_SEARCH} ON {NOMINATIM_NAME}.{NOMINATIM_ROWID} = {NOMINATIM_SEARCH}.{locationNameId} WHERE {parentLocationNameId} = ?"
 
         # Execute the Query
-        self._item = self.__c.execute(
+        self.__item = self.__c.execute(
             query,
             (
                 search,
@@ -468,7 +465,7 @@ class NominatimTables:
         query = f"SELECT MIN({NOMINATIM_ROWID}) FROM {tableName}"
 
         # Execute the Query
-        self._item = self.__c.execute(query)
+        self.__item = self.__c.execute(query)
 
         return self.__fetchone()
 
@@ -514,7 +511,7 @@ class NominatimTables:
         queryRemove = f"DELETE FROM {tableName} WHERE {fieldLocationNameId} = ?"
 
         # Execute the Query to Get Number of Locations to Remove
-        self._item = self.__c.execute(queryNumber, (nameId,))
+        self.__item = self.__c.execute(queryNumber, (nameId,))
 
         # Fetch the Number of Queries that were Removed
         number = self.__fetchone()
@@ -549,7 +546,7 @@ class NominatimTables:
         queryNumber = f"SELECT COUNT(*) FROM {nameTableName} WHERE {NOMINATIM_ROWID} IN (SELECT {NOMINATIM_ROWID} FROM {nameTableName} WHERE {parentLocationNameId} = ?)"
 
         # Execute the Query to Get the Number of Locations to Remove
-        self._item = self.__c.execute(queryNumber, (parentRowid,))
+        self.__item = self.__c.execute(queryNumber, (parentRowid,))
 
         # Fetch the Number of Queries that were Removed
         number = self.__fetchone()
@@ -590,7 +587,7 @@ class NominatimTables:
         queryNumber = f"SELECT COUNT(*) FROM {searchTableName} WHERE {NOMINATIM_ROWID} IN (SELECT {NOMINATIM_SEARCH}.{NOMINATIM_ROWID} FROM {searchTableName} {NOMINATIM_SEARCH} INNER JOIN {nameTableName} {NOMINATIM_NAME} ON {NOMINATIM_SEARCH}.{locationNameId} = {NOMINATIM_NAME}.{NOMINATIM_ROWID} WHERE {parentLocationNameId} = ?)"
 
         # Execute the Query to Get the Number of Child Locations Searches to Remove
-        self._item = self.__c.execute(queryNumber, (parentRowid,))
+        self.__item = self.__c.execute(queryNumber, (parentRowid,))
 
         # Fetch the Number of Queries that were Removed
         number = self.__fetchone()
@@ -1472,7 +1469,6 @@ class NominatimTables:
         :return: Nothing
         :rtype: NoneType
         """
-
 
         for r in regions:
             regionNameId = r[0]

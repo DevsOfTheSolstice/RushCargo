@@ -6,7 +6,7 @@ from .constants import *
 from .database import console
 
 from ..geocoding.constants import NOMINATIM_LONGITUDE, NOMINATIM_LATITUDE
-from ..geocoding.routingpy import RoutingPyGeocoder
+from ..geocoding.routingpy import ORSGeocoder
 
 
 def getLocationInfo(locationTableName: str) -> tuple[str, str] | None:
@@ -80,8 +80,8 @@ class WarehouseConnectionTable:
         for w in warehouseConnsList:
             warehouseDict = {}
 
-            warehouseDict[DICT_WAREHOUSES_ID] = w[0]
-            warehouseDict[DICT_WAREHOUSES_COORDS] = {
+            warehouseDict[DICT_WAREHOUSE_ID] = w[0]
+            warehouseDict[DICT_WAREHOUSE_COORDS] = {
                 NOMINATIM_LATITUDE: w[1],
                 NOMINATIM_LONGITUDE: w[2],
             }
@@ -451,7 +451,7 @@ class WarehouseConnectionTable:
     # Insert a Warehouse Connection of the New Main Warehouse as a Sender Asynchronously
     async def __insertWarehouseSenderConn(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         query,
         connType: str,
         warehouseDict: dict,
@@ -460,7 +460,7 @@ class WarehouseConnectionTable:
         """
         Method to Insert a Warehouse Sender Connection Asynchronously
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param Composed query: SQL Query to Insert a Warehouse Connection
         :param str connType: Location Connection Level
         :param dict warehouseDict: Warehouse Connection Dictionary of the One that Sends the Packages
@@ -470,14 +470,14 @@ class WarehouseConnectionTable:
         """
 
         # Get Route Distance from the Main Warehouse to Insert and the Inserted Warehouse
-        routeDistanceSender = routingPyGeocoder.getRouteDistance(
-            warehouseDict[DICT_WAREHOUSES_COORDS],
-            warehouseConnDict[DICT_WAREHOUSES_COORDS],
+        routeDistanceSender = ORSGeocoder.getDrivingRouteDistance(
+            warehouseDict[DICT_WAREHOUSE_COORDS],
+            warehouseConnDict[DICT_WAREHOUSE_COORDS],
         )
 
         # Get Warehouse and Warehouse Connection ID
-        warehouseId = warehouseDict[DICT_WAREHOUSES_ID]
-        warehouseConnId = warehouseConnDict[DICT_WAREHOUSES_ID]
+        warehouseId = warehouseDict[DICT_WAREHOUSE_ID]
+        warehouseConnId = warehouseConnDict[DICT_WAREHOUSE_ID]
 
         # Execute the Query
         try:
@@ -493,11 +493,11 @@ class WarehouseConnectionTable:
             )
 
         except Exception as err:
-            raise err
+            console.print(err, style="warning")
 
     async def __insertWarehouseReceiverConn(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         query,
         connType: str,
         warehouseDict: dict,
@@ -506,7 +506,7 @@ class WarehouseConnectionTable:
         """
         Method to Insert a Warehouse Receiver Connection Asynchronously
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param Composed query: SQL Query to Insert a Warehouse Connection
         :param str connType: Location Connection Level
         :param dict warehouseDict: Warehouse Connection Dictionary of the One that Receives the Packages
@@ -516,14 +516,14 @@ class WarehouseConnectionTable:
         """
 
         # Get Route Distance from the Inserted Warehouse to the Main Warehouse to Insert
-        routeDistanceReceiver = routingPyGeocoder.getRouteDistance(
-            warehouseConnDict[DICT_WAREHOUSES_COORDS],
-            warehouseDict[DICT_WAREHOUSES_COORDS],
+        routeDistanceReceiver = ORSGeocoder.getDrivingRouteDistance(
+            warehouseConnDict[DICT_WAREHOUSE_COORDS],
+            warehouseDict[DICT_WAREHOUSE_COORDS],
         )
 
         # Get Warehouse and Warehouse Connection ID
-        warehouseId = warehouseDict[DICT_WAREHOUSES_ID]
-        warehouseConnId = warehouseConnDict[DICT_WAREHOUSES_ID]
+        warehouseId = warehouseDict[DICT_WAREHOUSE_ID]
+        warehouseConnId = warehouseConnDict[DICT_WAREHOUSE_ID]
 
         # Execute the Query
         try:
@@ -538,11 +538,11 @@ class WarehouseConnectionTable:
             )
 
         except Exception as err:
-            raise err
+            console.print(err, style="warning")
 
     async def __insertMainWarehouseConns(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         connType: str,
         warehouseDict: dict,
         warehouseConns: list[dict],
@@ -550,7 +550,7 @@ class WarehouseConnectionTable:
         """
         Method to Insert All the Warehouse Connections for a Given Main Warehouse Asynchronously
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param str connType: Location Connection Level
         :param dict warehouseDict: Main Warehouse Connection Dictionary
         :param list warehouseConnDict: List of Warehouse Connection Dictionaries that will be Connected with the Main Warehouse
@@ -567,15 +567,15 @@ class WarehouseConnectionTable:
                 for warehouseConnDict in warehouseConns:
                     # Check the Warehouse Connection ID. Ignore if they're the Same
                     if (
-                        warehouseConnDict[DICT_WAREHOUSES_ID]
-                        == warehouseDict[DICT_WAREHOUSES_ID]
+                        warehouseConnDict[DICT_WAREHOUSE_ID]
+                        == warehouseDict[DICT_WAREHOUSE_ID]
                     ):
                         continue
 
                     # Insert the Main Warehouse Sender Connection
                     tg.create_task(
                         self.__insertWarehouseSenderConn(
-                            routingPyGeocoder,
+                            ORSGeocoder,
                             query,
                             connType,
                             warehouseDict,
@@ -586,7 +586,7 @@ class WarehouseConnectionTable:
                     # Insert the Main Warehouse Receiver Connection
                     tg.create_task(
                         self.__insertWarehouseReceiverConn(
-                            routingPyGeocoder,
+                            ORSGeocoder,
                             query,
                             connType,
                             warehouseDict,
@@ -594,22 +594,19 @@ class WarehouseConnectionTable:
                         )
                     )
 
-                    # Sleep for N Seconds
-                    await asyncio.sleep(ASYNC_SLEEP)
-
         except Exception as err:
             console.print(err, style="warning")
 
     def insertCityWarehouse(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         warehouseDict: dict,
         warehouseConnDict: dict,
     ):
         """
         Method to Insert the Warehouse Connection with the Given Main Warehouse at the City ID where the Warehouse is Located Asynchronously
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param dict warehouseDict: Warehouse Connection Dictionary
         :param list warehouseConnDict: Warehouse Connection Dictionary that will be Connected with the Warehouse
         :return: Nothing
@@ -617,11 +614,18 @@ class WarehouseConnectionTable:
         """
 
         # Insert the Warehouse Connection to its Table Asynchronously
-        self.__insertMainWarehouseConns(routingPyGeocoder, CITY_ID, warehouseDict, [warehouseConnDict])
+        asyncio.run(
+            self.__insertMainWarehouseConns(
+                ORSGeocoder,
+                CONN_TYPE_CITY,
+                warehouseDict,
+                [warehouseConnDict],
+            )
+        )
 
     def insertProvinceMainWarehouse(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         countryId: int,
         provinceId: int,
         warehouseDict: dict,
@@ -629,7 +633,7 @@ class WarehouseConnectionTable:
         """
         Method to Insert All the Province Main Warehouse Connections for a Given Province
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param int countryId: Country ID where the Province is Located
         :param int provinceId: Province ID where the Warehouse is Located
         :param dict warehouseDict: New Province Main Warehouse Connection Dictionary
@@ -646,7 +650,7 @@ class WarehouseConnectionTable:
         # Set the Province Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_PROVINCE,
                 warehouseDict,
                 provinceMainWarehouses,
@@ -656,7 +660,7 @@ class WarehouseConnectionTable:
         # Set the Region Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_PROVINCE,
                 warehouseDict,
                 regionMainWarehouses,
@@ -665,7 +669,7 @@ class WarehouseConnectionTable:
 
     def insertRegionMainWarehouse(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         provinceId: int,
         regionId: int,
         parentWarehouseDict: dict,
@@ -674,7 +678,7 @@ class WarehouseConnectionTable:
         """
         Method to Insert All the Region Main Warehouse Connections for a Given Region
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param int provinceId: Province ID where the Region is Located
         :param int regionId: Region ID where the Warehouse is Located
         :param dict parentWarehouseDict: Province Main Warehouse Connection Dictionary
@@ -692,7 +696,7 @@ class WarehouseConnectionTable:
         # Set the Province Main Warehouse Connection
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_PROVINCE,
                 parentWarehouseDict,
                 [warehouseDict],
@@ -702,7 +706,7 @@ class WarehouseConnectionTable:
         # Set the Region Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_REGION,
                 warehouseDict,
                 regionMainWarehouses,
@@ -712,7 +716,7 @@ class WarehouseConnectionTable:
         # Set the City Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_REGION,
                 warehouseDict,
                 cityMainWarehouses,
@@ -721,7 +725,7 @@ class WarehouseConnectionTable:
 
     def insertCityMainWarehouse(
         self,
-        routingPyGeocoder: RoutingPyGeocoder,
+        ORSGeocoder: ORSGeocoder,
         regionId: int,
         cityId: int,
         parentWarehouseDict: dict,
@@ -730,7 +734,7 @@ class WarehouseConnectionTable:
         """
         Method to Insert All the City Main Warehouse Connections for a Given City
 
-        :param RoutingPyGeocoder routingPyGeocoder: RoutingPyGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param int regionId: Region ID where the City is Located
         :param int cityId: City ID where the Warehouse is Located
         :param dict parentWarehouseDict: Region Main Warehouse Connection Dictionary
@@ -748,7 +752,7 @@ class WarehouseConnectionTable:
         # Set the Region Main Warehouse Connection
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_REGION,
                 parentWarehouseDict,
                 [warehouseDict],
@@ -758,7 +762,7 @@ class WarehouseConnectionTable:
         # Set the City Main Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_CITY,
                 warehouseDict,
                 cityMainWarehouses,
@@ -768,7 +772,7 @@ class WarehouseConnectionTable:
         # Set the City Warehouse Connections
         asyncio.run(
             self.__insertMainWarehouseConns(
-                routingPyGeocoder,
+                ORSGeocoder,
                 CONN_TYPE_CITY,
                 warehouseDict,
                 cityWarehouses,

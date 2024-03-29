@@ -458,7 +458,7 @@ class BranchTable(BuildingTable):
         nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Warehouse", nRows)
+        table = getTable("Branch", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)

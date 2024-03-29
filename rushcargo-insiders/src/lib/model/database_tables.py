@@ -71,7 +71,6 @@ def modifiedRow(field: str, value, idField: str, idValue: int, tableName: str) -
         style="success",
     )
 
-
 def insertedRow(name: str, tableName: str) -> None:
     """
     Function to Print a Message when a Row has been Successfully Inserted to a Table

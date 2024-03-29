@@ -36,6 +36,20 @@ from ..model.database_connections import *
 from ..terminal.constants import *
 
 
+def nothingToChange() -> None:
+    """
+    Function to Print a Message when a Row is Already Modified at a Given Table
+
+    :return: Nothing
+    :rtype: NoneType
+    """
+
+    console.print("Nothing to Change...", style="warning")
+
+    # Press ENTER to Continue
+    Prompt.ask(PRESS_ENTER)
+
+
 class LocationEventHandler:
     """
     Class that Handles the Location-related Subcommands
@@ -1265,13 +1279,19 @@ class LocationEventHandler:
                 province = self.__provinceTable.find(provinceId)
 
                 # Check if there's a Main Warehouse
-                if province.warehouseId != None:
-                    currWarehouseId = province.warehouseId
+                currWarehouseId = province.warehouseId
 
-                    # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
-                    self.__warehouseConnTable.removeProvinceMainWarehouse(
-                        provinceId, currWarehouseId
-                    )
+                if warehouseId == currWarehouseId:
+                    nothingToChange()
+                    return
+
+                # Drop Old Warehouse Connections with all the Main Province Warehouses at the Same Country and all the Main Region Warehouses at the Given Province
+                self.__warehouseConnTable.removeProvinceMainWarehouse(
+                    provinceId, currWarehouseId
+                )
+
+                # Remove the Old Province Main Warehouse from the Province Table
+                self.__provinceTable.modify(provinceId, PROVINCE_FK_WAREHOUSE, None)
 
                 # Get Province Country ID
                 countryId = province.countryId
@@ -1318,16 +1338,22 @@ class LocationEventHandler:
                 region = self.__regionTable.find(regionId)
 
                 # Check if there's a Main Warehouse
-                if region.warehouseId != None:
-                    currWarehouseId = region.warehouseId
+                currWarehouseId = region.warehouseId
 
-                    # Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
-                    self.__warehouseConnTable.removeRegionMainWarehouse(
-                        regionId, currWarehouseId
-                    )
+                if warehouseId == currWarehouseId:
+                    nothingToChange()
+                    return
 
                 # Get Region Province ID
                 provinceId = region.provinceId
+
+                # Drop Old Warehouse Connections with the Main Province Warehouse, all the Main Region Warehouses at the Same Province, and all the Main City Warehouses at the Given Region
+                self.__warehouseConnTable.removeRegionMainWarehouse(
+                    provinceId, regionId, currWarehouseId
+                )
+
+                # Remove the Old Region Main Warehouse from the Region Table
+                self.__regionTable.modify(regionId, REGION_FK_WAREHOUSE, None)
 
                 # Get Province Main Warehouse ID
                 province = self.__provinceTable.find(provinceId)
@@ -1381,16 +1407,22 @@ class LocationEventHandler:
                 city = self.__cityTable.find(cityId)
 
                 # Check if there's a Main Warehouse
-                if city.warehouseId != None:
-                    currWarehouseId = city.warehouseId
+                currWarehouseId = city.warehouseId
 
-                    # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the City Warehouses at the Given City
-                    self.__warehouseConnTable.removeCityMainWarehouse(
-                        cityId, currWarehouseId
-                    )
+                if warehouseId == currWarehouseId:
+                    nothingToChange()
+                    return
 
                 # Get City Region ID
                 regionId = city.regionId
+
+                # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the City Warehouses at the Given City
+                self.__warehouseConnTable.removeCityMainWarehouse(
+                    regionId, cityId, currWarehouseId
+                )
+
+                # Remove the Old City Main Warehouse from the City Table
+                self.__cityTable.modify(cityId, CITY_FK_WAREHOUSE, None)
 
                 # Get Region Main Warehouse ID
                 region = self.__regionTable.find(regionId)
@@ -1412,7 +1444,7 @@ class LocationEventHandler:
                 value = warehouseDict[DICT_WAREHOUSE_ID]
 
             # Modify City
-            self.__cityTable.modify(regionId, field, value)
+            self.__cityTable.modify(cityId, field, value)
 
         elif tableName == WAREHOUSE_TABLENAME:
             # Select Warehouse ID

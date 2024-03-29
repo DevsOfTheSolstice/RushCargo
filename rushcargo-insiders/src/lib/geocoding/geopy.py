@@ -147,10 +147,12 @@ class NominatimGeocoder:
 
             # Iterate over Coincidences
             for coincidence in geopyLocation:
+                print(coincidence.raw)
                 # Check if it's a Region
                 if (
                     coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION
                     or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION_ALT
+                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_DIVISION_ALT
                 ):
                     return self.__getName(coincidence)
 
@@ -192,7 +194,10 @@ class NominatimGeocoder:
             # Iterate over Coincidences
             for coincidence in geopyLocation:
                 # Check if it's a City
-                if coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY:
+                if (
+                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY
+                    or coincidence.raw[NOMINATIM_CITY] == NOMINATIM_DIVISION_ALT
+                ):
                     return self.__getName(coincidence)
 
             # Invalid Location

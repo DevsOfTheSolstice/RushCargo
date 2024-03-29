@@ -34,7 +34,7 @@ CREATE TABLE City (
     FOREIGN KEY (region_id) REFERENCES Region(region_id)
 );
 
---
+--5
 CREATE TABLE Building (
     building_id BIGSERIAL PRIMARY KEY,
     city_id BIGINT,

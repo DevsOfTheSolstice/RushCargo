@@ -371,7 +371,7 @@ ALTER TABLE Legal_Client_Affiliations ADD COLUMN address_description VARCHAR(255
 
 --42
 ALTER TABLE Motocyclist 
-ADD COLUMN affiliated_branch INT,
+ADD COLUMN affiliated_branch BIGINT,
 ADD CONSTRAINT fk_affiliated_branch FOREIGN KEY (affiliated_branch) REFERENCES Branch(branch_id);
 
 --43
@@ -381,13 +381,26 @@ ALTER TABLE Vehicle
     ALTER COLUMN height_capacity TYPE DECIMAL(10, 2),
     ALTER COLUMN length_capacity TYPE DECIMAL(10, 2);
 
---44
-ALTER TABLE Driver
-    ALTER COLUMN salary TYPE DECIMAL(10, 2);
-
 --45
 ALTER TABLE Motocyclist
     RENAME TO Motorcyclist;
+
+--46
+ALTER TABLE Truck_Driver 
+ADD COLUMN affiliated_warehouse BIGINT,
+ADD CONSTRAINT fk_affiliated_warehouse FOREIGN KEY (affiliated_warehouse) REFERENCES Warehouse(warehouse_id);
+
+--47
+ALTER TABLE Delivery_Order
+ADD COLUMN rating DECIMAL(3, 2) CHECK (rating <= 5.0);
+
+--48
+ALTER TABLE Root_User
+    ADD COLUMN user_type VARCHAR(255);
+
+--49
+ALTER TABLE Driver
+    DROP COLUMN salary;
 
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;

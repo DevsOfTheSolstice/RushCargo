@@ -126,8 +126,8 @@ CREATE TABLE Root_Users (
     user_password VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
     birthdate DATE,
-    first_name VARCHAR(255),
-    last_name VARCHAR(255),
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
     -- should be 'PkgAdmin' or 'UsrAdmin'
     user_type VARCHAR(20) NOT NULL,
     FOREIGN KEY (id_document) REFERENCES Legal_Identifications(legal_id),
@@ -149,12 +149,13 @@ CREATE TABLE Users (
 --22
 CREATE TABLE Drivers (
     username VARCHAR(255) PRIMARY KEY,
-    id_document VARCHAR(255) NOT NULL,
+    id_document INT NOT NULL,
     born_date DATE NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     salary DECIMAL(7,2) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Users(username)
+    FOREIGN KEY (username) REFERENCES Users(username),
+    FOREIGN KEY (id_document) REFERENCES Legal_Identifications(legal_id)
 );
 
 --23
@@ -193,11 +194,13 @@ CREATE TABLE Client_Debts (
 --27
 CREATE TABLE Natural_Clients (
     username VARCHAR(255) PRIMARY KEY,
+    affiliated_branch INT NOT NULL,
     birthdate DATE NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     address_description VARCHAR (255) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Clients(username)
+    FOREIGN KEY (username) REFERENCES Clients(username),
+    FOREIGN KEY (affiliated_branch) REFERENCES locations.Branches(branch_id)
 );
 
 --28
@@ -279,8 +282,7 @@ CREATE TABLE Package_Descriptions (
     package_weight DECIMAL(7,2) NOT NULL,         
     package_lenght DECIMAL(7,2) NOT NULL,
     package_width DECIMAL(7,2) NOT NULL,
-    package_height DECIMAL(7,2) NOT NULL,
-    delivered BOOLEAN NOT NULL
+    package_height DECIMAL(7,2) NOT NULL
 );
 
 --38

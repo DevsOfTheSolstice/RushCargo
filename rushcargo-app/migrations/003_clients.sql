@@ -9,15 +9,15 @@ INSERT INTO users (username, user_password, phone, gps_address)
 VALUES ('maddog', '$2a$04$wpGe03I/o1wiyibNzIA3VeCKCI6NReTJUVVXxT6K8jZgZang8rcoa', '078-213-0385', 'User 1 gps addr');
 
 -- Client 1
-INSERT INTO client (username, branch) VALUES ('dojimanoryu', 4);
+INSERT INTO clients (username) VALUES ('dojimanoryu');
 
 -- Client 2
-INSERT INTO client (username, branch) VALUES ('maddog', 5);
+INSERT INTO clients (username) VALUES ('maddog');
 
 -- Natural Client 1
-INSERT INTO natural_client (username, born_date, client_name, last_name, affiliated_branch, route_distance)
-VALUES ('dojimanoryu', '1968-06-17', 'Kiryu', 'Kazuma', 4, 15.0);
+INSERT INTO natural_clients (username, birthdate, first_name, last_name, address_description, affiliated_branch)
+VALUES ('dojimanoryu', '1968-06-17', 'Kiryu', 'Kazuma', 'client1 addr desc', 4);
 
 -- Natural Client 1
-INSERT INTO natural_client (username, born_date, client_name, last_name, affiliated_branch, route_distance)
-VALUES ('maddog', '1964-05-14', 'Goro', 'Majima', 5, 25.0);
+INSERT INTO natural_clients (username, birthdate, first_name, last_name, address_description, affiliated_branch)
+VALUES ('maddog', '1964-05-14', 'Goro', 'Majima', 'client2 addr desc', 5);

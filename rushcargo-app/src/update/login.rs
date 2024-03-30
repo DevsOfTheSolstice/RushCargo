@@ -16,10 +16,10 @@ use crate::{
 };
 
 static USER_SEARCH_QUERIES: [&str; 4] = [
-    "SELECT * FROM natural_client WHERE username = $1",
-    "SELECT * FROM legal_client WHERE username = $1",
-    "SELECT * FROM truck_driver WHERE username = $1",
-    "SELECT * FROM motorcyclist WHERE username = $1",
+    "SELECT * FROM natural_clients WHERE username = $1",
+    "SELECT * FROM legal_clients WHERE username = $1",
+    "SELECT * FROM truck_drivers WHERE username = $1",
+    "SELECT * FROM motorcyclists WHERE username = $1",
 ];
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
@@ -87,7 +87,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 }
             }
 
-            if let Some(res) = sqlx::query("SELECT * FROM root_user WHERE username=$1")
+            if let Some(res) = sqlx::query("SELECT * FROM root_users WHERE username=$1")
                 .bind(&username)
                 .fetch_optional(pool)
                 .await?

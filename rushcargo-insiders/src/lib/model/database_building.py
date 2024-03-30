@@ -95,12 +95,15 @@ class BuildingsTable(SpecializationTable):
     Class that Handles the SQL Operations related to the Remote SQL Buildings Table
     """
 
-    def __init__(self, tableName: str, tablePKFKName: str, remoteCursor):
+    def __init__(
+        self, tableName: str, tablePKFKName: str, remoteCursor, schemeName: str = None
+    ):
         """
         Buildings Remote Table Class Constructor
 
         :param str tableName: Building Specialization Table Name
         :param str tablePKFKName: Building Specialization Primary Key Foreign Key Field Name
+        :param str schemeName: Scheme Name where the Building Specialization Table is Located. Default is ``None``
         :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
@@ -111,6 +114,8 @@ class BuildingsTable(SpecializationTable):
             tablePKFKName,
             BUILDINGS_ID,
             remoteCursor,
+            schemeName,
+            LOCATIONS_SCHEME_NAME,
         )
 
     def __insertQuery(self):
@@ -122,8 +127,9 @@ class BuildingsTable(SpecializationTable):
         """
 
         return sql.SQL(
-            "INSERT INTO {parentTableName} ({fields}) VALUES (%s,%s, %s, %s, %s, %s, %s)"
+            "INSERT INTO {fullParentTableName} ({fields}) VALUES (%s,%s, %s, %s, %s, %s, %s)"
         ).format(
+            fullParentTableName=self._fullParentTableName,
             parentTableName=sql.Identifier(self._parentTableName),
             fields=sql.SQL(",").join(
                 [
@@ -196,7 +202,7 @@ class BuildingsTable(SpecializationTable):
             raise BuildingNameAssigned(buildingName, location[DICT_CITY_ID])
 
         # Ask for New Building Fields
-        console.print("Adding New Building...", style="caption")
+        console.print("\nAdding New Building...", style="caption")
         buildingPhone = IntPrompt.ask("Enter Building Phone Number")
         buildingEmail = Prompt.ask("Enter Building Email")
         addressDescription = Prompt.ask("Enter Building Address Description")
@@ -244,9 +250,7 @@ class WarehousesTable(BuildingsTable):
 
         # Initialize Building Table Class
         super().__init__(
-            WAREHOUSES_TABLE_NAME,
-            WAREHOUSES_ID,
-            remoteCursor,
+            WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, remoteCursor, LOCATIONS_SCHEME_NAME
         )
 
     def __print(self) -> None:
@@ -261,7 +265,7 @@ class WarehousesTable(BuildingsTable):
         nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Warehouse", nRows)
+        table = getTable("Warehouses", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -295,7 +299,8 @@ class WarehousesTable(BuildingsTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {tableName} ({field}) VALUES (%s)").format(
+        return sql.SQL("INSERT INTO {fullTableName} ({field}) VALUES (%s)").format(
+            fullTableName=self._fullTableName,
             tableName=sql.Identifier(self._tableName),
             field=sql.Identifier(self._tablePKFKName),
         )
@@ -440,9 +445,7 @@ class BranchesTable(BuildingsTable):
 
         # Initialize Building Table Class
         super().__init__(
-            BRANCHES_TABLE_NAME,
-            BRANCHES_ID,
-            remoteCursor,
+            BRANCHES_TABLE_NAME, BRANCHES_ID, remoteCursor, LOCATIONS_SCHEME_NAME
         )
 
     def __print(self) -> None:
@@ -457,7 +460,7 @@ class BranchesTable(BuildingsTable):
         nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Branch", nRows)
+        table = getTable("Branches", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -495,7 +498,10 @@ class BranchesTable(BuildingsTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s, %s)").format(
+        return sql.SQL(
+            "INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s, %s)"
+        ).format(
+            fullTableName=self._fullTableName,
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [
@@ -622,7 +628,10 @@ class BranchesTable(BuildingsTable):
         """
 
         # Modify Branch Table Row Columns
-        if field == BRANCHES_FK_WAREHOUSE_CONNECTION or field == BRANCHES_ROUTE_DISTANCE:
+        if (
+            field == BRANCHES_FK_WAREHOUSE_CONNECTION
+            or field == BRANCHES_ROUTE_DISTANCE
+        ):
             SpecializationTable._modifyTable(self, branchId, field, value)
 
         # Modify Building Table Row Column

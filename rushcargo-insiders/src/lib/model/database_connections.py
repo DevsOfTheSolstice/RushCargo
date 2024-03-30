@@ -5,7 +5,12 @@ from .constants import *
 
 from .database import console
 
-from ..geocoding.constants import NOMINATIM_LONGITUDE, NOMINATIM_LATITUDE, DICT_WAREHOUSE_COORDS, DICT_WAREHOUSE_ID
+from ..geocoding.constants import (
+    NOMINATIM_LONGITUDE,
+    NOMINATIM_LATITUDE,
+    DICT_WAREHOUSE_COORDS,
+    DICT_WAREHOUSE_ID,
+)
 from ..geocoding.exceptions import RouteNotFound
 from ..geocoding.routingpy import ORSGeocoder
 
@@ -36,9 +41,13 @@ class WarehouseConnectionsTable:
     _c = None
     _items = None
 
-    # Table Name and ID Column Name
+    # Scheme, Table, Table PK and Scheme + Table Name
+    _schemeName = CONNECTIONS_SCHEME_NAME
     _tableName = WAREHOUSES_CONN_TABLE_NAME
     _tablePKName = WAREHOUSES_CONN_ID
+    _fullTableName = sql.SQL(".").join(
+        [sql.Identifier(_schemeName), sql.Identifier(_tableName)]
+    )
 
     # Constructor
     def __init__(self, remoteCursor):
@@ -102,9 +111,10 @@ class WarehouseConnectionsTable:
         """
 
         sql.SQL(
-            "SELECT {locationIdField} FROM {locationTableName} WHERE {warehouseIdField} = (%s)"
+            "SELECT {locationIdField} FROM {locationsSchemeName}.{locationTableName} WHERE {warehouseIdField} = (%s)"
         ).format(
             locationIdField=sql.Identifier(locationIdField),
+            locationsSchemeName=sql.Identifier(LOCATIONS_SCHEME_NAME),
             warehouseIdField=sql.Identifier(warehouseIdField),
             locationTableName=sql.Identifier(tableName),
         )
@@ -157,12 +167,13 @@ class WarehouseConnectionsTable:
         """
 
         return sql.SQL(
-            "DELETE FROM {tableName} WHERE {warehouseConnIdField} IN (SELECT {sendersConnIdField} FROM {sendersViewName} {senders} WHERE {senders}.{locationIdField} = (%s) AND {senders}.{warehouseIdField} = (%s) AND {senders}.{warehouseConnType} = (%s))"
+            "DELETE FROM {fullTableName} WHERE {warehouseConnIdField} IN (SELECT {sendersConnIdField} FROM {connectionsSchemeName}.{sendersViewName} {senders} WHERE {senders}.{locationIdField} = (%s) AND {senders}.{warehouseIdField} = (%s) AND {senders}.{warehouseConnType} = (%s))"
         ).format(
-            tableName=sql.Identifier(self._tableName),
+            fullTableName=self._fullTableName,
             warehouseConnIdField=sql.Identifier(WAREHOUSES_CONN_ID),
             idField=sql.Identifier(self._tablePKName),
             sendersConnIdField=sql.Identifier(SENDERS_WAREHOUSE_CONN_ID),
+            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
             sendersViewName=sql.Identifier(WAREHOUSES_SENDERS_VIEW_NAME),
             senders=sql.Identifier(SENDERS),
             locationIdField=sql.Identifier(locationIdField),
@@ -180,12 +191,13 @@ class WarehouseConnectionsTable:
         """
 
         return sql.SQL(
-            "DELETE FROM {tableName} WHERE {warehouseConnIdField} IN (SELECT {receiversConnIdField} FROM {receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} =%s)"
+            "DELETE FROM {fullTableName} WHERE {warehouseConnIdField} IN (SELECT {receiversConnIdField} FROM {connectionsSchemeName}.{receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} =%s)"
         ).format(
-            tableName=sql.Identifier(self._tableName),
+            fullTableName=self._fullTableName,
             warehouseConnIdField=sql.Identifier(WAREHOUSES_CONN_ID),
             idField=sql.Identifier(self._tablePKName),
             receiversConnIdField=sql.Identifier(RECEIVERS_WAREHOUSE_CONN_ID),
+            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
             receiversViewName=sql.Identifier(WAREHOUSES_RECEIVERS_VIEW_NAME),
             receivers=sql.Identifier(RECEIVERS),
             locationIdField=sql.Identifier(locationIdField),
@@ -222,7 +234,7 @@ class WarehouseConnectionsTable:
             self._c.execute(senderQuery, [locationId, warehouseId, locationType])
 
             console.print(
-                f"Removed Warehouse ID {warehouseId} as a Sender at {locationType}-Level",
+                f"Removed Warehouse ID {warehouseId} as a Sender at {locationType}-Level\n",
                 style="success",
             )
 
@@ -230,7 +242,7 @@ class WarehouseConnectionsTable:
             self._c.execute(receiverQuery, [locationId, warehouseId, locationType])
 
             console.print(
-                f"Removed Warehouse ID {warehouseId} as a Receiver at {locationType}-Level",
+                f"Removed Warehouse ID {warehouseId} as a Receiver at {locationType}-Level\n",
                 style="success",
             )
 
@@ -282,11 +294,12 @@ class WarehouseConnectionsTable:
         """
 
         return sql.SQL(
-            "SELECT {warehouseIdField}, {warehouseLatCoord}, {warehouseLonCoord} FROM {locationMainWarehousesViewName} WHERE {parentLocationIdField} = (%s)"
+            "SELECT {warehouseIdField}, {warehouseLatCoord}, {warehouseLonCoord} FROM {connectionsSchemeName}.{locationMainWarehousesViewName} WHERE {parentLocationIdField} = (%s)"
         ).format(
             warehouseIdField=sql.Identifier(WAREHOUSES_ID),
             warehouseLatCoord=sql.Identifier(BUILDINGS_GPS_LATITUDE),
             warehouseLonCoord=sql.Identifier(BUILDINGS_GPS_LONGITUDE),
+            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
             locationMainWarehousesViewName=sql.Identifier(
                 locationMainWarehousesViewName
             ),
@@ -331,7 +344,9 @@ class WarehouseConnectionsTable:
         """
 
         # Get Query to Get All the Region Main Warehouses from a Given Country ID
-        query = self.__getMainWarehousesQuery(REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID)
+        query = self.__getMainWarehousesQuery(
+            REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID
+        )
 
         return self.__getMainWarehouses(query, countryId)
 
@@ -345,7 +360,9 @@ class WarehouseConnectionsTable:
         """
 
         # Get Query to Get All the City Main Warehouses from a Given Region ID
-        query = self.__getMainWarehousesQuery(CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID)
+        query = self.__getMainWarehousesQuery(
+            CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID
+        )
 
         return self.__getMainWarehouses(query, regionId)
 
@@ -358,11 +375,12 @@ class WarehouseConnectionsTable:
         """
 
         return sql.SQL(
-            "SELECT {warehouseIdField}, {warehouseLatCoord}, {warehouseLonCoord} FROM {warehousesViewName} WHERE {cityIdField} = (%s)"
+            "SELECT {warehouseIdField}, {warehouseLatCoord}, {warehouseLonCoord} FROM {connectionsSchemeName}.{warehousesViewName} WHERE {cityIdField} = (%s)"
         ).format(
             warehouseIdField=sql.Identifier(WAREHOUSES_ID),
             warehouseLatCoord=sql.Identifier(BUILDINGS_GPS_LATITUDE),
             warehouseLonCoord=sql.Identifier(BUILDINGS_GPS_LONGITUDE),
+            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
             warehousesViewName=sql.Identifier(WAREHOUSES_VIEW_NAME),
             cityIdField=sql.Identifier(CITIES_ID),
         )
@@ -405,9 +423,9 @@ class WarehouseConnectionsTable:
         """
 
         return sql.SQL(
-            "INSERT INTO {tableName} ({fields}) VALUES (%s, %s, %s, %s)"
+            "INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s, %s, %s)"
         ).format(
-            tableName=sql.Identifier(self._tableName),
+            fullTableName=self._fullTableName,
             fields=sql.SQL(",").join(
                 [
                     sql.Identifier(WAREHOUSES_CONN_WAREHOUSE_FROM_ID),
@@ -464,7 +482,7 @@ class WarehouseConnectionsTable:
             )
 
             console.print(
-                f"Inserted Warehouse Sender Connection from ID {warehouseId} to ID {warehouseConnId} at {connType}-Level",
+                f"Inserted Warehouse Sender Connection from ID {warehouseId} to ID {warehouseConnId} at {connType}-Level\n",
                 style="success",
             )
 
@@ -497,12 +515,11 @@ class WarehouseConnectionsTable:
                 warehouseConnDict[DICT_WAREHOUSE_COORDS],
                 warehouseDict[DICT_WAREHOUSE_COORDS],
             )
-            
+
         # There's no Road Connection between the Two Warehouses
         except RouteNotFound as err:
             console.print(err, style="warning")
             return
-
 
         # Get Warehouse and Warehouse Connection ID
         warehouseId = warehouseDict[DICT_WAREHOUSE_ID]
@@ -516,7 +533,7 @@ class WarehouseConnectionsTable:
             )
 
             console.print(
-                f"Inserted Warehouse Receiver Connection from ID {warehouseConnId} to ID {warehouseId} at {connType}-Level",
+                f"Inserted Warehouse Receiver Connection from ID {warehouseConnId} to ID {warehouseId} at {connType}-Level\n",
                 style="success",
             )
 

@@ -308,9 +308,7 @@ class NominatimTables:
             return None
 
         # Query to Get the Location Name at a Given Location Name Table
-        query = (
-            f"SELECT {LOCAL_NOMINATIM_NAME} FROM {nameTableName} WHERE {LOCAL_NOMINATIM_ROWID} = ?"
-        )
+        query = f"SELECT {LOCAL_NOMINATIM_NAME} FROM {nameTableName} WHERE {LOCAL_NOMINATIM_ROWID} = ?"
 
         # Execute the Query
         self.__item = self.__c.execute(query, (nameId,))
@@ -334,9 +332,7 @@ class NominatimTables:
             return None
 
         # Query to Get Root Location Name ID from its Location Name Table
-        query = (
-            f"SELECT {LOCAL_NOMINATIM_ROWID} FROM {nameTableName} WHERE {LOCAL_NOMINATIM_NAME} = ?"
-        )
+        query = f"SELECT {LOCAL_NOMINATIM_ROWID} FROM {nameTableName} WHERE {LOCAL_NOMINATIM_NAME} = ?"
 
         # Execute the Query
         self.__item = self.__c.execute(query, (name,))
@@ -664,7 +660,9 @@ class NominatimTables:
         nameTableName = getNameTableName(LOCAL_NOMINATIM_COUNTRY_TABLE_NAME)
 
         # Query to Add a Country Name to its Location Name Table
-        query = f"INSERT OR IGNORE INTO {nameTableName} ({LOCAL_NOMINATIM_NAME}) VALUES (?)"
+        query = (
+            f"INSERT OR IGNORE INTO {nameTableName} ({LOCAL_NOMINATIM_NAME}) VALUES (?)"
+        )
 
         # Execute the Query
         self.__c.execute(query, (name,))
@@ -707,7 +705,9 @@ class NominatimTables:
         counter = self.__getCounter(searchTableName) + 1
 
         # Remove First-in Country Search while counter is Greater than the Maximum Amount Allowed
-        while counter > LOCAL_NOMINATIM_COUNTRY_MAX * LOCAL_NOMINATIM_LOCATION_SEARCH_MAX:
+        while (
+            counter > LOCAL_NOMINATIM_COUNTRY_MAX * LOCAL_NOMINATIM_LOCATION_SEARCH_MAX
+        ):
             self._removeFirstCountrySearch()
             counter -= 1
 
@@ -805,7 +805,7 @@ class NominatimTables:
 
         return self.__getChildNameId(
             LOCAL_NOMINATIM_REGION_TABLE_NAME,
-            LOCAL_NOMINATIM_TABLE_NAME,
+            LOCAL_NOMINATIM_COUNTRY_TABLE_NAME,
             name,
             countryNameId,
         )
@@ -824,7 +824,7 @@ class NominatimTables:
 
         return self.__getChildSearchNameId(
             LOCAL_NOMINATIM_REGION_TABLE_NAME,
-            LOCAL_NOMINATIM_TABLE_NAME,
+            LOCAL_NOMINATIM_COUNTRY_TABLE_NAME,
             regionSearch,
             countryNameId,
         )
@@ -860,7 +860,9 @@ class NominatimTables:
         """
 
         nameTableName = getNameTableName(LOCAL_NOMINATIM_REGION_TABLE_NAME)
-        parentLocationNameId = getLocationNameIdColumn(LOCAL_NOMINATIM_TABLE_NAME)
+        parentLocationNameId = getLocationNameIdColumn(
+            LOCAL_NOMINATIM_COUNTRY_TABLE_NAME
+        )
 
         # Query to Add a Region Name to its Location Name Table
         query = f"INSERT OR IGNORE INTO {nameTableName} ({LOCAL_NOMINATIM_NAME}, {parentLocationNameId}) VALUES (?,?)"
@@ -895,7 +897,9 @@ class NominatimTables:
         """
 
         searchTableName = getSearchTableName(LOCAL_NOMINATIM_REGION_TABLE_NAME)
-        searchLocationNameId = getLocationNameIdColumn(LOCAL_NOMINATIM_REGION_TABLE_NAME)
+        searchLocationNameId = getLocationNameIdColumn(
+            LOCAL_NOMINATIM_REGION_TABLE_NAME
+        )
 
         # Query to Add a Region Search to its Location Search Table
         query = f"INSERT OR IGNORE INTO {searchTableName} ({LOCAL_NOMINATIM_SEARCH}, {searchLocationNameId}) VALUES (?,?)"
@@ -912,16 +916,16 @@ class NominatimTables:
         counter = self.__getCounter(searchTableName) + 1
 
         # Remove First-in Region Search while counter is Greater than the Maximum Amount Allowed
-        while counter > LOCAL_NOMINATIM_REGION_MAX * LOCAL_NOMINATIM_LOCATION_SEARCH_MAX:
+        while (
+            counter > LOCAL_NOMINATIM_REGION_MAX * LOCAL_NOMINATIM_LOCATION_SEARCH_MAX
+        ):
             self._removeFirstRegionSearch()
             counter -= 1
 
         # Set Region Search Table Counter
         self.__setCounter(searchTableName, counter)
 
-    def addRegion(
-        self, countryNameId: int, regionSearch: str, regionName: str
-    ) -> None:
+    def addRegion(self, countryNameId: int, regionSearch: str, regionName: str) -> None:
         """
         Method to Insert a Region to its Location Search and Name Table at a Given Country
 
@@ -1001,7 +1005,9 @@ class NominatimTables:
 
         # Remove Country's Cities
         regions = self.__getChildLocationsToRemove(
-            LOCAL_NOMINATIM_REGION_TABLE_NAME, LOCAL_NOMINATIM_COUNTRY_TABLE_NAME, countryNameId
+            LOCAL_NOMINATIM_REGION_TABLE_NAME,
+            LOCAL_NOMINATIM_COUNTRY_TABLE_NAME,
+            countryNameId,
         )
         self._removeRegionCitiesNameId(regions)
 
@@ -1041,7 +1047,10 @@ class NominatimTables:
         """
 
         return self.__getChildNameId(
-            LOCAL_NOMINATIM_CITY_TABLE_NAME, LOCAL_NOMINATIM_REGION_TABLE_NAME, name, regionNameId
+            LOCAL_NOMINATIM_CITY_TABLE_NAME,
+            LOCAL_NOMINATIM_REGION_TABLE_NAME,
+            name,
+            regionNameId,
         )
 
     def getCitySearchNameId(self, regionNameId: int, citySearch: str) -> int | None:
@@ -1092,7 +1101,9 @@ class NominatimTables:
         """
 
         nameTableName = getNameTableName(LOCAL_NOMINATIM_CITY_TABLE_NAME)
-        parentLocationNameId = getLocationNameIdColumn(LOCAL_NOMINATIM_REGION_TABLE_NAME)
+        parentLocationNameId = getLocationNameIdColumn(
+            LOCAL_NOMINATIM_REGION_TABLE_NAME
+        )
 
         # Query to Add a City Name to its Location Name Table
         query = f"INSERT OR IGNORE INTO {nameTableName} ({LOCAL_NOMINATIM_NAME}, {parentLocationNameId}) VALUES (?,?)"

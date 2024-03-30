@@ -4,7 +4,13 @@ from .constants import *
 
 from ..model.database import console
 
-from ..terminal.constants import TITLE_MSG, WELCOME_MSG, ACTION_MSG, SCHEME_MSG, TABLE_MSG
+from ..terminal.constants import (
+    TITLE_MSG,
+    WELCOME_MSG,
+    ACTION_MSG,
+    SCHEME_MSG,
+    TABLE_MSG,
+)
 
 
 def getEventHandlerArguments() -> tuple[str, str, str] | None:
@@ -31,7 +37,7 @@ def getEventHandlerArguments() -> tuple[str, str, str] | None:
     table = None
 
     # Ask for the Table to Work with
-    if schemeName == LOCATION_SCHEME_CMD:
-        table = Prompt.ask(TABLE_MSG, choices=LOCATION_SCHEME_TABLE_CMDS)
+    if schemeName == LOCATIONS_SCHEME_CMD:
+        table = Prompt.ask(TABLE_MSG, choices=LOCATIONS_SCHEME_TABLE_CMDS)
 
     return action, schemeName, table

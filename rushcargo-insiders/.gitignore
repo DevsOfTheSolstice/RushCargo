@@ -1,5 +1,5 @@
 .env
 /venv
 __pycache__/
-geopy.db
-geopy.db-journal
+nominatim.db
+nominatim.db-journal

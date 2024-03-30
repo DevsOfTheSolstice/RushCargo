@@ -10,16 +10,16 @@ use crate::{
     model::{
         common::{User, Popup, TimeoutType},
         client::{ClientData, Client},
+        pkgadmin::{PkgAdminData, PkgAdmin},
         app::App,
     }
 };
 
-static USER_SEARCH_QUERIES: [&str; 5] = [
+static USER_SEARCH_QUERIES: [&str; 4] = [
     "SELECT * FROM natural_client WHERE username = $1",
     "SELECT * FROM legal_client WHERE username = $1",
     "SELECT * FROM truck_driver WHERE username = $1",
-    "SELECT * FROM motocyclist WHERE username = $1",
-    "SELECT * FROM root_user WHERE username = $1"
+    "SELECT * FROM motorcyclist WHERE username = $1",
 ];
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
@@ -39,9 +39,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             {
                 let password_hash: String = res.try_get("user_password")?;
 
-                    if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
+                if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
                     let mut app_lock = app.lock().unwrap();
-
                     for (i, query) in USER_SEARCH_QUERIES.iter().enumerate() {
                         if let Some(res) = sqlx::query(query)
                             .bind(&username)
@@ -78,7 +77,6 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                     1 => todo!("legal client login"),
                                     2 => todo!("trucker login"),
                                     3 => todo!("motorcyclist login"),
-                                    4 => todo!("admin login"),
                                     _ => panic!("Unexpected i value in TryLogin event.")
                                 };
                             
@@ -86,6 +84,39 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             return Ok(());
                         }
                     }
+                }
+            }
+
+            if let Some(res) = sqlx::query("SELECT * FROM root_user WHERE username=$1")
+                .bind(&username)
+                .fetch_optional(pool)
+                .await?
+            {
+                let password_hash: String = res.try_get("user_password")?;
+
+                if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
+                    let admin_type: &str = res.try_get("type")?;
+                    let mut app_lock = app.lock().unwrap();
+                    app_lock.user =
+                        match admin_type { 
+                            "PkgAdmin" => Some(User::PkgAdmin(
+                                PkgAdminData {
+                                    info: PkgAdmin {
+                                        username,
+                                        warehouse_id: res.try_get("warehouse_id")?,
+                                        first_name: res.try_get("first_name")?,
+                                        last_name: res.try_get("last_name")?,
+                                    },
+                                    packages: None,
+                                    shipping_guides: None,
+                                    get_db_err: None,
+                                }
+                            )),
+                            _ => panic!("unknown admin type: {}", admin_type),
+                        };
+
+                    app_lock.enter_popup(Some(Popup::LoginSuccessful), pool).await;
+                    return Ok(())
                 }
             }
 

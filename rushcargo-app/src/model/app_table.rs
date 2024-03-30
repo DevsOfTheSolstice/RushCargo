@@ -3,14 +3,15 @@ use sqlx::{FromRow, query::Query, Postgres, PgPool};
 use anyhow::{Result, anyhow};
 use super::{
     app::App,
-    common::{User, Screen, SubScreen},
-    db_obj::Package
+    common::{Screen, SubScreen, User},
+    db_obj::{Package, ShippingGuide}, pkgadmin
 };
 
 #[derive(Debug)]
 pub enum TableType {
     Lockers,
     LockerPackages,
+    Guides,
 }
 
 pub struct TableData {
@@ -67,6 +68,23 @@ impl App {
 
                 packages.active_package = Some(packages.viewing_packages[i].clone());
             }
+            TableType::Guides => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i >= self.get_pkgadmin_guides_ref().viewing_guides.len() - 1 {
+                            if let Ok(()) = self.get_guides_next(table_type, pool).await {
+                                0
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i + 1
+                        }
+                    }
+                    None => 0,
+                };
+                self.table.state.select(Some(i));
+            }
         }
     }
     pub async fn prev_table_item(&mut self, table_type: TableType, pool: &PgPool) {
@@ -109,6 +127,23 @@ impl App {
                 let packages = self.get_client_packages_mut();
 
                 packages.active_package = Some(packages.viewing_packages[i].clone());
+            }
+            TableType::Guides => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i == 0 {
+                            if let Ok(()) = self.get_guides_prev(table_type, pool).await {
+                                7 - 1
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i - 1
+                        }
+                    }
+                    None => 0,
+                };
+                self.table.state.select(Some(i));
             }
         }
     }
@@ -213,6 +248,120 @@ impl App {
             .into_iter()
             .map(|row| Package::from_row(&row).expect("could not build package from row in get_packages_next"))
             .collect::<Vec<Package>>();
+
+        Ok(())
+    }
+    pub async fn get_guides_next(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
+        let query: Query<'_, Postgres, _> = match table_type {
+            TableType::Guides => {
+                match self.active_screen {
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
+                        let base_query =
+                            "
+                                SELECT guide.*,
+                                sender.username AS sender_username, sender.client_name AS sender_client_name, sender.last_name AS sender_last_name,
+                                receiver.username AS receiver_username, receiver.client_name AS receiver_client_name, receiver.last_name AS receiver_last_name,
+                                COUNT(package.tracking_number) AS package_count
+                                FROM shipping_guide AS guide
+                                LEFT JOIN package ON guide.shipping_number=package.shipping_number
+                                INNER JOIN natural_client AS sender ON guide.client_user_from=sender.username
+                                INNER JOIN natural_client AS receiver ON guide.client_user_to=receiver.username
+                                WHERE shipping_date IS NULL AND shipping_hour IS NULL
+                                GROUP BY guide.shipping_number, sender.username, receiver.username
+                                ORDER BY package_count DESC
+                                LIMIT 7
+                                OFFSET $1
+                            ";
+                        
+                        let query: Query<'_, Postgres, _> =
+                            sqlx::query(base_query)
+                            .bind(self.get_pkgadmin_guides_ref().viewing_guides_idx);
+
+                        query
+                    }
+                    _ => panic!()
+                }
+            }
+            _ => panic!()
+        };
+
+        let rows =
+            query
+            .fetch_all(pool)
+            .await?;
+
+        if rows.is_empty() { return Err(anyhow!("")) }
+
+        let rows_num = rows.len();
+
+        let guides = match self.user {
+            Some(User::PkgAdmin(_)) => self.get_pkgadmin_guides_mut(),
+            _ => panic!()
+        };
+
+        guides.viewing_guides =
+            rows
+            .into_iter()
+            .map(|row| ShippingGuide::from_row(&row).expect("could not build shipping guide from row in get_guides_next"))
+            .collect::<Vec<ShippingGuide>>();
+
+        guides.viewing_guides_idx += rows_num as i64;
+
+        Ok(())
+    }
+    pub async fn get_guides_prev(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
+        let query: Query<'_, Postgres, _> = match table_type {
+            TableType::Guides => {
+                match self.active_screen {
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
+                        let base_query =
+                            "
+                                SELECT guide.*,
+                                sender.username AS sender_username, sender.client_name AS sender_client_name, sender.last_name AS sender_last_name,
+                                receiver.username AS receiver_username, receiver.client_name AS receiver_client_name, receiver.last_name AS receiver_last_name,
+                                COUNT(package.tracking_number) AS package_count
+                                LEFT JOIN package ON guide.shipping_number=package.shipping_number
+                                FROM shipping_guide AS guide
+                                INNER JOIN natural_client AS sender ON guide.client_user_from=sender.username
+                                INNER JOIN natural_client AS receiver ON guide.client_user_to=receiver.username
+                                WHERE shipping_date IS NULL AND shipping_hour IS NULL
+                                GROUP BY guide.shipping_number, sender.username, receiver.username
+                                ORDER BY package_count DESC
+                                LIMIT 7
+                                OFFSET $1 - 7 * 2
+                            ";
+
+                        let query: Query<'_, Postgres, _> =
+                            sqlx::query(base_query)
+                            .bind(self.get_pkgadmin_guides_ref().viewing_guides_idx);
+
+                        query
+                    }
+                    _ => panic!()
+                }
+            }
+            _ => panic!()
+        };
+
+        let rows =
+            query
+            .fetch_all(pool)
+            .await?;
+
+        if rows.is_empty() { return Err(anyhow!("")) }
+
+        let guides = match self.user {
+            Some(User::PkgAdmin(_)) => self.get_pkgadmin_guides_mut(),
+            _ => panic!()
+        };
+
+        guides.viewing_guides_idx -= guides.viewing_guides.len() as i64;
+
+        guides.viewing_guides =
+            rows
+            .into_iter()
+            .map(|row| ShippingGuide::from_row(&row).expect("could not build package from row in get_guides_next"))
+            .collect::<Vec<ShippingGuide>>();
 
         Ok(())
     }

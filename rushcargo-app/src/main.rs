@@ -66,6 +66,20 @@ async fn main() -> Result<()> {
 
     app_arc.lock().unwrap().enter_screen(Screen::Login, &pool).await;
 
+    /*use sqlx::FromRow;
+    let test = crate::model::db_obj::ShippingGuide::from_row(&sqlx::query(
+        "SELECT guide.*,
+        sender.username AS sender_username, sender.client_name AS sender_client_name, sender.last_name AS sender_last_name,
+        receiver.username AS receiver_username, receiver.client_name AS receiver_client_name, receiver.last_name AS receiver_last_name
+        FROM shipping_guide AS guide
+        INNER JOIN natural_client AS sender ON guide.client_user_from=sender.username
+        INNER JOIN natural_client AS receiver ON guide.client_user_to=receiver.username
+        LIMIT 1
+    ")
+    .fetch_one(&pool).await?)?;
+
+    panic!("{}", test.shipping_type);*/
+
     tui.draw(&mut app_arc)?;
 
     while !app_arc.lock().unwrap().should_quit {

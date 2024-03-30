@@ -9,14 +9,15 @@ use crate::{
     model::{
         app_list::ListData,
         app_table::{TableData, TableType},
-        client::{ClientData, GetDBErr},
-        common::{User, SubScreen, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
+        client::ClientData,
+        pkgadmin::PkgAdminData,
+        common::{GetDBErr, User, SubScreen, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
     }
 };
 
-use super::client;
+use super::{client, common::ShippingGuideData};
 
 pub struct App {
     pub input: InputFields,
@@ -70,8 +71,8 @@ impl App {
     pub async fn enter_screen(&mut self, screen: Screen, pool: &PgPool) {
         self.should_clear_screen = true;
         self.cleanup_screen(&screen);
-        self.active_screen = screen;
-
+        self.active_screen = screen.clone();
+        
         match self.active_screen {
             Screen::Title => {
                 let title = TitleData::from_file();
@@ -103,7 +104,22 @@ impl App {
                 );
                 self.get_packages_next(TableType::LockerPackages, pool)
                     .await
-                    .unwrap_or_else(|_| self.get_client_mut().packages = Some(PackageData::default()));//.expect("could not get initial packages");
+                    .unwrap_or_else(|_| self.get_client_mut().packages = Some(PackageData::default()));
+            }
+            Screen::Client(SubScreen::PkgAdminMain) => {
+                self.failed_logins = 0;
+            }
+            Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
+                self.get_pkgadmin_mut().shipping_guides = Some(
+                    ShippingGuideData {
+                        viewing_guides: Vec::new(),
+                        viewing_guides_idx: 0,
+                        active_guide: None,
+                    }
+                );
+                self.get_guides_next(TableType::Guides, pool)
+                    .await
+                    .unwrap_or_else(|_| self.get_pkgadmin_mut().shipping_guides = Some(ShippingGuideData::default()));
             }
             _ => {}
         }
@@ -138,9 +154,14 @@ impl App {
                 self.get_client_mut().packages = None;
                 self.table.state.select(None);
             }
-            Some(Screen::Client(_)) => {}
-            Some(Screen::Trucker) => {}
-            None => {}
+            Some(Screen::PkgAdmin(SubScreen::PkgAdminMain)) => {
+                self.action_sel = None;
+            }
+            Some(Screen::PkgAdmin(SubScreen::PkgAdminGuides)) => {
+                self.table.state.select(None);
+                self.get_pkgadmin_mut().shipping_guides = None;
+            }
+            _ => {}
         }
         self.prev_screen = Some(next_screen.clone());
     }
@@ -206,11 +227,9 @@ impl App {
         }
         self.prev_popup = next_popup.clone();
     }
-
     pub fn toggle_displaymsg(&mut self) {
         self.display_msg = !self.display_msg;
     }
-
     /// The timeout tick rate here should be equal or greater to the EventHandler tick rate.
     /// This is important because the minimum update time perceivable is defined by the EventHandler tick rate.
     pub fn add_timeout(&mut self, counter: u8, tick_rate: u16, timeout_type: TimeoutType) {
@@ -277,14 +296,48 @@ impl App {
     pub fn get_client_packages_ref(&self) -> &PackageData {
         self.user.as_ref().map(|u|
             match u {
-                User::Client(client) => client.packages.as_ref().unwrap()
+                User::Client(client) => client.packages.as_ref().unwrap(),
+                _ => panic!(),
             }
         ).unwrap()
     }
     pub fn get_client_packages_mut(&mut self) -> &mut PackageData {
         self.user.as_mut().map(|u|
             match u {
-                User::Client(client) => client.packages.as_mut().unwrap()
+                User::Client(client) => client.packages.as_mut().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_pkgadmin_ref(&self) -> &PkgAdminData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::PkgAdmin(pkgadmin) => pkgadmin,
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_pkgadmin_mut(&mut self) -> &mut PkgAdminData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::PkgAdmin(pkgadmin) => pkgadmin,
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_pkgadmin_guides_ref(&self) -> &ShippingGuideData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::PkgAdmin(pkgadmin) => pkgadmin.shipping_guides.as_ref().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_pkgadmin_guides_mut(&mut self) -> &mut ShippingGuideData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::PkgAdmin(pkgadmin) => pkgadmin.shipping_guides.as_mut().unwrap(),
+                _ => panic!(),
             }
         ).unwrap()
     }

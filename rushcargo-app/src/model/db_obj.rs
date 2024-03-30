@@ -11,6 +11,7 @@ use sqlx::{
 use time::{PrimitiveDateTime, Time, Date};
 use rust_decimal::Decimal;
 use anyhow::{Result, Error, anyhow};
+use super::client::Client;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Package {
@@ -54,6 +55,91 @@ impl<'r> FromRow<'r, PgRow> for Package {
 impl Package {
     pub fn get_id(&self) -> i64 {
         self.tracking_num
+    }
+}
+
+#[derive(Debug)]
+pub enum ShippingGuideType {
+    LockerLocker,
+    LockerBranch,
+    LockerDelivery,
+}
+
+#[derive(Debug)]
+pub struct ShippingGuide {
+    shipping_num: i64,
+    pub package_count: i64,
+    pub sender: Client,
+    pub recipient: Client,
+    pub delivery_included: bool,
+    pub locker_sender: Option<i64>,
+    pub branch_sender: Option<i64>,
+    pub locker_receiver: Option<i64>,
+    pub branch_receiver: Option<i64>,
+    pub shipping_type: ShippingGuideType, 
+}
+
+impl std::fmt::Display for ShippingGuideType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",
+            match self {
+                Self::LockerLocker =>
+                    "Locker->Locker",
+                Self::LockerBranch =>
+                    "Locker->Branch",
+                Self::LockerDelivery =>
+                    "Locker->Delivery",
+            }
+        )
+    }
+}
+
+impl<'r> FromRow<'r, PgRow> for ShippingGuide {
+    fn from_row(row: &'r PgRow) -> std::prelude::v1::Result<Self, sqlx::Error> {
+        let locker_sender: Option<i64> = row.try_get("locker_sender")?;
+        let branch_sender: Option<i64> = row.try_get("branch_sender")?;
+        let locker_receiver: Option<i64> = row.try_get("locker_receiver")?;
+        let branch_receiver: Option<i64> = row.try_get("branch_receiver")?;
+
+        let shipping_type =
+            if let Some(_) = locker_sender {
+                if let Some(_) = locker_receiver {
+                    ShippingGuideType::LockerLocker
+                } else if let Some(_) = branch_receiver {
+                    ShippingGuideType::LockerBranch 
+                } else {
+                    ShippingGuideType::LockerDelivery
+                }
+            } else {
+                unimplemented!()
+            };
+
+        Ok(ShippingGuide {
+            shipping_num: row.try_get("shipping_number")?,
+            package_count: row.try_get("package_count")?,
+            sender: Client {
+                username: row.try_get("sender_username")?,
+                first_name: row.try_get("sender_client_name")?,
+                last_name: row.try_get("sender_last_name")?,
+            },
+            recipient: Client {
+                username: row.try_get("receiver_username")?,
+                first_name: row.try_get("receiver_client_name")?,
+                last_name: row.try_get("receiver_last_name")?,
+            },
+            delivery_included: row.try_get("delivery_included")?,
+            locker_sender,
+            branch_sender,
+            locker_receiver,
+            branch_receiver,
+            shipping_type,
+        })
+    }
+}
+
+impl ShippingGuide {
+    pub fn get_id(&self) -> i64 {
+        self.shipping_num
     }
 }
 

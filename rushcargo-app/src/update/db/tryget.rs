@@ -9,8 +9,8 @@ use crate::{
     event::{Event, InputBlacklist},
     model::{
         app::App,
-        client::{self, Client, GetDBErr},
-        common::{Bank, InputMode, PaymentData, Popup, Screen, SubScreen, TimeoutType, User},
+        client::{self, Client},
+        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, TimeoutType, User},
         db_obj::{Branch, Locker},
     },
 };

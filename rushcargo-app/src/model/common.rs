@@ -3,7 +3,8 @@ use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
     client::ClientData,
-    db_obj::{Package, Locker},
+    pkgadmin::PkgAdminData,
+    db_obj::{Package, ShippingGuide, Locker},
 };
 
 #[derive(Debug, Clone)]
@@ -12,7 +13,7 @@ pub enum Screen {
     Settings,
     Login,
     Client(SubScreen),
-    Trucker,
+    PkgAdmin(SubScreen),
 }
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,10 @@ pub enum SubScreen {
     ClientLockers,
     ClientLockerPackages,
     ClientSentPackages,
+
+    PkgAdminMain,
+    PkgAdminGuides,
+    PkgAdminAddPackage,
 }
 
 impl std::fmt::Display for Screen {
@@ -31,7 +36,7 @@ impl std::fmt::Display for Screen {
                 Screen::Settings => "Settings",
                 Screen::Login => "Login",
                 Screen::Client(_) => "Client",
-                Screen::Trucker => "Trucker"
+                Screen::PkgAdmin(_) => "Package Admin",
             }
         )
     }
@@ -55,6 +60,7 @@ pub enum Popup {
 #[derive(Debug)]
 pub enum User {
     Client(ClientData),
+    PkgAdmin(PkgAdminData),
 }
 
 pub enum InputMode {
@@ -99,6 +105,23 @@ impl std::default::Default for PackageData {
 }
 
 #[derive(Debug)]
+pub struct ShippingGuideData {
+    pub viewing_guides: Vec<ShippingGuide>,
+    pub viewing_guides_idx: i64,
+    pub active_guide: Option<ShippingGuide>,
+}
+
+impl std::default::Default for ShippingGuideData {
+    fn default() -> Self {
+        ShippingGuideData {
+            viewing_guides: Vec::new(),
+            viewing_guides_idx: 0,
+            active_guide: None,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Bank {
     PayPal,
     BOFA,
@@ -120,4 +143,17 @@ pub struct PaymentData {
     pub amount: Decimal,
     pub transaction_id: String,
     pub bank: Bank,
+}
+
+#[derive(Debug)]
+pub enum GetDBErr {
+    LockerSameAsActive,
+    InvalidUserLocker,
+    LockerTooManyPackages,
+    LockerWeightTooBig(Decimal),
+
+    InvalidUserBranch,
+
+    InvalidUserDelivery(u8),
+    NoCompatBranchDelivery,
 }

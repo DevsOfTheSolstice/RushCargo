@@ -2,7 +2,7 @@ mod title;
 mod settings;
 mod login;
 mod client;
-mod trucker;
+mod pkgadmin;
 
 use crossterm::event::{
     self,
@@ -22,7 +22,7 @@ use crate::model::{
     app::App,
     app_list::ListType,
     app_table::TableType,
-    common::{Screen, Popup, TimeoutType}
+    common::{Popup, Screen, TimeoutType},
 };
 
 const SENDER_ERR: &'static str = "could not send terminal event";
@@ -147,7 +147,7 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 Screen::Settings => settings::event_act(key_event, sender, app),
                 Screen::Login => login::event_act(key_event, sender, app),
                 Screen::Client(_) => client::event_act(key_event, sender, app),
-                Screen::Trucker => trucker::event_act(key_event, sender, app)
+                Screen::PkgAdmin(_) => pkgadmin::event_act(key_event, sender, app),
             }
         },
         CrosstermEvent::Resize(_, _) => {

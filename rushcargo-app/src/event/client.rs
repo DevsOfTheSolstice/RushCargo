@@ -19,7 +19,7 @@ use crate::{
 };
 
 pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mutex<App>>) {
-    let mut app_lock = app.lock().unwrap();
+    let app_lock = app.lock().unwrap();
 
     let subscreen =
         if let Screen::Client(sub) = &app_lock.active_screen {

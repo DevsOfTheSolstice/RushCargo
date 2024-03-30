@@ -1,6 +1,7 @@
 pub struct HelpText {
     pub login: LoginHelpText,
     pub client: ClientHelpText,
+    pub pkgadmin: PkgAdminHelpText,
     pub common: CommonHelpText,
 }
 
@@ -28,6 +29,10 @@ impl HelpText {
                 order_delivery_no_compat: "No motorcyclist on the recipient's affiliated branch can deliver these packages",
                 order_payment: "(Tab) open banks list | (Enter) complete order",
                 sent_packages: "Select a package."
+            },
+            pkgadmin: PkgAdminHelpText {
+                main: "(Tab) select action | (Esc) back",
+                guides: "(Enter) view info | (a) Place guide order | (b) Reject guide | (Esc) back",
             },
             common: CommonHelpText {
                 yay: ":D",
@@ -59,6 +64,11 @@ pub struct ClientHelpText {
     pub order_delivery_no_compat: &'static str,
     pub order_payment: &'static str,
     pub sent_packages: &'static str,
+}
+
+pub struct PkgAdminHelpText {
+    pub main: &'static str,
+    pub guides: &'static str,
 }
 
 pub struct CommonHelpText {

@@ -7,3 +7,4 @@ pub mod help_text;
 pub mod settings;
 pub mod title;
 pub mod client;
+pub mod pkgadmin;

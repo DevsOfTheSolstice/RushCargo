@@ -2,22 +2,9 @@ use sqlx::{PgPool, FromRow};
 use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
 use super::{
-    common::{PackageData, PaymentData},
+    common::{PackageData, PaymentData, GetDBErr},
     db_obj::{Branch, Country, Locker, Warehouse},
 };
-
-#[derive(Debug)]
-pub enum GetDBErr {
-    LockerSameAsActive,
-    InvalidUserLocker,
-    LockerTooManyPackages,
-    LockerWeightTooBig(Decimal),
-
-    InvalidUserBranch,
-
-    InvalidUserDelivery(u8),
-    NoCompatBranchDelivery,
-}
 
 #[derive(Debug)]
 pub struct Client {

@@ -2,6 +2,7 @@ mod title;
 mod settings;
 mod login;
 mod client;
+mod pkgadmin;
 mod common_fn;
 mod err;
 
@@ -33,8 +34,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         Screen::Client(_)
         => client::render(app, f),
 
-        Screen::Trucker
-        => todo!(),
+        Screen::PkgAdmin(_)
+        => pkgadmin::render(app, f),
     }
     .unwrap_or_else(|_| { err::render(app, f) })
 }

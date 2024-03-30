@@ -66,6 +66,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         }
                     }
                 }
+                _ => todo!("select table item on guides table")
             }
             Ok(())
         }

@@ -9,8 +9,8 @@ use crate::{
     event::{Event, InputBlacklist},
     model::{
         app::App,
-        client::{GetDBErr, Client},
-        common::{Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
+        client::Client,
+        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
     },
 };
 
@@ -78,6 +78,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         _ => {}
                     }
                 }
+                Screen::PkgAdmin(SubScreen::PkgAdminMain) => {
+                    match app_lock.action_sel {
+                        Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
+                        _ => app_lock.action_sel = Some(0),
+                    }
+                }
                 _ => {}
             }
             Ok(())
@@ -87,7 +93,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
             let subscreen = 
                 match &app_lock.active_screen {
-                    Screen::Client(sub) => Some(sub),
+                    Screen::PkgAdmin(sub) => Some(sub),
                     _ => None
                 };
 
@@ -107,11 +113,17 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         _ => {}
                     }
                 }
+                Some(SubScreen::PkgAdminMain) => {
+                    match app_lock.action_sel {
+                        Some(0) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminGuides), pool).await,
+                        Some(1) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage), pool).await,
+                        _ => {}
+                    }
+                }
                 _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app_lock.active_screen, subscreen)
             }
             Ok(()) 
         }
-        
         Event::KeyInput(key_event, blacklist) => {
             let mut app_lock = app.lock().unwrap();
 

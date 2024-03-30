@@ -11,8 +11,7 @@ use std::sync::{Arc, Mutex};
 use crate::{
     model::{
         help_text,
-        common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User},
-        client::GetDBErr,
+        common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User, GetDBErr},
         app::App,
         client::Client,
     },
@@ -31,7 +30,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             Constraint::Length(3),
         ])
         .split(centered_rect(&f.size(), 80, 18)?);
-    
+
     let client = app_lock.get_client_ref();
 
     let client_data_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
@@ -43,6 +42,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             Span::raw(format!(": {} {}", client.info.first_name.clone(), client.info.last_name.clone()))
         ])
     ).block(client_data_block);
+
     f.render_widget(client_data, chunks[0]);
 
     let help_block = Block::default().borders(Borders::TOP);
@@ -109,8 +109,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .iter()
                 .enumerate()
                 .map(|(i, locker)| {
-                    Row::new(vec![
-                        (client.viewing_lockers_idx + 1 - (client.viewing_lockers.as_ref().unwrap().len() - i) as i64).to_string(),
+                    Row::new(vec![(
+                        client.viewing_lockers_idx + 1 - (client.viewing_lockers.as_ref().unwrap().len() - i) as i64).to_string(),
                         locker.country.name.clone(),
                         locker.package_count.to_string(),
                         locker.get_id().to_string(),
@@ -596,36 +596,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                                             + 0,
                                             input_chunks[1].y + 0,
                                         );
-                    /*if let InputMode::Editing(field) = app_lock.input_mode {
-                        if field == 0 {
-                            branch_style = branch_style.fg(Color::DarkGray);
-                            f.set_cursor(input_chunks[1].x
-                                            + (app_lock.input.0.visual_cursor().max(name_scroll) - name_scroll) as u16
-                                            + "* Username: ".len() as u16
-                                            + 0,
-                                            input_chunks[1].y + 0,
-                                        );
-
-                        } else {
-                            name_style = name_style.fg(Color::DarkGray);
-                            f.set_cursor(input_chunks[2].x
-                                            + (app_lock.input.1.visual_cursor().max(branch_scroll) - branch_scroll) as u16
-                                            + "* Branch ID: ".len() as u16
-                                            + 0,
-                                            input_chunks[2].y + 0,
-                                        );
-                        }
-                    }*/
 
                     let err_style = Style::default().fg(Color::Red);
-
-                    /*let popup_help = Paragraph::new(
-                        match app_lock.get_client_ref().get_db_err {
-                            None => Line::raw(""),
-                            Some(GetDBErr::InvalidUserBranch) => Line::styled(HELP_TEXT.client.order_branch_popup_invalid.to_string(), err_style),
-                            _ => panic!()
-                        }
-                    ).centered();*/
 
                     let name_block = Block::default()
                         .borders(Borders::BOTTOM)
@@ -686,16 +658,16 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
         Screen::Client(SubScreen::ClientSentPackages) => {
             let help = Paragraph::new(HELP_TEXT.client.sent_packages).block(help_block);
             f.render_widget(help, chunks[2]);
-            }
-            _ => {}
         }
-        Ok(())
+        _ => {}
     }
+    Ok(())
+}
 
-    fn dimensions_string(val: Decimal) -> String {
-        if val < Decimal::new(100, 0) {
-            String::from(format!("{}cm", val))
-        } else {
-            String::from(format!("{}m", val / Decimal::new(100, 2)))
-        }
+fn dimensions_string(val: Decimal) -> String {
+    if val < Decimal::new(100, 0) {
+        String::from(format!("{}cm", val))
+    } else {
+        String::from(format!("{}m", val / Decimal::new(100, 2)))
     }
+}

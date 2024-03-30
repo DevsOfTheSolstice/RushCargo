@@ -233,18 +233,20 @@ class WarehouseConnectionsTable:
         try:
             self._c.execute(senderQuery, [locationId, warehouseId, locationType])
 
-            console.print(
-                f"Removed Warehouse ID {warehouseId} as a Sender at {locationType}-Level\n",
-                style="success",
-            )
+            if ROUTES_DEBUG_MODE:
+                console.print(
+                    f"Removed Warehouse ID {warehouseId} as a Sender at {locationType}-Level\n",
+                    style="success",
+                )
 
             # Remove Given Warehouse as a Receiver
             self._c.execute(receiverQuery, [locationId, warehouseId, locationType])
 
-            console.print(
-                f"Removed Warehouse ID {warehouseId} as a Receiver at {locationType}-Level\n",
-                style="success",
-            )
+            if ROUTES_DEBUG_MODE:
+                console.print(
+                    f"Removed Warehouse ID {warehouseId} as a Receiver at {locationType}-Level\n",
+                    style="success",
+                )
 
         except Exception as err:
             raise err
@@ -481,10 +483,11 @@ class WarehouseConnectionsTable:
                 [warehouseId, warehouseConnId, routeDistanceSender, connType],
             )
 
-            console.print(
-                f"Inserted Warehouse Sender Connection from ID {warehouseId} to ID {warehouseConnId} at {connType}-Level\n",
-                style="success",
-            )
+            if ROUTES_DEBUG_MODE:
+                console.print(
+                    f"Inserted Warehouse Sender Connection from ID {warehouseId} to ID {warehouseConnId} at {connType}-Level\n",
+                    style="success",
+                )
 
         except Exception as err:
             console.print(err, style="warning")
@@ -532,10 +535,11 @@ class WarehouseConnectionsTable:
                 query, [warehouseConnId, warehouseId, routeDistanceReceiver, connType]
             )
 
-            console.print(
-                f"Inserted Warehouse Receiver Connection from ID {warehouseConnId} to ID {warehouseId} at {connType}-Level\n",
-                style="success",
-            )
+            if ROUTES_DEBUG_MODE:
+                console.print(
+                    f"Inserted Warehouse Receiver Connection from ID {warehouseConnId} to ID {warehouseId} at {connType}-Level\n",
+                    style="success",
+                )
 
         except Exception as err:
             console.print(err, style="warning")
@@ -641,6 +645,9 @@ class WarehouseConnectionsTable:
             )
         )
 
+        if not ROUTES_DEBUG_MODE:
+            console.print()
+
     def insertCityMainWarehouse(
         self,
         ORSGeocoder: ORSGeocoder,
@@ -697,6 +704,9 @@ class WarehouseConnectionsTable:
             )
         )
 
+        if not ROUTES_DEBUG_MODE:
+            console.print("\n")
+
     def insertCityWarehouse(
         self,
         ORSGeocoder: ORSGeocoder,
@@ -722,3 +732,6 @@ class WarehouseConnectionsTable:
                 [warehouseConnDict],
             )
         )
+
+        if not ROUTES_DEBUG_MODE:
+            console.print("\n")

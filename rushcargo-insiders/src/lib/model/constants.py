@@ -1,6 +1,9 @@
 from rich import box
 from rich.theme import Theme
 
+# Route Distances Debug Mode
+ROUTES_DEBUG_MODE = False
+
 # Environment Variables
 ENV_HOST = "HOST"
 ENV_PORT = "PORT"
@@ -92,7 +95,7 @@ WAREHOUSES_ID = "warehouse_id"
 # Branches ...
 BRANCHES_ID = "branch_id"
 BRANCHES_ROUTE_DISTANCE = "route_distance"
-BRANCHES_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
+BRANCHES_FK_WAREHOUSE_CONNECTION = "warehouse_id"
 
 # Connections Scheme Name
 CONNECTIONS_SCHEME_NAME = "connections"

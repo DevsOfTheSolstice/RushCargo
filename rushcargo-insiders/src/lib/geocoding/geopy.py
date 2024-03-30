@@ -2,6 +2,7 @@ from geopy.geocoders import Nominatim
 
 from .constants import *
 from .exceptions import LocationNotFound, PlaceNotFound
+from .geopy_region_exceptions import *
 
 from ..controller.constants import (
     DICT_CITY_ID,
@@ -12,6 +13,7 @@ from ..controller.constants import (
 )
 
 from ..model.constants import CITIES_ID
+from ..model.database import console
 
 
 class NominatimGeocoder:
@@ -104,15 +106,15 @@ class NominatimGeocoder:
 
             # Iterate over Coincidences
             for coincidence in geopyLocation:
-                # FOR TESTING PURPOSES:
-                print(coincidence.raw)
-
                 # Check if it's a Region
                 if (
                     coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
                     or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_STATE
                 ):
                     return self.__getName(coincidence)
+
+            if NOMINATIM_DEBUG_MODE:
+                console.print(coincidence.raw)
 
             # Invalid Location
             raise LocationNotFound(regionName, NOMINATIM_STATE, NOMINATIM_PROVINCE)
@@ -151,12 +153,23 @@ class NominatimGeocoder:
 
             # Iterate over Coincidences
             for coincidence in geopyLocation:
-                # FOR TESTING PURPOSES:
-                print(coincidence.raw)
-
                 # Check if it's a City
                 if coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY:
                     return self.__getName(coincidence)
+
+            # Check if the City is an Exception
+            try:
+                if (
+                    coincidence.raw[NOMINATIM_ADDRESS][NOMINATIM_STATE]
+                    in REGION_COUNTY_EXCEPTIONS
+                ):
+                    return self.__getName(coincidence)
+
+            except Exception:
+                pass
+
+            if NOMINATIM_DEBUG_MODE:
+                console.print(coincidence.raw)
 
             # Invalid Location
             raise LocationNotFound(cityName, NOMINATIM_CITY)

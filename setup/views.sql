@@ -16,11 +16,11 @@ SELECT warehouses.*, warehouse_conns.connection_id, warehouse_conns.connection_t
 
 --4
 CREATE VIEW Connections.Region_Main_Warehouses AS
-SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Regions AS regions ON regions.main_warehouse = warehouses.warehouse_id;
+SELECT warehouses.*, regions.region_name FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Regions AS regions ON regions.main_warehouse = warehouses.warehouse_id;
 
 --5
 CREATE VIEW Connections.City_Main_Warehouses AS
-SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Cities AS cities ON cities.main_warehouse = warehouses.warehouse_id;
+SELECT warehouses.*, cities.city_name FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Cities AS cities ON cities.main_warehouse = warehouses.warehouse_id;
 
 
 

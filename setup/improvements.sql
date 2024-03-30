@@ -398,9 +398,25 @@ ADD COLUMN rating DECIMAL(3, 2) CHECK (rating <= 5.0);
 ALTER TABLE Root_User
     ADD COLUMN user_type VARCHAR(255);
 
+ALTER TABLE Root_User
+    ALTER COLUMN user_type SET NOT NULL;
+
 --49
 ALTER TABLE Driver
     DROP COLUMN salary;
+
+ALTER TABLE Shipping_Guide
+DROP CONSTRAINT fk_building_sender;
+
+ALTER TABLE Shipping_Guide
+RENAME COLUMN building_sender TO branch_sender;
+
+ALTER TABLE Shipping_Guide
+ADD CONSTRAINT fk_branch_sender FOREIGN KEY (branch_sender) REFERENCES Branch(branch_id);
+
+ALTER TABLE Root_User
+ADD COLUMN first_name VARCHAR(255) NOT NULL,
+ADD COLUMN last_name VARCHAR(255) NOT NULL;
 
 --Dropped tables
 DROP TABLE IF EXISTS Motorcycle;

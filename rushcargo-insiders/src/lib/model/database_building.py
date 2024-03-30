@@ -197,7 +197,7 @@ class BuildingTable(SpecializationTable):
             raise BuildingNameAssigned(buildingName, location[DICT_CITY_ID])
 
         # Ask for New Building Fields
-        console.print("\nAdding New Building...", style="caption")
+        console.print("Adding New Building...", style="caption")
         buildingPhone = IntPrompt.ask("Enter Building Phone Number")
         buildingEmail = Prompt.ask("Enter Building Email")
         addressDescription = Prompt.ask("Enter Building Address Description")
@@ -322,7 +322,7 @@ class WarehouseTable(BuildingTable):
         b = BuildingTable._find(self, location[DICT_CITY_ID], buildingName)
 
         # Ask for the Warehouse Fields
-        console.print("\nAdding New Warehouse...", style="caption")
+        console.print("Adding New Warehouse...", style="caption")
 
         # Get Warehouse Insert Query
         warehouseQuery = self.__insertQuery()
@@ -355,7 +355,7 @@ class WarehouseTable(BuildingTable):
             # Clear Terminal
             clear()
 
-        if not SpecializationTable._getTable(self, field, value):
+        if not SpecializationTable._getTable(self, field, value, BUILDING_NAME):
             if printItems:
                 noCoincidence()
             return False
@@ -536,7 +536,7 @@ class BranchTable(BuildingTable):
         b = BuildingTable._find(self, location[DICT_CITY_ID], buildingName)
 
         # Ask for the Branch Fields
-        console.print("\nAdding New Branch...", style="caption")
+        console.print("Adding New Branch...", style="caption")
 
         # Get Query to Insert Branch to its Remote Table
         branchQuery = self.__insertQuery()
@@ -567,7 +567,7 @@ class BranchTable(BuildingTable):
             # Clear Terminal
             clear()
 
-        if not SpecializationTable._getTable(self, field, value):
+        if not SpecializationTable._getTable(self, field, value, BUILDING_NAME):
             if printItems:
                 noCoincidence()
             return False

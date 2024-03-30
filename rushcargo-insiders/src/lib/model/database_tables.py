@@ -29,7 +29,7 @@ def uniqueInserted(tableName: str, field: str, value) -> None:
     """
 
     console.print(
-        f"Unique '{value}' Already Inserted at '{field}' on {tableName}",
+        f"Unique '{value}' Already Inserted at '{field}' on {tableName}\n",
         style="warning",
     )
 
@@ -49,7 +49,7 @@ def uniqueInsertedMult(tableName: str, field: list[str], value: list) -> None:
     valueStr = ",".join(str(v) for v in value)
 
     console.print(
-        f"({valueStr}) at ({fieldStr}) Violates Unique Constraint on {tableName}",
+        f"({valueStr}) at ({fieldStr}) Violates Unique Constraint on {tableName}\n",
         style="warning",
     )
 
@@ -71,6 +71,7 @@ def modifiedRow(field: str, value, idField: str, idValue: int, tableName: str) -
         style="success",
     )
 
+
 def insertedRow(name: str, tableName: str) -> None:
     """
     Function to Print a Message when a Row has been Successfully Inserted to a Table
@@ -81,7 +82,9 @@ def insertedRow(name: str, tableName: str) -> None:
     :rtype: NoneType
     """
 
-    console.print(f"{name} Successfully Inserted to {tableName} Table", style="success")
+    console.print(
+        f"{name} Successfully Inserted to {tableName} Table\n", style="success"
+    )
 
 
 def removeRow(tableName: str, idField: str, idValue: int) -> None:
@@ -152,36 +155,58 @@ class BaseTable:
         # Store Database Connection Cursor
         self._c = remoteCursor
 
-    def __getQuery(self, field: str):
+    def __getQuery(self, field: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on a Given Field-Value Pair to Compare
 
         :param str field: Table Field Name to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: SQL Query
         :rtype: Composed
         """
 
-        return sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
+        # Check if there's Some Sorting to be Applied
+        if orderBy == None:
+            return sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
+                tableName=sql.Identifier(self._tableName),
+                field=sql.Identifier(field),
+            )
+
+        return sql.SQL(
+            "SELECT * FROM {tableName} WHERE {field} = (%s) ORDER BY {orderBy}"
+        ).format(
             tableName=sql.Identifier(self._tableName),
             field=sql.Identifier(field),
+            orderBy=sql.Identifier(orderBy),
         )
 
-    def __getAndQuery(self, field1: str, field2: str):
+    def __getAndQuery(self, field1: str, field2: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on Two Given Field-Value Pair to Compare
 
         :param str field1: First Table Field Name to be Compared
         :param str field2: Second Table Field Name to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: SQL Query
         :rtype: Composed
         """
+        # Check if there's Some Sorting to be Applied
+        if orderBy == None:
+            return sql.SQL(
+                "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            ).format(
+                tableName=sql.Identifier(self._tableName),
+                field1=sql.Identifier(field1),
+                field2=sql.Identifier(field2),
+            )
 
         return sql.SQL(
-            "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
             tableName=sql.Identifier(self._tableName),
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
+            orderBy=sql.Identifier(orderBy),
         )
 
     def __orderByQuery(self, orderBy: str, desc: bool):
@@ -263,18 +288,19 @@ class BaseTable:
         except Exception as err:
             raise err
 
-    def _get(self, field: str, value) -> bool:
+    def _get(self, field: str, value, orderBy: str = None) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair
 
         :param str field: Field to be Compared
         :param value: Value to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ```None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        query = self.__getQuery(field)
+        query = self.__getQuery(field, orderBy)
 
         # Execute the Query and Fetch the Items
         try:
@@ -285,12 +311,13 @@ class BaseTable:
 
         return len(self._items) > 0
 
-    def _getMult(self, fields: list[str], values: list) -> bool:
+    def _getMult(self, fields: list[str], values: list, orderBy: str = None) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs
 
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         :raises LenError: Raised if ```fields`` and ``values`` have Different Lists Length
@@ -311,12 +338,12 @@ class BaseTable:
 
             # Get Query for Two Conditions and Execute it
             elif length == 2:
-                twoCondQuery = self.__getAndQuery(fields[0], fields[1])
+                twoCondQuery = self.__getAndQuery(fields[0], fields[1], orderBy)
                 self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
 
             # Query for One Condition. Method Implemented
             elif length == 1:
-                return self._get(fields[0], values[0])
+                return self._get(fields[0], values[0], orderBy)
 
             # Fetch the Items
             self._items = self._items.fetchall()
@@ -414,51 +441,92 @@ class SpecializationTable:
         # Store Database Connection Cursor
         self._c = remoteCursor
 
-    def __getTableQuery(self, field: str):
+    def __getTableQuery(self, field: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on a Given Field-Value Pair to Compare at the Main Table
 
         :param str field: Table Field Name to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: SQL Query
         :rtype: Composed
         """
 
+        # Check if there's Some Sorting to be Applied
+        if orderBy == None:
+            return sql.SQL(
+                "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s)"
+            ).format(
+                tableName=sql.Identifier(self._tableName),
+                parentTableName=sql.Identifier(self._parentTableName),
+                tablePKFKName=sql.Identifier(self._tablePKFKName),
+                parentTablePKName=sql.Identifier(self._parentTablePKName),
+                field=sql.Identifier(field),
+            )
+
         return sql.SQL(
-            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s)"
+            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
             tableName=sql.Identifier(self._tableName),
             parentTableName=sql.Identifier(self._parentTableName),
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             field=sql.Identifier(field),
+            orderBy=sql.Identifier(orderBy),
         )
 
-    def __getParentTableQuery(self, field: str):
+    def __getParentTableQuery(self, field: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on a Given Field-Value Pair to Compare at the Parent Table
 
         :param str field: Parent Table Field Name to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: SQL Query
         :rtype: Composed
         """
 
-        return sql.SQL("SELECT * FROM {parentTableName} WHERE {field} = (%s)").format(
+        # Check if there's Some Sorting to be Applied
+        if orderBy == None:
+            return sql.SQL(
+                "SELECT * FROM {parentTableName} WHERE {field} = (%s)"
+            ).format(
+                tableName=sql.Identifier(self._parentTableName),
+                field=sql.Identifier(field),
+            )
+
+        return sql.SQL(
+            "SELECT * FROM {parentTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
+        ).format(
             tableName=sql.Identifier(self._parentTableName),
             field=sql.Identifier(field),
+            orderBy=sql.Identifier(orderBy),
         )
 
-    def __getTableAndQuery(self, field1: str, field2: str):
+    def __getTableAndQuery(self, field1: str, field2: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on Two Given Field-Value Pair to Compare at the Main Table
 
         :param str field1: First Table Field Name to be Compared
         :param str field2: Second Table Field Name to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: SQL Query
         :rtype: Composed
         """
 
+        # Check if there's Some Sorting to be Applied
+        if orderBy == None:
+            return sql.SQL(
+                "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            ).format(
+                tableName=sql.Identifier(self._tableName),
+                parentTableName=sql.Identifier(self._parentTableName),
+                tablePKFKName=sql.Identifier(self._tablePKFKName),
+                parentTablePKName=sql.Identifier(self._parentTablePKName),
+                field1=sql.Identifier(field1),
+                field2=sql.Identifier(field2),
+            )
+
         return sql.SQL(
-            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
             tableName=sql.Identifier(self._tableName),
             parentTableName=sql.Identifier(self._parentTableName),
@@ -466,24 +534,37 @@ class SpecializationTable:
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
+            orderBy=sql.Identifier(orderBy),
         )
 
-    def __getParentTableAndQuery(self, field1: str, field2: str):
+    def __getParentTableAndQuery(self, field1: str, field2: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on Two Given Field-Value Pair to Compare at the Parent Table
 
         :param str field1: First Parent Table Field Name to be Compared
         :param str field2: Second Parent Table Field Name to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: SQL Query
         :rtype: Composed
         """
 
+        # Check if there's Some Sorting to be Applied
+        if orderBy == None:
+            return sql.SQL(
+                "SELECT * FROM {parentTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            ).format(
+                parentTableName=sql.Identifier(self._parentTableName),
+                field1=sql.Identifier(field1),
+                field2=sql.Identifier(field2),
+            )
+
         return sql.SQL(
-            "SELECT * FROM {parentTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+            "SELECT * FROM {parentTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
             parentTableName=sql.Identifier(self._parentTableName),
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
+            orderBy=sql.Identifier(orderBy),
         )
 
     def __orderByQuery(self, orderBy: str, desc: bool):
@@ -614,13 +695,14 @@ class SpecializationTable:
 
         return self.__modify(True, idValue, field, value)
 
-    def __get(self, parentTable: bool, field: str, value) -> bool:
+    def __get(self, parentTable: bool, field: str, value, orderBy: str = None) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair at a Given Table
 
         :param bool parentTable: ``False`` if the User wants to Compare the Specialization Table. Otherwise,``True``
         :param str field: Field to be Compared
         :param value: Value to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -629,11 +711,11 @@ class SpecializationTable:
         try:
             # Check if the User wants to Get the Row from the Parent Table and Execute the Query
             if parentTable:
-                getParentQuery = self.__getParentTableQuery(field)
+                getParentQuery = self.__getParentTableQuery(field, orderBy)
                 self._items = self._c.execute(getParentQuery, [value])
 
             else:
-                getSpecQuery = self.__getTableQuery(field)
+                getSpecQuery = self.__getTableQuery(field, orderBy)
                 self._items = self._c.execute(getSpecQuery, [value])
 
             # Fetch the Items
@@ -644,37 +726,42 @@ class SpecializationTable:
 
         return len(self._items) > 0
 
-    def _getTable(self, field: str, value) -> bool:
+    def _getTable(self, field: str, value, orderBy: str = None) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair at the Specialization Table
 
         :param str field: Field to be Compared
         :param value: Value to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         """
 
-        return self.__get(False, field, value)
+        return self.__get(False, field, value, orderBy)
 
-    def _getParentTable(self, field: str, value) -> bool:
+    def _getParentTable(self, field: str, value, orderBy=None) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair at the Specialization's Parent Table
 
         :param str field: Field to be Compared
         :param value: Value to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         """
 
         return self.__get(True, field, value)
 
-    def __getMult(self, parentTable: bool, fields: list[str], values: list) -> bool:
+    def __getMult(
+        self, parentTable: bool, fields: list[str], values: list, orderBy: str = None
+    ) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs
 
         :param bool parentTable: ``False`` if the User wants to Compare the Specialization Table. Otherwise,``True``
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         :raises LenError: Raised if ```fields`` and ``values`` have Different Lists Length
@@ -697,22 +784,26 @@ class SpecializationTable:
             if parentTable:
                 # Get Query for Specialization's Parent Table with Two Conditions and Execute it
                 if length == 2:
-                    twoCondQuery = self.__getParentTableAndQuery(fields[0], fields[1])
+                    twoCondQuery = self.__getParentTableAndQuery(
+                        fields[0], fields[1], orderBy
+                    )
                     self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
 
                 # Query for One Condition. Method Implemented
                 elif length == 1:
-                    return self._getParentTable(fields[0], values[0])
+                    return self._getParentTable(fields[0], values[0], orderBy)
 
             else:
                 # Get Query for Specialization Table with Two Conditions and Execute it
                 if length == 2:
-                    twoCondQuery = self.__getTableAndQuery(fields[0], fields[1])
+                    twoCondQuery = self.__getTableAndQuery(
+                        fields[0], fields[1], orderBy
+                    )
                     self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
 
                 # Query for One Condition. Method Implemented
                 elif length == 1:
-                    return self._getTable(fields[0], values[0])
+                    return self._getTable(fields[0], values[0], orderBy)
 
             # Fetch the Items
             self._items = self._items.fetchall()
@@ -722,29 +813,35 @@ class SpecializationTable:
 
         return len(self._items) > 0
 
-    def _getMultTable(self, fields: list[str], values: list) -> bool:
+    def _getMultTable(
+        self, fields: list[str], values: list, orderBy: str = None
+    ) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs at the Specialization Table
 
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         """
 
-        return self.__getMult(False, fields, values)
+        return self.__getMult(False, fields, values, orderBy)
 
-    def _getMultParentTable(self, fields: list[str], values: list) -> bool:
+    def _getMultParentTable(
+        self, fields: list[str], values: list, orderBy: str = None
+    ) -> bool:
         """
         Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs at the Specialization's Parent Table
 
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
         """
 
-        return self.__getMult(True, fields, values)
+        return self.__getMult(True, fields, values, orderBy)
 
     def _all(self, orderBy: str, desc: bool) -> None:
         """

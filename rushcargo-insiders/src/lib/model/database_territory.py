@@ -93,7 +93,7 @@ class CountryTable(BaseTable):
             return
 
         # Ask for the Country Fields
-        console.print("\nAdding New Country...", style="caption")
+        console.print("Adding New Country...", style="caption")
         phonePrefix = IntPrompt.ask("Enter Phone Prefix")
 
         # Get Query to Insert the New Country
@@ -122,7 +122,7 @@ class CountryTable(BaseTable):
             # Clear Terminal
             clear()
 
-        if not BaseTable._get(self, field, value):
+        if not BaseTable._get(self, field, value, COUNTRY_NAME):
             if printItems:
                 noCoincidence()
             return False
@@ -284,7 +284,7 @@ class ProvinceTable(BaseTable):
             return
 
         # Ask for the Province Fields
-        console.print("\nAdding New Province...", style="caption")
+        console.print("Adding New Province...", style="caption")
 
         # Get Query to Insert the New Province
         query = self.__insertQuery()
@@ -312,7 +312,7 @@ class ProvinceTable(BaseTable):
             # Clear Terminal
             clear()
 
-        if not BaseTable._get(self, field, value):
+        if not BaseTable._get(self, field, value, PROVINCE_NAME):
             if printItems:
                 noCoincidence()
             return False
@@ -503,7 +503,7 @@ class RegionTable(BaseTable):
             return
 
         # Ask for the Region Fields
-        console.print("\nAdding New Region...", style="caption")
+        console.print("Adding New Region...", style="caption")
 
         # Get Query to Insert the New Region
         query = self.__insertQuery()
@@ -531,7 +531,7 @@ class RegionTable(BaseTable):
             # Clear Terminal
             clear()
 
-        if not BaseTable._get(self, field, value):
+        if not BaseTable._get(self, field, value, REGION_NAME):
             if printItems:
                 noCoincidence()
             return False
@@ -720,7 +720,7 @@ class CityTable(BaseTable):
             return
 
         # Ask for the City Fields
-        console.print("\nAdding New City...", style="caption")
+        console.print("Adding New City...", style="caption")
 
         # Get Query to Insert the New City
         query = self.__insertQuery()
@@ -748,7 +748,7 @@ class CityTable(BaseTable):
             # Clear Terminal
             clear()
 
-        if not BaseTable._get(self, field, value):
+        if not BaseTable._get(self, field, value, CITY_NAME):
             if printItems:
                 noCoincidence()
             return False

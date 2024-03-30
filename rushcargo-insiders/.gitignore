@@ -1,4 +1,5 @@
 .env
-geopy.db
 /venv
 __pycache__/
+geopy.db
+geopy.db-journal

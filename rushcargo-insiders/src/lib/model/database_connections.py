@@ -6,6 +6,7 @@ from .constants import *
 from .database import console
 
 from ..geocoding.constants import NOMINATIM_LONGITUDE, NOMINATIM_LATITUDE
+from ..geocoding.exceptions import RouteNotFound
 from ..geocoding.routingpy import ORSGeocoder
 
 
@@ -485,11 +486,17 @@ class WarehouseConnectionTable:
         :rtype: NoneType
         """
 
-        # Get Route Distance from the Main Warehouse to Insert and the Inserted Warehouse
-        routeDistanceSender = ORSGeocoder.getDrivingRouteDistance(
-            warehouseDict[DICT_WAREHOUSE_COORDS],
-            warehouseConnDict[DICT_WAREHOUSE_COORDS],
-        )
+        try:
+            # Get Route Distance from the Main Warehouse to Insert and the Inserted Warehouse
+            routeDistanceSender = ORSGeocoder.getDrivingRouteDistance(
+                warehouseDict[DICT_WAREHOUSE_COORDS],
+                warehouseConnDict[DICT_WAREHOUSE_COORDS],
+            )
+
+        # There's no Road Connection between the Two Warehouses
+        except RouteNotFound as err:
+            console.print(err, style="warning")
+            return
 
         # Get Warehouse and Warehouse Connection ID
         warehouseId = warehouseDict[DICT_WAREHOUSE_ID]
@@ -531,11 +538,18 @@ class WarehouseConnectionTable:
         :rtype: NoneType
         """
 
-        # Get Route Distance from the Inserted Warehouse to the Main Warehouse to Insert
-        routeDistanceReceiver = ORSGeocoder.getDrivingRouteDistance(
-            warehouseConnDict[DICT_WAREHOUSE_COORDS],
-            warehouseDict[DICT_WAREHOUSE_COORDS],
-        )
+        try:
+            # Get Route Distance from the Inserted Warehouse to the Main Warehouse to Insert
+            routeDistanceReceiver = ORSGeocoder.getDrivingRouteDistance(
+                warehouseConnDict[DICT_WAREHOUSE_COORDS],
+                warehouseDict[DICT_WAREHOUSE_COORDS],
+            )
+            
+        # There's no Road Connection between the Two Warehouses
+        except RouteNotFound as err:
+            console.print(err, style="warning")
+            return
+
 
         # Get Warehouse and Warehouse Connection ID
         warehouseId = warehouseDict[DICT_WAREHOUSE_ID]

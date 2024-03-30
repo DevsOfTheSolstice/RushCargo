@@ -25,7 +25,7 @@ GET_FIELD_MSG = "\nWhich Field do you want to Compare?"
 GET_VALUE_MSG = "Which Value do you want to Compare that Field with?"
 
 # Add Handler Messages
-ADD_MORE_MSG = "\nDo you want to Add More Locations?"
+ADD_MORE_MSG = "Do you want to Add More Locations?"
 
 # Modify Handler Messages
 MOD_CONFIRM_MSG = "\nIs this the Row you want to Modify?"

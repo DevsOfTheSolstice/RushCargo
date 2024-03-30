@@ -5,7 +5,7 @@ from .constants import *
 
 from .database import console
 
-from ..geocoding.constants import NOMINATIM_LONGITUDE, NOMINATIM_LATITUDE
+from ..geocoding.constants import NOMINATIM_LONGITUDE, NOMINATIM_LATITUDE, DICT_WAREHOUSE_COORDS, DICT_WAREHOUSE_ID
 from ..geocoding.exceptions import RouteNotFound
 from ..geocoding.routingpy import ORSGeocoder
 
@@ -18,21 +18,18 @@ def getLocationInfo(locationTableName: str) -> tuple[str, str] | None:
     :rtype: Tuple if Found. Otherwise, NoneType
     """
 
-    if locationTableName == PROVINCE_TABLENAME:
-        return CONN_TYPE_PROVINCE, PROVINCE_ID
+    if locationTableName == REGIONS_TABLE_NAME:
+        return CONN_TYPE_REGION, REGIONS_ID
 
-    elif locationTableName == REGION_TABLENAME:
-        return CONN_TYPE_REGION, REGION_ID
-
-    elif locationTableName == CITY_TABLENAME:
-        return CONN_TYPE_CITY, CITY_ID
+    elif locationTableName == CITIES_TABLE_NAME:
+        return CONN_TYPE_CITY, CITIES_ID
 
     return None
 
 
-class WarehouseConnectionTable:
+class WarehouseConnectionsTable:
     """
-    Warehouse Connection Remote Table Class
+    Warehouse Connections Remote Table Class
     """
 
     # Database Connection
@@ -40,13 +37,13 @@ class WarehouseConnectionTable:
     _items = None
 
     # Table Name and ID Column Name
-    _tableName = WAREHOUSE_CONN_TABLENAME
-    _tablePKName = WAREHOUSE_CONN_ID
+    _tableName = WAREHOUSES_CONN_TABLE_NAME
+    _tablePKName = WAREHOUSES_CONN_ID
 
     # Constructor
     def __init__(self, remoteCursor):
         """
-        Warehouse Connection Remote Table Class Constructor
+        Warehouse Connections Remote Table Class Constructor
 
         :param Cursor remoteCursor: Remote Database Connection Cursor
         """
@@ -121,40 +118,29 @@ class WarehouseConnectionTable:
         :rtype: tuple if the Given Warehouse ID is the Main for Any Location. Otherwise, NoneType
         """
 
-        # Get the Query to Check if the Given Warehouse is the Main One to Any Province
-        provinceMainQuery = self.__isMainWarehouseQuery(
-            PROVINCE_ID, PROVINCE_TABLENAME, PROVINCE_FK_WAREHOUSE
-        )
-
         # Get the Query to Check if the Given Warehouse is the Main One to Any Region
         regionMainQuery = self.__isMainWarehouseQuery(
-            REGION_ID, REGION_TABLENAME, REGION_FK_WAREHOUSE
+            REGIONS_ID, REGIONS_TABLE_NAME, REGIONS_FK_WAREHOUSE
         )
 
         # Get the Query to Check if the Given Warehouse is the Main One to Any City
         cityMainQuery = self.__isMainWarehouseQuery(
-            CITY_ID, CITY_TABLENAME, CITY_FK_WAREHOUSE
+            CITIES_ID, CITIES_TABLE_NAME, CITIES_FK_WAREHOUSE
         )
 
         # Execute the Queries
         try:
-            # Check if the Warehouse is the Main One to Any Province
-            provinceId = self._c.execute(provinceMainQuery, [warehouseId]).fetchone()
-
-            if provinceId != None:
-                return PROVINCE_TABLENAME, provinceId
-
             # Check if the Warehouse is the Main One to Any Region
             regionId = self._c.execute(regionMainQuery, [warehouseId]).fetchone()
 
             if regionId != None:
-                return REGION_TABLENAME, regionId
+                return REGIONS_TABLE_NAME, regionId
 
             # Check if the Warehouse is the Main One to Any City
             cityId = self._c.execute(cityMainQuery, [warehouseId]).fetchone()
 
             if cityId != None:
-                return CITY_TABLENAME, cityId
+                return CITIES_TABLE_NAME, cityId
 
             return None
 
@@ -174,14 +160,14 @@ class WarehouseConnectionTable:
             "DELETE FROM {tableName} WHERE {warehouseConnIdField} IN (SELECT {sendersConnIdField} FROM {sendersViewName} {senders} WHERE {senders}.{locationIdField} = (%s) AND {senders}.{warehouseIdField} = (%s) AND {senders}.{warehouseConnType} = (%s))"
         ).format(
             tableName=sql.Identifier(self._tableName),
-            warehouseConnIdField=sql.Identifier(WAREHOUSE_CONN_ID),
+            warehouseConnIdField=sql.Identifier(WAREHOUSES_CONN_ID),
             idField=sql.Identifier(self._tablePKName),
             sendersConnIdField=sql.Identifier(SENDERS_WAREHOUSE_CONN_ID),
-            sendersViewName=sql.Identifier(WAREHOUSES_SENDERS_VIEWNAME),
+            sendersViewName=sql.Identifier(WAREHOUSES_SENDERS_VIEW_NAME),
             senders=sql.Identifier(SENDERS),
             locationIdField=sql.Identifier(locationIdField),
             warehouseIdField=sql.Identifier(SENDERS_WAREHOUSE_ID),
-            warehouseConnType=sql.Identifier(WAREHOUSE_CONN_CONN_TYPE),
+            warehouseConnType=sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
         )
 
     def __removeReceiverMainWarehouseQuery(self, locationIdField: str):
@@ -197,14 +183,14 @@ class WarehouseConnectionTable:
             "DELETE FROM {tableName} WHERE {warehouseConnIdField} IN (SELECT {receiversConnIdField} FROM {receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} =%s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
-            warehouseConnIdField=sql.Identifier(WAREHOUSE_CONN_ID),
+            warehouseConnIdField=sql.Identifier(WAREHOUSES_CONN_ID),
             idField=sql.Identifier(self._tablePKName),
             receiversConnIdField=sql.Identifier(RECEIVERS_WAREHOUSE_CONN_ID),
-            receiversViewName=sql.Identifier(WAREHOUSES_RECEIVERS_VIEWNAME),
+            receiversViewName=sql.Identifier(WAREHOUSES_RECEIVERS_VIEW_NAME),
             receivers=sql.Identifier(RECEIVERS),
             locationIdField=sql.Identifier(locationIdField),
             warehouseIdField=sql.Identifier(RECEIVERS_WAREHOUSE_ID),
-            warehouseConnType=sql.Identifier(WAREHOUSE_CONN_CONN_TYPE),
+            warehouseConnType=sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
         )
 
     def __removeMainWarehouse(
@@ -251,37 +237,18 @@ class WarehouseConnectionTable:
         except Exception as err:
             raise err
 
-    def removeProvinceMainWarehouse(self, provinceId: int, warehouseId: int) -> None:
-        """
-        Method to Remove a Given Province Main Warehouse as a Sender and as a Receiver from All of its Warehouse Connections
-
-        :param str provinceId: Province ID where the Warehouse is Located and Set as the Main One
-        :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (Province)
-        :return: Nothing
-        :rtype: NoneType
-        """
-
-        # Remove Province-Type Connections
-        self.__removeMainWarehouse(PROVINCE_TABLENAME, provinceId, warehouseId)
-
-    def removeRegionMainWarehouse(
-        self, provinceId: int, regionId: int, warehouseId: int
-    ) -> None:
+    def removeRegionMainWarehouse(self, regionId: int, warehouseId: int) -> None:
         """
         Method to Remove a Given Region Main Warehouse as a Sender and as a Receiver from All of its Warehouse Connections
 
-        :param str provinceId: Province ID where the Parent Main Warehouse is Located
         :param str regionId: Region ID where the Warehouse is Located and Set as the Main One
         :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (Region)
         :return: Nothing
         :rtype: NoneType
         """
 
-        # Remove Province-Type Connection (with its Parent Main Warehouse)
-        self.__removeMainWarehouse(PROVINCE_TABLENAME, provinceId, warehouseId)
-
         # Remove Region-Type Connections
-        self.__removeMainWarehouse(REGION_TABLENAME, regionId, warehouseId)
+        self.__removeMainWarehouse(REGIONS_TABLE_NAME, regionId, warehouseId)
 
     def removeCityMainWarehouse(
         self, regionId: int, cityId: int, warehouseId: int
@@ -297,10 +264,10 @@ class WarehouseConnectionTable:
         """
 
         # Remove Region-Type Connection (with its Parent Main Warehouse)
-        self.__removeMainWarehouse(REGION_TABLENAME, regionId, warehouseId)
+        self.__removeMainWarehouse(REGIONS_TABLE_NAME, regionId, warehouseId)
 
         # Remove City-Type Connections
-        self.__removeMainWarehouse(CITY_TABLENAME, cityId, warehouseId)
+        self.__removeMainWarehouse(CITIES_TABLE_NAME, cityId, warehouseId)
 
     def __getMainWarehousesQuery(
         self, locationMainWarehousesViewName: str, parentLocationIdField: str
@@ -317,9 +284,9 @@ class WarehouseConnectionTable:
         return sql.SQL(
             "SELECT {warehouseIdField}, {warehouseLatCoord}, {warehouseLonCoord} FROM {locationMainWarehousesViewName} WHERE {parentLocationIdField} = (%s)"
         ).format(
-            warehouseIdField=sql.Identifier(WAREHOUSE_ID),
-            warehouseLatCoord=sql.Identifier(BUILDING_GPS_LATITUDE),
-            warehouseLonCoord=sql.Identifier(BUILDING_GPS_LONGITUDE),
+            warehouseIdField=sql.Identifier(WAREHOUSES_ID),
+            warehouseLatCoord=sql.Identifier(BUILDINGS_GPS_LATITUDE),
+            warehouseLonCoord=sql.Identifier(BUILDINGS_GPS_LONGITUDE),
             locationMainWarehousesViewName=sql.Identifier(
                 locationMainWarehousesViewName
             ),
@@ -354,33 +321,19 @@ class WarehouseConnectionTable:
 
         return warehouseConns
 
-    def getMainProvinceWarehouses(self, countryId: int) -> list[dict]:
+    def getMainRegionWarehouses(self, countryId: int) -> list[dict]:
         """
-        Method to Get All the Province Main Warehouses from a Given Country ID
+        Method to Get All the Region Main Warehouses from a Given Country ID
 
-        :param int countryId: Country ID where the Provinces are Located
+        :param int countryId: Country ID where the Regions are Located
         :return: List of Warehouse Connection Dictionaries
         :rtype: list
         """
 
-        # Get Query to Get All the Province Main Warehouses from a Given Country ID
-        query = self.__getMainWarehousesQuery(PROVINCE_MAIN_WAREHOUSES, COUNTRY_ID)
+        # Get Query to Get All the Region Main Warehouses from a Given Country ID
+        query = self.__getMainWarehousesQuery(REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID)
 
         return self.__getMainWarehouses(query, countryId)
-
-    def getMainRegionWarehouses(self, provinceId: int) -> list[dict]:
-        """
-        Method to Get All the Region Main Warehouses from a Given Province ID
-
-        :param int provinceId: Province ID where the Regions are Located
-        :return: List of Warehouse Connection Dictionaries
-        :rtype: list
-        """
-
-        # Get Query to Get All the Region Main Warehouses from a Given Province ID
-        query = self.__getMainWarehousesQuery(REGION_MAIN_WAREHOUSES, PROVINCE_ID)
-
-        return self.__getMainWarehouses(query, provinceId)
 
     def getMainCityWarehouses(self, regionId: int) -> list[dict]:
         """
@@ -392,7 +345,7 @@ class WarehouseConnectionTable:
         """
 
         # Get Query to Get All the City Main Warehouses from a Given Region ID
-        query = self.__getMainWarehousesQuery(CITY_MAIN_WAREHOUSES, REGION_ID)
+        query = self.__getMainWarehousesQuery(CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID)
 
         return self.__getMainWarehouses(query, regionId)
 
@@ -407,11 +360,11 @@ class WarehouseConnectionTable:
         return sql.SQL(
             "SELECT {warehouseIdField}, {warehouseLatCoord}, {warehouseLonCoord} FROM {warehousesViewName} WHERE {cityIdField} = (%s)"
         ).format(
-            warehouseIdField=sql.Identifier(WAREHOUSE_ID),
-            warehouseLatCoord=sql.Identifier(BUILDING_GPS_LATITUDE),
-            warehouseLonCoord=sql.Identifier(BUILDING_GPS_LONGITUDE),
-            warehousesViewName=sql.Identifier(WAREHOUSES_VIEWNAME),
-            cityIdField=sql.Identifier(CITY_ID),
+            warehouseIdField=sql.Identifier(WAREHOUSES_ID),
+            warehouseLatCoord=sql.Identifier(BUILDINGS_GPS_LATITUDE),
+            warehouseLonCoord=sql.Identifier(BUILDINGS_GPS_LONGITUDE),
+            warehousesViewName=sql.Identifier(WAREHOUSES_VIEW_NAME),
+            cityIdField=sql.Identifier(CITIES_ID),
         )
 
     def getCityWarehouses(self, cityId: int) -> list[dict]:
@@ -457,10 +410,10 @@ class WarehouseConnectionTable:
             tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [
-                    sql.Identifier(WAREHOUSE_CONN_WAREHOUSE_FROM_ID),
-                    sql.Identifier(WAREHOUSE_CONN_WAREHOUSE_TO_ID),
-                    sql.Identifier(WAREHOUSE_CONN_ROUTE_DISTANCE),
-                    sql.Identifier(WAREHOUSE_CONN_CONN_TYPE),
+                    sql.Identifier(WAREHOUSES_CONN_WAREHOUSE_FROM_ID),
+                    sql.Identifier(WAREHOUSES_CONN_WAREHOUSE_TO_ID),
+                    sql.Identifier(WAREHOUSES_CONN_ROUTE_DISTANCE),
+                    sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
                 ]
             ),
         )
@@ -627,111 +580,29 @@ class WarehouseConnectionTable:
         except Exception as err:
             console.print(err, style="warning")
 
-    def insertCityWarehouse(
-        self,
-        ORSGeocoder: ORSGeocoder,
-        warehouseDict: dict,
-        warehouseConnDict: dict,
-    ):
-        """
-        Method to Insert the Warehouse Connection with the Given Main Warehouse at the City ID where the Warehouse is Located Asynchronously
-
-        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
-        :param dict warehouseDict: Warehouse Connection Dictionary
-        :param list warehouseConnDict: Warehouse Connection Dictionary that will be Connected with the Warehouse
-        :return: Nothing
-        :rtype: NoneType
-        """
-
-        # Insert the Warehouse Connection to its Table Asynchronously
-        asyncio.run(
-            self.__insertMainWarehouseConns(
-                ORSGeocoder,
-                CONN_TYPE_CITY,
-                warehouseDict,
-                [warehouseConnDict],
-            )
-        )
-
-    def insertProvinceMainWarehouse(
-        self,
-        ORSGeocoder: ORSGeocoder,
-        countryId: int,
-        provinceId: int,
-        warehouseDict: dict,
-    ) -> None:
-        """
-        Method to Insert All the Province Main Warehouse Connections for a Given Province
-
-        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
-        :param int countryId: Country ID where the Province is Located
-        :param int provinceId: Province ID where the Warehouse is Located
-        :param dict warehouseDict: New Province Main Warehouse Connection Dictionary
-        :return: Nothing
-        :rtype: NoneType
-        """
-
-        # Get All the Province Main Warehouses at the Given Country ID
-        provinceMainWarehouses = self.getMainProvinceWarehouses(countryId)
-
-        # Get All the Region Main Warehouses at the Given Province ID
-        regionMainWarehouses = self.getMainRegionWarehouses(provinceId)
-
-        # Set the Province Main Warehouse Connections
-        asyncio.run(
-            self.__insertMainWarehouseConns(
-                ORSGeocoder,
-                CONN_TYPE_PROVINCE,
-                warehouseDict,
-                provinceMainWarehouses,
-            )
-        )
-
-        # Set the Region Main Warehouse Connections
-        asyncio.run(
-            self.__insertMainWarehouseConns(
-                ORSGeocoder,
-                CONN_TYPE_PROVINCE,
-                warehouseDict,
-                regionMainWarehouses,
-            )
-        )
-
     def insertRegionMainWarehouse(
         self,
         ORSGeocoder: ORSGeocoder,
-        provinceId: int,
+        countryId: int,
         regionId: int,
-        parentWarehouseDict: dict,
         warehouseDict: dict,
     ) -> None:
         """
         Method to Insert All the Region Main Warehouse Connections for a Given Region
 
         :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
-        :param int provinceId: Province ID where the Region is Located
+        :param int countryId: Country ID where the Region is Located
         :param int regionId: Region ID where the Warehouse is Located
-        :param dict parentWarehouseDict: Province Main Warehouse Connection Dictionary
         :param dict warehouseDict: New Region Main Warehouse Connection Dictionary
         :return: Nothing
         :rtype: NoneType
         """
 
-        # Get All the Region Main Warehouses at the Given Province ID
-        regionMainWarehouses = self.getMainRegionWarehouses(provinceId)
+        # Get All the Region Main Warehouses at the Given Country ID
+        regionMainWarehouses = self.getMainRegionWarehouses(countryId)
 
-        # Get All City the Main Warehouses at the Given Region ID
+        # Get All the City Main Warehouses at the Given Region ID
         cityMainWarehouses = self.getMainCityWarehouses(regionId)
-
-        # Set the Province Main Warehouse Connection
-        asyncio.run(
-            self.__insertMainWarehouseConns(
-                ORSGeocoder,
-                CONN_TYPE_PROVINCE,
-                parentWarehouseDict,
-                [warehouseDict],
-            )
-        )
 
         # Set the Region Main Warehouse Connections
         asyncio.run(
@@ -806,5 +677,31 @@ class WarehouseConnectionTable:
                 CONN_TYPE_CITY,
                 warehouseDict,
                 cityWarehouses,
+            )
+        )
+
+    def insertCityWarehouse(
+        self,
+        ORSGeocoder: ORSGeocoder,
+        warehouseDict: dict,
+        warehouseConnDict: dict,
+    ):
+        """
+        Method to Insert the Warehouse Connection with the Given Main Warehouse at the City ID where the Warehouse is Located Asynchronously
+
+        :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
+        :param dict warehouseDict: Warehouse Connection Dictionary
+        :param list warehouseConnDict: Warehouse Connection Dictionary that will be Connected with the Warehouse
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Insert the Warehouse Connection to its Table Asynchronously
+        asyncio.run(
+            self.__insertMainWarehouseConns(
+                ORSGeocoder,
+                CONN_TYPE_CITY,
+                warehouseDict,
+                [warehouseConnDict],
             )
         )

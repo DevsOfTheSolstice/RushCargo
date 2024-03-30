@@ -14,6 +14,8 @@ Made by: DevsOfTheSolstice
 """
 
 # Get Argument Handler Messages
+ACTION_MSG ="\nWhat do you want to do?"
+SCHEME_MSG = "At which Scheme?"
 TABLE_MSG = "At which Table?"
 
 # All Handler Messages

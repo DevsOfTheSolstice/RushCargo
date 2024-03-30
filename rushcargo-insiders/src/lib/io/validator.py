@@ -182,7 +182,7 @@ def isAddressValid(tableName: str, field: str, address: str) -> None:
     if address == EXIT:
         raise GoToMenu
 
-    if tableName == WAREHOUSE_TABLENAME or tableName == BRANCH_TABLENAME:
+    if tableName == WAREHOUSE_TABLE_NAME or tableName == BRANCH_TABLE_NAME:
         if not buildingAddressValidator(address):
             raise FieldValueError(tableName, field, address)
 

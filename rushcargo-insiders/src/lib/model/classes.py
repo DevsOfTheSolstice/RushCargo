@@ -36,15 +36,15 @@ class Country:
         return cls(name, phonePrefix, countryId)
 
 
-class Province:
+class Region:
     """
-    Province Class that Represents a Row from its Remote Table
+    Region Class that Represents a Row from its Remote Table
     """
 
     # Public Fields
     name: str = None
     countryId: int = None
-    provinceId: int = None
+    regionId: int = None
     airForwarderId: int = None
     oceanForwarderId: int = None
     warehouseId: int = None
@@ -53,78 +53,27 @@ class Province:
         self,
         name: str,
         countryId: int,
-        provinceId: int = None,
+        regionId: int = None,
         airForwarderId: int = None,
         oceanForwarderId: int = None,
-        warehouseId: int = None,
-    ):
-        """
-        Province Class Construtor
-
-        :param str name: Province Name
-        :param int countryId: Country ID at Remote Table where the Province is Located
-        :param int provinceId: Province ID at its Remote Table. Default is ``None``
-        :param int airForwarderId: Province Main Air Forwarder Office ID at its Remote Table. Default is ``None``
-        :param int oceanForwarderId: Province Main Ocean Forwarder Office ID at its Remote Table. Default is ``None``
-        :param int warehouseId: Province Main Warehouse ID at its Remote Table. Default is ``None``
-        """
-
-        self.name = name
-        self.countryId = countryId
-        self.provinceId = provinceId
-        self.airForwarderId = airForwarderId
-        self.oceanForwarderId = oceanForwarderId
-        self.warehouseId = warehouseId
-
-    @classmethod
-    def fromFetchedItem(cls, item: tuple):
-        """
-        Province Classmethod to Initialize a Province Object from the Fetched Item at a Given Query
-
-        :param tuple item: Fetched Row from Province Remote Table
-        :return: Province Object
-        :rtype: Self@Province
-        """
-
-        provinceId, countryId, name, airForwarderId, oceanForwarderId, warehouseId = (
-            item
-        )
-
-        return cls(
-            name, countryId, provinceId, airForwarderId, oceanForwarderId, warehouseId
-        )
-
-
-class Region:
-    """
-    Region Class that Represents a Row from its Remote Table
-    """
-
-    # Public Fields
-    name: str = None
-    provinceId: int = None
-    regionId: int = None
-    warehouseId: int = None
-
-    def __init__(
-        self,
-        name: str,
-        provinceId: int,
-        regionId: int = None,
         warehouseId: int = None,
     ):
         """
         Region Class Construtor
 
         :param str name: Region Name
-        :param int provinceId: Province ID at Remote Table where the Region is Located
+        :param int countryId: Country ID at Remote Table where the Region is Located
         :param int regionId: Region ID at its Remote Table. Default is ``None``
+        :param int airForwarderId: Region Main Air Forwarder Office ID at its Remote Table. Default is ``None``
+        :param int oceanForwarderId: Region Main Ocean Forwarder Office ID at its Remote Table. Default is ``None``
         :param int warehouseId: Region Main Warehouse ID at its Remote Table. Default is ``None``
         """
 
         self.name = name
-        self.provinceId = provinceId
+        self.countryId = countryId
         self.regionId = regionId
+        self.airForwarderId = airForwarderId
+        self.oceanForwarderId = oceanForwarderId
         self.warehouseId = warehouseId
 
     @classmethod
@@ -137,9 +86,13 @@ class Region:
         :rtype: Self@Region
         """
 
-        regionId, provinceId, name, warehouseId = item
+        regionId, countryId, name, airForwarderId, oceanForwarderId, warehouseId = (
+            item
+        )
 
-        return cls(name, provinceId, regionId, warehouseId)
+        return cls(
+            name, countryId, regionId, airForwarderId, oceanForwarderId, warehouseId
+        )
 
 
 class City:

@@ -4,13 +4,17 @@ NOMINATIM_USER_AGENT = "rushcargo-insiders"
 NOMINATIM_NAME = "name"
 NOMINATIM_ADDRESS_TYPE = "addresstype"
 
+# Nominatim Country Address Types
 NOMINATIM_COUNTRY = "country"
+
+# Nominatim Region Address Types
 NOMINATIM_PROVINCE = "province"
-NOMINATIM_PROVINCE_ALT = "state"
-NOMINATIM_REGION = "region"
-NOMINATIM_REGION_ALT = "county"
+NOMINATIM_STATE= "state"
+
+# Nominatim Region Address Types
 NOMINATIM_CITY = "city"
-NOMINATIM_DIVISION_ALT = "boundary"
+
+# Nominatim Building Address Types
 NOMINATIM_BUILDING = "building"
 
 NOMINATIM_LATITUDE = "lat"
@@ -20,3 +24,7 @@ NOMINATIM_LONGITUDE = "lon"
 ORS_USER_AGENT = "rushcargo-insiders"
 ORS_PROFILE_DRIVING = "driving-car"
 ORS_PREF_FASTEST = "fastest"
+
+# Warehouse Connection Dictionary Fields from a Given Main Warehouses View
+DICT_WAREHOUSE_COORDS = "coords"
+DICT_WAREHOUSE_ID = "warehouse_id"

@@ -13,9 +13,8 @@ from .database_tables import (
     getTable,
     uniqueInsertedMult,
 )
-from .database_connections import WarehouseConnectionTable
 
-from ..controller.constants import DICT_PROVINCE_ID, DICT_REGION_ID, DICT_CITY_ID
+from ..controller.constants import DICT_CITY_ID
 
 from ..geocoding.constants import NOMINATIM_LATITUDE, NOMINATIM_LONGITUDE
 
@@ -37,10 +36,10 @@ def fullBuildingName(tableName: str, buildingName: str) -> str:
     buildingType = None
 
     # Assign Building Type Name
-    if tableName == WAREHOUSE_TABLENAME:
+    if tableName == WAREHOUSES_TABLE_NAME:
         buildingType = "Warehouse"
 
-    elif tableName == BRANCH_TABLENAME:
+    elif tableName == BRANCHES_TABLE_NAME:
         buildingType = "Branch"
 
     return f"{buildingType} {buildingName}"
@@ -58,19 +57,19 @@ def askBuildingValue(tableName: str, field: str):
 
     value = None
 
-    if field == BUILDING_PHONE:
+    if field == BUILDINGS_PHONE:
         value = str(IntPrompt.ask(MOD_VALUE_MSG))
 
-    elif field == BUILDING_EMAIL:
+    elif field == BUILDINGS_EMAIL:
         value = Prompt.ask(MOD_VALUE_MSG)
 
         # Check Building Email and Get its Normalized Form
         value = isEmailValid(value)
 
-    elif field == BUILDING_NAME:
+    elif field == BUILDINGS_NAME:
         value = Prompt.ask(MOD_VALUE_MSG)
 
-        isAddressValid(BUILDING_TABLENAME, field, value)
+        isAddressValid(BUILDINGS_TABLE_NAME, field, value)
 
         # Get Full Building Name
         value = fullBuildingName(tableName, value)
@@ -91,14 +90,14 @@ def getCoords(lat: float, lon: float) -> str:
     return f"{lat}\n{lon}"
 
 
-class BuildingTable(SpecializationTable):
+class BuildingsTable(SpecializationTable):
     """
-    Class that Handles the SQL Operations related to the Remote SQL Building Table
+    Class that Handles the SQL Operations related to the Remote SQL Buildings Table
     """
 
     def __init__(self, tableName: str, tablePKFKName: str, remoteCursor):
         """
-        Building Remote Table Class Constructor
+        Buildings Remote Table Class Constructor
 
         :param str tableName: Building Specialization Table Name
         :param str tablePKFKName: Building Specialization Primary Key Foreign Key Field Name
@@ -108,9 +107,9 @@ class BuildingTable(SpecializationTable):
         # Initialize Specialization Table Class
         super().__init__(
             tableName,
-            BUILDING_TABLENAME,
+            BUILDINGS_TABLE_NAME,
             tablePKFKName,
-            BUILDING_ID,
+            BUILDINGS_ID,
             remoteCursor,
         )
 
@@ -128,13 +127,13 @@ class BuildingTable(SpecializationTable):
             parentTableName=sql.Identifier(self._parentTableName),
             fields=sql.SQL(",").join(
                 [
-                    sql.Identifier(BUILDING_ADDRESS_DESCRIPTION),
-                    sql.Identifier(BUILDING_FK_CITY),
-                    sql.Identifier(BUILDING_NAME),
-                    sql.Identifier(BUILDING_EMAIL),
-                    sql.Identifier(BUILDING_PHONE),
-                    sql.Identifier(BUILDING_GPS_LATITUDE),
-                    sql.Identifier(BUILDING_GPS_LONGITUDE),
+                    sql.Identifier(BUILDINGS_ADDRESS_DESCRIPTION),
+                    sql.Identifier(BUILDINGS_FK_CITY),
+                    sql.Identifier(BUILDINGS_NAME),
+                    sql.Identifier(BUILDINGS_EMAIL),
+                    sql.Identifier(BUILDINGS_PHONE),
+                    sql.Identifier(BUILDINGS_GPS_LATITUDE),
+                    sql.Identifier(BUILDINGS_GPS_LONGITUDE),
                 ]
             ),
         )
@@ -149,7 +148,7 @@ class BuildingTable(SpecializationTable):
         :rtype: bool
         """
 
-        buildingFields = [BUILDING_FK_CITY, BUILDING_NAME]
+        buildingFields = [BUILDINGS_FK_CITY, BUILDINGS_NAME]
         buildingValues = [cityId, buildingName]
 
         # Check if Building Name has already been Inserted at the Given City ID
@@ -173,7 +172,7 @@ class BuildingTable(SpecializationTable):
 
         # Get Building from its Remote Table
         if not SpecializationTable._getMultParentTable(
-            self, [BUILDING_FK_CITY, BUILDING_NAME], [cityId, buildingName]
+            self, [BUILDINGS_FK_CITY, BUILDINGS_NAME], [cityId, buildingName]
         ):
             return None
 
@@ -205,7 +204,7 @@ class BuildingTable(SpecializationTable):
         # Check Building Building Email and Address Description
         isEmailValid(buildingEmail)
         isAddressValid(
-            self._tableName, BUILDING_ADDRESS_DESCRIPTION, addressDescription
+            self._tableName, BUILDINGS_ADDRESS_DESCRIPTION, addressDescription
         )
 
         # Get Query to Insert the Building to its Remote Table
@@ -231,22 +230,22 @@ class BuildingTable(SpecializationTable):
             raise err
 
 
-class WarehouseTable(BuildingTable):
+class WarehousesTable(BuildingsTable):
     """
-    Class that Handles the SQL Operations related to the Remote SQL Warehouse Table
+    Class that Handles the SQL Operations related to the Remote SQL Warehouses Table
     """
 
     def __init__(self, remoteCursor):
         """
-        Warehouse Remote Table Class Constructor
+        Warehouses Remote Table Class Constructor
 
         :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
         # Initialize Building Table Class
         super().__init__(
-            WAREHOUSE_TABLENAME,
-            WAREHOUSE_ID,
+            WAREHOUSES_TABLE_NAME,
+            WAREHOUSES_ID,
             remoteCursor,
         )
 
@@ -316,10 +315,10 @@ class WarehouseTable(BuildingTable):
         buildingName = fullBuildingName(self._tableName, buildingName)
 
         # Insert Building to Building Table
-        BuildingTable._add(self, location, buildingName)
+        BuildingsTable._add(self, location, buildingName)
 
         # Get Building Object of the Recently Inserted Warehouse Building
-        b = BuildingTable._find(self, location[DICT_CITY_ID], buildingName)
+        b = BuildingsTable._find(self, location[DICT_CITY_ID], buildingName)
 
         # Ask for the Warehouse Fields
         console.print("Adding New Warehouse...", style="caption")
@@ -355,7 +354,7 @@ class WarehouseTable(BuildingTable):
             # Clear Terminal
             clear()
 
-        if not SpecializationTable._getTable(self, field, value, BUILDING_NAME):
+        if not SpecializationTable._getTable(self, field, value, BUILDINGS_NAME):
             if printItems:
                 noCoincidence()
             return False
@@ -374,7 +373,7 @@ class WarehouseTable(BuildingTable):
         """
 
         # Get Warehouse from its Remote Table
-        if not SpecializationTable._getTable(self, WAREHOUSE_ID, warehouseId):
+        if not SpecializationTable._getTable(self, WAREHOUSES_ID, warehouseId):
             return None
 
         # Get Warehouse Object from the Fetched Item
@@ -427,22 +426,22 @@ class WarehouseTable(BuildingTable):
         SpecializationTable._remove(self, warehouseId)
 
 
-class BranchTable(BuildingTable):
+class BranchesTable(BuildingsTable):
     """
-    Class that Handles the SQL Operations related to the Remote SQL Branch Table
+    Class that Handles the SQL Operations related to the Remote SQL Branches Table
     """
 
     def __init__(self, remoteCursor):
         """
-        Branch Remote Table Class Constructor
+        Branches Remote Table Class Constructor
 
         :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
         # Initialize Building Table Class
         super().__init__(
-            BRANCH_TABLENAME,
-            BRANCH_ID,
+            BRANCHES_TABLE_NAME,
+            BRANCHES_ID,
             remoteCursor,
         )
 
@@ -501,8 +500,8 @@ class BranchTable(BuildingTable):
             fields=sql.SQL(",").join(
                 [
                     sql.Identifier(self._tablePKFKName),
-                    sql.Identifier(BRANCH_FK_WAREHOUSE_CONNECTION),
-                    sql.Identifier(BRANCH_ROUTE_DISTANCE),
+                    sql.Identifier(BRANCHES_FK_WAREHOUSE_CONNECTION),
+                    sql.Identifier(BRANCHES_ROUTE_DISTANCE),
                 ]
             ),
         )
@@ -530,10 +529,10 @@ class BranchTable(BuildingTable):
         buildingName = fullBuildingName(self._tableName, buildingName)
 
         # Insert Building to its Remote Table
-        BuildingTable._add(self, buildingName)
+        BuildingsTable._add(self, buildingName)
 
         # Get Building Object of the Recently Inserted Branch Building
-        b = BuildingTable._find(self, location[DICT_CITY_ID], buildingName)
+        b = BuildingsTable._find(self, location[DICT_CITY_ID], buildingName)
 
         # Ask for the Branch Fields
         console.print("Adding New Branch...", style="caption")
@@ -567,7 +566,7 @@ class BranchTable(BuildingTable):
             # Clear Terminal
             clear()
 
-        if not SpecializationTable._getTable(self, field, value, BUILDING_NAME):
+        if not SpecializationTable._getTable(self, field, value, BUILDINGS_NAME):
             if printItems:
                 noCoincidence()
             return False
@@ -586,7 +585,7 @@ class BranchTable(BuildingTable):
         """
 
         # Get Branch from its Remote Table
-        if not SpecializationTable._getTable(self, BRANCH_ID, branchId):
+        if not SpecializationTable._getTable(self, BRANCHES_ID, branchId):
             return None
 
         # Get Branch Object from the Fetched Item
@@ -623,7 +622,7 @@ class BranchTable(BuildingTable):
         """
 
         # Modify Branch Table Row Columns
-        if field == BRANCH_FK_WAREHOUSE_CONNECTION or field == BRANCH_ROUTE_DISTANCE:
+        if field == BRANCHES_FK_WAREHOUSE_CONNECTION or field == BRANCHES_ROUTE_DISTANCE:
             SpecializationTable._modifyTable(self, branchId, field, value)
 
         # Modify Building Table Row Column

@@ -26,10 +26,13 @@ class ORSGeocoder:
         :param str user: Remote Database Role Name
         """
 
+        # Set User Agent Name
+        userAgent = f"{ORS_USER_AGENT}-{user}"
+
         try:
             # Initialize Geolocator
             self.__geolocator = ORS(
-                api_key=ORSApiKey, user_agent=f"{ORS_USER_AGENT}-{user}", timeout=5
+                api_key=ORSApiKey, user_agent=userAgent, timeout=5
             )
 
         except Exception as err:

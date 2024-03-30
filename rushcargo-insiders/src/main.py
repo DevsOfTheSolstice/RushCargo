@@ -19,7 +19,7 @@ def getParserArguments() -> tuple[str, str, str]:
     """
     Function to Initialize Argument Parser from ``argparse`` Standard Library and Get the User Commands
 
-    :return: ``action``, ``tableGroup`` and ``table`` Commands
+    :return: ``action``, ``scheme`` and ``table`` Commands
     :rtype: tuple
     """
 
@@ -47,17 +47,17 @@ def getParserArguments() -> tuple[str, str, str]:
     action = args.action
     table = args.table
 
-    # Get Table Group
-    if table in TABLE_LOCATION_CMDS:
-        tableGroup = TABLE_LOCATION_CMD
+    # Get Scheme
+    if table in LOCATIONS_SCHEME_TABLE_CMDS:
+        scheme = LOCATIONS_SCHEME_CMD
 
-    return action, tableGroup, table
+    return action, scheme, table
 
 
 if __name__ == "__main__":
     if len(sys.argv) == 3:
         # Get argParser Arguments
-        action, tableGroup, table = getParserArguments()
+        action, scheme, table = getParserArguments()
 
         # Initialize Database Connection
         db, user, ORSApiKey = initdb()
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         e = EventHandler(db, user, ORSApiKey)
 
         # Call Main Event Handler
-        e.handler(action, tableGroup, table)
+        e.handler(action, scheme, table)
 
     else:
         # Clear Terminal
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
             # Check Arguments
             if arguments != None:
-                action, tableGroup, table = arguments
+                action, scheme, table = arguments
 
                 # Initialize Database Connection
                 db, user, ORSApiKey = initdb()
@@ -87,7 +87,7 @@ if __name__ == "__main__":
                 e = EventHandler(db, user, ORSApiKey)
 
                 # Call Main Event Handler
-                e.handler(action, tableGroup, table)
+                e.handler(action, scheme, table)
 
         # End Program
         except KeyboardInterrupt:

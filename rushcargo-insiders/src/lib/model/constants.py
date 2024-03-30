@@ -43,93 +43,88 @@ WAREHOUSE_NCHAR = 14
 # ... for Forwarder-related Attributes
 FORWARDER_NCHAR = 16
 
-# ... for Country Table Attributes
+# ... for Countries Table Attributes
 PHONE_PREFIX_NCHAR = 13
 
-# Country Table Columns
-COUNTRY_TABLENAME = "country"
-COUNTRY_ID = "country_id"
-COUNTRY_NAME = "country_name"
-COUNTRY_PHONE_PREFIX = "phone_prefix"
+# Locations Scheme Name
+LOCATIONS_SCHEME_NAME = "locations"
 
-# Province ...
-PROVINCE_TABLENAME = "province"
-PROVINCE_ID = "province_id"
-PROVINCE_NAME = "province_name"
-PROVINCE_FK_COUNTRY = "country_id"
-PROVINCE_FK_AIR_FORWARDER = "main_air_freight_forwarder"
-PROVINCE_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
-PROVINCE_FK_WAREHOUSE = "main_warehouse"
+# Locations Scheme Tables Name
+COUNTRIES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.countries"
+REGIONS_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.regions"
+CITIES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.cities"
+BUILDINGS_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.buildings"
+WAREHOUSES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.warehouses"
+BRANCHES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.branches"
 
-# Region ...
-REGION_TABLENAME = "region"
-REGION_ID = "region_id"
-REGION_NAME = "region_name"
-REGION_FK_PROVINCE = "province_id"
-REGION_FK_WAREHOUSE = "main_warehouse"
+# Countries Table Columns
+COUNTRIES_ID = "country_id"
+COUNTRIES_NAME = "country_name"
+COUNTRIES_PHONE_PREFIX = "phone_prefix"
 
-# City ...
-CITY_TABLENAME = "city"
-CITY_ID = "city_id"
-CITY_NAME = "city_name"
-CITY_FK_REGION = "region_id"
-CITY_FK_WAREHOUSE = "main_warehouse"
+# Regions ...
+REGIONS_ID = "region_id"
+REGIONS_NAME = "region_name"
+REGIONS_FK_COUNTRY = "country_id"
+REGIONS_FK_AIR_FORWARDER = "main_air_freight_forwarder"
+REGIONS_FK_OCEAN_FORWARDER = "main_ocean_freight_forwarder"
+REGIONS_FK_WAREHOUSE = "main_warehouse"
 
-# Building ...
-BUILDING_TABLENAME = "building"
-BUILDING_ID = "building_id"
-BUILDING_NAME = "building_name"
-BUILDING_EMAIL = "email"
-BUILDING_PHONE = "phone"
-BUILDING_GPS_LATITUDE = "gps_latitude"
-BUILDING_GPS_LONGITUDE = "gps_longitude"
-BUILDING_ADDRESS_DESCRIPTION = "address_description"
-BUILDING_FK_CITY = "city_id"
+# Cities ...
+CITIES_ID = "city_id"
+CITIES_NAME = "city_name"
+CITIES_FK_REGION = "region_id"
+CITIES_FK_WAREHOUSE = "main_warehouse"
 
-# Warehouse ...
-WAREHOUSE_TABLENAME = "warehouse"
-WAREHOUSE_ID = "warehouse_id"
+# Buildings ...
+BUILDINGS_ID = "building_id"
+BUILDINGS_NAME = "building_name"
+BUILDINGS_EMAIL = "email"
+BUILDINGS_PHONE = "phone"
+BUILDINGS_GPS_LATITUDE = "gps_latitude"
+BUILDINGS_GPS_LONGITUDE = "gps_longitude"
+BUILDINGS_ADDRESS_DESCRIPTION = "address_description"
+BUILDINGS_FK_CITY = "city_id"
 
-# Warehouse Connection
-WAREHOUSE_CONN_TABLENAME = "warehouse_connection"
-WAREHOUSE_CONN_ID = "connection_id"
-WAREHOUSE_CONN_WAREHOUSE_FROM_ID = "warehouse_from_id"
-WAREHOUSE_CONN_WAREHOUSE_TO_ID = "warehouse_to_id"
-WAREHOUSE_CONN_ROUTE_DISTANCE = "route_distance"
-WAREHOUSE_CONN_CONN_TYPE = "connection_type"
+# Warehouses ...
+WAREHOUSES_ID = "warehouse_id"
 
-# Branch ...
-BRANCH_TABLENAME = "branch"
-BRANCH_ID = "branch_id"
-BRANCH_ROUTE_DISTANCE = "route_distance"
-BRANCH_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
+# Branches ...
+BRANCHES_ID = "branch_id"
+BRANCHES_ROUTE_DISTANCE = "route_distance"
+BRANCHES_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
 
-# Warehouse Connection Dictionary Fields from a Given Main Warehouses View
-DICT_WAREHOUSE_COORDS = "coords"
-DICT_WAREHOUSE_ID = "warehouse_id"
+# Connections Scheme Name
+CONNECTIONS_SCHEME_NAME = "connections"
 
-# Warehouses View Columns
-WAREHOUSES_VIEWNAME = "warehouses"
+# Connections Scheme Tables Name
+WAREHOUSES_CONN_TABLE_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouse_connections"
+
+# Connections Scheme Views Name
+WAREHOUSES_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouses"
+WAREHOUSES_RECEIVERS_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouse_receivers"
+RECEIVERS = "receivers"
+WAREHOUSES_SENDERS_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouse_senders"
+SENDERS = "senders"
+REGIONS_MAIN_WAREHOUSES_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.region_main_warehouses"
+CITIES_MAIN_WAREHOUSES_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.city_main_warehouses"
+
+# Warehouse Connections Table Columns
+WAREHOUSES_CONN_ID = "connection_id"
+WAREHOUSES_CONN_WAREHOUSE_FROM_ID = "warehouse_from_id"
+WAREHOUSES_CONN_WAREHOUSE_TO_ID = "warehouse_to_id"
+WAREHOUSES_CONN_ROUTE_DISTANCE = "route_distance"
+WAREHOUSES_CONN_CONN_TYPE = "connection_type"
 
 # Warehouse Receivers ...
-WAREHOUSES_RECEIVERS_VIEWNAME = "warehouse_receivers"
-RECEIVERS = "receivers"
 RECEIVERS_WAREHOUSE_ID = "warehouse_id"
 RECEIVERS_WAREHOUSE_CONN_ID = "connection_id"
 
 # Warehouse Senders ...
-WAREHOUSES_SENDERS_VIEWNAME = "warehouse_senders"
-SENDERS = "senders"
 SENDERS_WAREHOUSE_ID = "warehouse_id"
 SENDERS_WAREHOUSE_CONN_ID = "connection_id"
 
-# Main Warehouses for a Given Location Type Views
-PROVINCE_MAIN_WAREHOUSES = "province_main_warehouses"
-REGION_MAIN_WAREHOUSES = "region_main_warehouses"
-CITY_MAIN_WAREHOUSES = "city_main_warehouses"
-
 # Warehouse Connection Types
-CONN_TYPE_PROVINCE = "Province"
 CONN_TYPE_REGION = "Region"
 CONN_TYPE_CITY = "City"
 

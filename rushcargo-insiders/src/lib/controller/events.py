@@ -1,12 +1,12 @@
 import logging
 
-from rich.prompt import Confirm, Prompt
+from rich.prompt import Prompt
 from rich.logging import RichHandler
 
-from .locationEvents import LocationEventHandler
+from .locationsEvents import LocationsEventHandler
 
 from ..io.arguments import getEventHandlerArguments
-from ..io.constants import TABLE_LOCATION_CMD
+from ..io.constants import LOCATIONS_SCHEME_CMD
 from ..io.validator import clear
 
 from ..model.database import Database
@@ -33,7 +33,7 @@ class EventHandler:
     __c = None
 
     # Event Handlers
-    __locationEventHandler = None
+    __locationsEventHandler = None
 
     def __init__(self, db: Database, user: str, ORSApiKey: str):
         """
@@ -48,14 +48,14 @@ class EventHandler:
         self.__c = db.getCursor()
 
         # Initialize Location Event Handler
-        self.__locationEventHandler = LocationEventHandler(self.__c, user, ORSApiKey)
+        self.__locationsEventHandler = LocationsEventHandler(self.__c, user, ORSApiKey)
 
-    def handler(self, action: str, tableGroup: str, tableName: str) -> None:
+    def handler(self, action: str, schemeName: str, tableName: str) -> None:
         """
         Main Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Commands
 
         :param str action: Command (``add``, ``all``, ``get``, ``mod`` or ``rm``)
-        :param str tableGroup: Group of Tables at Remote Database that are Similar at their Model Design-Level
+        :param str schemeName: Scheme Name at Remote Database
         :param str tableName: Table Name at Remote Database
         :return: Nothing
         :rtype: NoneType
@@ -66,10 +66,10 @@ class EventHandler:
                 # Clear Terminal
                 clear()
 
-                # Check if it's a Location-related Table
-                if tableGroup == TABLE_LOCATION_CMD:
+                # Check if it's a Locations Scheme Table
+                if schemeName == LOCATIONS_SCHEME_CMD:
                     # Call Location Event Handler
-                    self.__locationEventHandler.handler(action, tableName)
+                    self.__locationsEventHandler.handler(action, tableName)
 
                 # Clear Terminal
                 clear()
@@ -81,7 +81,7 @@ class EventHandler:
                     break
 
                 # Get Arguments
-                action, tableGroup, tableName = arguments
+                action, schemeName, tableName = arguments
 
             # End Program
             except KeyboardInterrupt:

@@ -8,7 +8,6 @@ from ..controller.constants import (
     DICT_CITY_NAME,
     DICT_REGION_ID,
     DICT_REGION_NAME,
-    DICT_PROVINCE_NAME,
     DICT_COUNTRY_NAME,
 )
 
@@ -80,43 +79,6 @@ class NominatimGeocoder:
         except LocationNotFound as err:
             raise err
 
-    def getProvince(self, location: dict, provinceName: str) -> str:
-        """
-        Method to Check if a Province Name is Valid and its Normalized Form through the Nominatim API
-
-        :param dict location: Location Dictionary that Contains the Province Parent Locations Information
-        :param str provinceName: Province Name to be Validated and Normalized
-        :return: Province Normalized Name
-        :rtype: str
-        :raise LocationError: Raised when there's no Province Coincidence for the Given Name at the Given Parent Location
-        """
-
-        try:
-            # Get Province Location
-            geopyLocation = self.__geolocator.geocode(
-                ", ".join([provinceName, location[DICT_COUNTRY_NAME]]),
-                exactly_one=False,
-            )
-
-            # Check Location
-            if geopyLocation == None:
-                raise LocationNotFound(provinceName, NOMINATIM_PROVINCE)
-
-            # Iterate over Coincidences
-            for coincidence in geopyLocation:
-                # Check if it's a Province
-                if (
-                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
-                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE_ALT
-                ):
-                    return self.__getName(coincidence)
-
-            # Invalid Location
-            raise LocationNotFound(provinceName, NOMINATIM_PROVINCE)
-
-        except LocationNotFound as err:
-            raise err
-
     def getRegion(self, location: dict, regionName: str) -> str:
         """
         Method to Check if a Region Name is Valid and its Normalized Form through the Nominatim API
@@ -131,33 +93,26 @@ class NominatimGeocoder:
         try:
             # Get Region Location
             geopyLocation = self.__geolocator.geocode(
-                ", ".join(
-                    [
-                        regionName,
-                        location[DICT_PROVINCE_NAME],
-                        location[DICT_COUNTRY_NAME],
-                    ]
-                ),
+                ", ".join([regionName, location[DICT_COUNTRY_NAME]]),
+                addressdetails=True,
                 exactly_one=False,
             )
 
             # Check Location
             if geopyLocation == None:
-                raise LocationNotFound(regionName, NOMINATIM_REGION)
+                raise LocationNotFound(regionName, NOMINATIM_STATE, NOMINATIM_PROVINCE)
 
             # Iterate over Coincidences
             for coincidence in geopyLocation:
+                # FOR TESTING PURPOSES:
                 print(coincidence.raw)
+
                 # Check if it's a Region
-                if (
-                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION
-                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_REGION_ALT
-                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_DIVISION_ALT
-                ):
+                if    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_STATE:
                     return self.__getName(coincidence)
 
             # Invalid Location
-            raise LocationNotFound(regionName, NOMINATIM_REGION)
+            raise LocationNotFound(regionName, NOMINATIM_STATE, NOMINATIM_PROVINCE)
 
         except LocationNotFound as err:
             raise err
@@ -180,10 +135,10 @@ class NominatimGeocoder:
                     [
                         cityName,
                         location[DICT_REGION_NAME],
-                        location[DICT_PROVINCE_NAME],
                         location[DICT_COUNTRY_NAME],
                     ]
                 ),
+                addressdetails=True,
                 exactly_one=False,
             )
 
@@ -193,11 +148,11 @@ class NominatimGeocoder:
 
             # Iterate over Coincidences
             for coincidence in geopyLocation:
+                # FOR TESTING PURPOSES:
+                print(coincidence.raw)
+
                 # Check if it's a City
-                if (
-                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY
-                    or coincidence.raw[NOMINATIM_CITY] == NOMINATIM_DIVISION_ALT
-                ):
+                if coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_CITY:
                     return self.__getName(coincidence)
 
             # Invalid Location
@@ -225,7 +180,6 @@ class NominatimGeocoder:
                         placeName,
                         location[DICT_CITY_NAME],
                         location[DICT_REGION_NAME],
-                        location[DICT_PROVINCE_NAME],
                         location[DICT_COUNTRY_NAME],
                     ]
                 )

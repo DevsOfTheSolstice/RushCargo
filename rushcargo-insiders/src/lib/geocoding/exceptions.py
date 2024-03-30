@@ -6,17 +6,26 @@ class LocationNotFound(Exception):
     Exception Raised when Geopy couldn't Find a Given Location for a Specific Address Type
     """
 
-    def __init__(self, locationName, locationType):
+    def __init__(self, locationName:str, locationType:str, locationAltType:str = None):
         """
         LocationNotFound Exception Constructor
 
         :param str locationName: Location Name that's being Searched for
         :param str locationType: Nominatim API Address Type that's being Compared the Location with
+        :param str locationAltType: Alternative Nominatim API Address Type that's being Compared the Location with
         """
 
-        super().__init__(
-            f"GeoPy API couldn't Find '{locationName}' with Address Type of '{locationType}'. Try Again with a Different Name\n"
-        )
+        # Check if there's an Alternative Address Type
+        if locationAltType == None:
+            super().__init__(
+                f"GeoPy API couldn't Find '{locationName}' with Address Type of '{locationType}'. Try Again with a Different Name\n"
+            )
+
+        else:
+            super().__init__(
+                f"GeoPy API couldn't Find '{locationName}' with Address Type of '{locationType}' or Alternative Address Type of '{locationAltType}'. Try Again with a Different Name\n"
+            )
+
 
 
 class PlaceNotFound(Exception):

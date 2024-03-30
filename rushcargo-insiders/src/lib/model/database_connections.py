@@ -170,9 +170,10 @@ class WarehouseConnectionTable:
         """
 
         return sql.SQL(
-            "DELETE FROM {tableName} WHERE EXISTS (SELECT {sendersConnIdField} FROM {sendersViewName} {senders} WHERE {senders}.{locationIdField} = (%s) AND {senders}.{warehouseIdField} = (%s) AND {senders}.{warehouseConnType} = (%s))"
+            "DELETE FROM {tableName} WHERE {warehouseConnIdField} IN (SELECT {sendersConnIdField} FROM {sendersViewName} {senders} WHERE {senders}.{locationIdField} = (%s) AND {senders}.{warehouseIdField} = (%s) AND {senders}.{warehouseConnType} = (%s))"
         ).format(
             tableName=sql.Identifier(self._tableName),
+            warehouseConnIdField=sql.Identifier(WAREHOUSE_CONN_ID),
             idField=sql.Identifier(self._tablePKName),
             sendersConnIdField=sql.Identifier(SENDERS_WAREHOUSE_CONN_ID),
             sendersViewName=sql.Identifier(WAREHOUSES_SENDERS_VIEWNAME),
@@ -192,9 +193,10 @@ class WarehouseConnectionTable:
         """
 
         return sql.SQL(
-            "DELETE FROM {tableName} WHERE EXISTS (SELECT {receiversConnIdField} FROM {receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} =%s)"
+            "DELETE FROM {tableName} WHERE {warehouseConnIdField} IN (SELECT {receiversConnIdField} FROM {receiversViewName} {receivers} WHERE {receivers}.{locationIdField} = %s AND {receivers}.{warehouseIdField} = %s AND {receivers}.{warehouseConnType} =%s)"
         ).format(
             tableName=sql.Identifier(self._tableName),
+            warehouseConnIdField=sql.Identifier(WAREHOUSE_CONN_ID),
             idField=sql.Identifier(self._tablePKName),
             receiversConnIdField=sql.Identifier(RECEIVERS_WAREHOUSE_CONN_ID),
             receiversViewName=sql.Identifier(WAREHOUSES_RECEIVERS_VIEWNAME),
@@ -230,7 +232,6 @@ class WarehouseConnectionTable:
 
         # Execute the Query
         try:
-            # Remove Given Warehouse as a Sender
             self._c.execute(senderQuery, [locationId, warehouseId, locationType])
 
             console.print(
@@ -259,31 +260,46 @@ class WarehouseConnectionTable:
         :rtype: NoneType
         """
 
-        return self.__removeMainWarehouse(PROVINCE_TABLENAME, provinceId, warehouseId)
+        # Remove Province-Type Connections
+        self.__removeMainWarehouse(PROVINCE_TABLENAME, provinceId, warehouseId)
 
-    def removeRegionMainWarehouse(self, regionId: int, warehouseId: int) -> None:
+    def removeRegionMainWarehouse(
+        self, provinceId: int, regionId: int, warehouseId: int
+    ) -> None:
         """
         Method to Remove a Given Region Main Warehouse as a Sender and as a Receiver from All of its Warehouse Connections
 
+        :param str provinceId: Province ID where the Parent Main Warehouse is Located
         :param str regionId: Region ID where the Warehouse is Located and Set as the Main One
         :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (Region)
         :return: Nothing
         :rtype: NoneType
         """
 
-        return self.__removeMainWarehouse(REGION_TABLENAME, regionId, warehouseId)
+        # Remove Province-Type Connection (with its Parent Main Warehouse)
+        self.__removeMainWarehouse(PROVINCE_TABLENAME, provinceId, warehouseId)
 
-    def removeCityMainWarehouse(self, cityId: int, warehouseId: int) -> None:
+        # Remove Region-Type Connections
+        self.__removeMainWarehouse(REGION_TABLENAME, regionId, warehouseId)
+
+    def removeCityMainWarehouse(
+        self, regionId: int, cityId: int, warehouseId: int
+    ) -> None:
         """
         Method to Remove a Given City Main Warehouse as a Sender and as a Receiver from All of its Warehouse Connections
 
+        :param str regionId: Region ID where the Parent Main Warehouse is Located
         :param str cityId: City ID where the Warehouse is Located and Set as the Main One
         :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (City)
         :return: Nothing
         :rtype: NoneType
         """
 
-        return self.__removeMainWarehouse(CITY_TABLENAME, cityId, warehouseId)
+        # Remove Region-Type Connection (with its Parent Main Warehouse)
+        self.__removeMainWarehouse(REGION_TABLENAME, regionId, warehouseId)
+
+        # Remove City-Type Connections
+        self.__removeMainWarehouse(CITY_TABLENAME, cityId, warehouseId)
 
     def __getMainWarehousesQuery(
         self, locationMainWarehousesViewName: str, parentLocationIdField: str

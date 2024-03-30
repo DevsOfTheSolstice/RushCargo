@@ -2,7 +2,8 @@
 NOMINATIM_DEBUG_MODE = False
 
 # Local SQLite Databases Information
-NOMINATIM_DATABASE_NAME = "geopy.db"
+LOCAL_DATABASE_NAME = "geopy.db"
+LOCAL_TIMEOUT= 60
 
 # Nomanitim GeoPy Location-related Table Names
 NOMINATIM_ROWS_COUNTER_TABLENAME = "rows_counter"

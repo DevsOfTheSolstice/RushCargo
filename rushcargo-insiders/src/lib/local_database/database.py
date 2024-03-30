@@ -39,7 +39,7 @@ class NominatimDatabase:
     """
 
     # Database Connection
-    __dbname = NOMINATIM_DATABASE_NAME
+    __dbname = LOCAL_DATABASE_NAME
     __conn = None
     __c = None
 
@@ -49,7 +49,7 @@ class NominatimDatabase:
         """
 
         # Store Database Connection
-        self.__conn = sqlite3.connect(self.__dbname)
+        self.__conn = sqlite3.connect(self.__dbname, timeout=LOCAL_TIMEOUT)
         self.__c = self.getCursor()
 
         # Initialize Rows Counter Table

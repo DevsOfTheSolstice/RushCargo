@@ -16,8 +16,7 @@ CREATE TABLE Locations.Regions (
     main_warehouse INT,
     main_air_freight_forwarder INT,
     main_ocean_freight_forwarder INT,
-    FOREIGN KEY (country_id) REFERENCES Locations.Countries(country_id),
-    FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id)
+    FOREIGN KEY (country_id) REFERENCES Locations.Countries(country_id)
 );
 
 --3
@@ -26,8 +25,7 @@ CREATE TABLE Locations.Cities (
     city_name VARCHAR(255) NOT NULL,
     region_id INT NOT NULL,
     main_warehouse INT,
-    FOREIGN KEY (region_id) REFERENCES Locations.Regions(region_id),
-    FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id)
+    FOREIGN KEY (region_id) REFERENCES Locations.Regions(region_id)
 );
 
 --4
@@ -98,6 +96,13 @@ CREATE TABLE Locations.Allied_Shipping_Offices (
     FOREIGN KEY (warehouse_id) REFERENCES Locations.Warehouses(warehouse_id),
     FOREIGN KEY (company_id) REFERENCES Allied_Companies(company_id)
 );
+
+-- Modifications
+ALTER TABLE Locations.Regions
+ADD FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id);
+
+ALTER TABLE Locations.Cities
+ADD FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id);
 
 ---vvv PROTOTYPE vvv---
 

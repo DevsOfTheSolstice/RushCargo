@@ -85,10 +85,9 @@ class Region:
         :return: Region Object
         :rtype: Self@Region
         """
+        # print(item)  # TO CHECK
 
-        regionId, countryId, name, airForwarderId, oceanForwarderId, warehouseId = (
-            item
-        )
+        regionId, name, countryId, warehouseId, airForwarderId, oceanForwarderId = item
 
         return cls(
             name, countryId, regionId, airForwarderId, oceanForwarderId, warehouseId
@@ -202,12 +201,12 @@ class Building:
 
         (
             buildingId,
-            email,
-            phone,
+            buildingName,
             gpsLatitude,
             gpsLongitude,
             addressDescription,
-            buildingName,
+            email,
+            phone,
             cityId,
         ) = item
 
@@ -277,12 +276,12 @@ class Warehouse(Building):
         (
             _,  # Warehouse ID, Same as Building ID
             buildingId,
-            email,
-            phone,
+            buildingName,
             gpsLatitude,
             gpsLongitude,
             addressDescription,
-            buildingName,
+            email,
+            phone,
             cityId,
         ) = item
 
@@ -361,6 +360,7 @@ class Branch(Building):
         :return: Branch Object
         :rtype: Self@Branch
         """
+        print(item)  # TO CHECK
 
         (
             _,  # Branch ID, Same as Building ID

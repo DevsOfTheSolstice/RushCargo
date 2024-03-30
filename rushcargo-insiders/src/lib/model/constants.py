@@ -50,12 +50,12 @@ PHONE_PREFIX_NCHAR = 13
 LOCATIONS_SCHEME_NAME = "locations"
 
 # Locations Scheme Tables Name
-COUNTRIES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.countries"
-REGIONS_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.regions"
-CITIES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.cities"
-BUILDINGS_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.buildings"
-WAREHOUSES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.warehouses"
-BRANCHES_TABLE_NAME = f"{LOCATIONS_SCHEME_NAME}.branches"
+COUNTRIES_TABLE_NAME = "countries"
+REGIONS_TABLE_NAME = "regions"
+CITIES_TABLE_NAME = "cities"
+BUILDINGS_TABLE_NAME = "buildings"
+WAREHOUSES_TABLE_NAME = "warehouses"
+BRANCHES_TABLE_NAME = "branches"
 
 # Countries Table Columns
 COUNTRIES_ID = "country_id"
@@ -98,16 +98,16 @@ BRANCHES_FK_WAREHOUSE_CONNECTION = "warehouse_connection"
 CONNECTIONS_SCHEME_NAME = "connections"
 
 # Connections Scheme Tables Name
-WAREHOUSES_CONN_TABLE_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouse_connections"
+WAREHOUSES_CONN_TABLE_NAME = "warehouse_connections"
 
 # Connections Scheme Views Name
-WAREHOUSES_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouses"
-WAREHOUSES_RECEIVERS_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouse_receivers"
+WAREHOUSES_VIEW_NAME = "warehouses"
+WAREHOUSES_RECEIVERS_VIEW_NAME = "warehouse_receivers"
 RECEIVERS = "receivers"
-WAREHOUSES_SENDERS_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.warehouse_senders"
+WAREHOUSES_SENDERS_VIEW_NAME = "warehouse_senders"
 SENDERS = "senders"
-REGIONS_MAIN_WAREHOUSES_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.region_main_warehouses"
-CITIES_MAIN_WAREHOUSES_VIEW_NAME = f"{CONNECTIONS_SCHEME_NAME}.city_main_warehouses"
+REGIONS_MAIN_WAREHOUSES_VIEW_NAME = "region_main_warehouses"
+CITIES_MAIN_WAREHOUSES_VIEW_NAME = "city_main_warehouses"
 
 # Warehouse Connections Table Columns
 WAREHOUSES_CONN_ID = "connection_id"

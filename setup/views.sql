@@ -8,19 +8,19 @@ INNER JOIN Locations.Warehouses AS warehouses ON buildings.building_id = warehou
 
 --2
 CREATE VIEW Connections.Warehouse_Receivers AS
-SELECT warehouses.*, warehouse_conns.connection_id, warehouse_conns.connection_type  FROM Locations.Warehouses AS warehouses INNER JOIN Connections.Warehouse_Connections AS warehouse_conns ON warehouses.warehouse_id =warehouse_conns.warehouse_to_id;
+SELECT warehouses.*, warehouse_conns.connection_id, warehouse_conns.connection_type  FROM Connections.Warehouses AS warehouses INNER JOIN Connections.Warehouse_Connections AS warehouse_conns ON warehouses.warehouse_id =warehouse_conns.warehouse_to_id;
 
 --3
 CREATE VIEW Connections.Warehouse_Senders AS
-SELECT warehouses.*, warehouse_conns.connection_id, warehouse_conns.connection_type  FROM Locations.Warehouses AS warehouses INNER JOIN Connections.Warehouse_Connections AS warehouse_conns ON warehouses.warehouse_id =warehouse_conns.warehouse_from_id;
+SELECT warehouses.*, warehouse_conns.connection_id, warehouse_conns.connection_type  FROM Connections.Warehouses AS warehouses INNER JOIN Connections.Warehouse_Connections AS warehouse_conns ON warehouses.warehouse_id =warehouse_conns.warehouse_from_id;
 
 --4
 CREATE VIEW Connections.Region_Main_Warehouses AS
-SELECT warehouses.* FROM Locations.Warehouses AS warehouses INNER JOIN Locations.Regions AS regions ON regions.main_warehouse = warehouses.warehouse_id;
+SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Regions AS regions ON regions.main_warehouse = warehouses.warehouse_id;
 
 --5
 CREATE VIEW Connections.City_Main_Warehouses AS
-SELECT warehouses.* FROM Locations.Warehouses AS warehouses INNER JOIN Locations.Cities AS cities ON cities.main_warehouse = warehouses.warehouse_id;
+SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Cities AS cities ON cities.main_warehouse = warehouses.warehouse_id;
 
 
 

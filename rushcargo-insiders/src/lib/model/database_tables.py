@@ -67,7 +67,7 @@ def modifiedRow(field: str, value, idField: str, idValue: int, tableName: str) -
     """
 
     console.print(
-        f"Data '{value}' Successfully Assigned to '{field}' at '{idField}' '{idValue}' in {tableName} Table",
+        f"Data '{value}' Successfully Assigned to '{field}' at '{idField}' '{idValue}' in {tableName} Table\n",
         style="success",
     )
 
@@ -99,7 +99,7 @@ def removeRow(tableName: str, idField: str, idValue: int) -> None:
     """
 
     console.print(
-        f"Row with '{idField}' '{idValue}' Successfully Removed from {tableName} Table",
+        f"Row with '{idField}' '{idValue}' Successfully Removed from {tableName} Table\n",
         style="success",
     )
 
@@ -135,22 +135,37 @@ class BaseTable:
     _c = None
     _items = None
 
-    # Protected Fields
+    # Scheme, Table, Table PK and Scheme + Table Name
+    _schemeName = None
     _tableName = None
     _tablePKName = None
+    _fullTableName = None  # (schemeName.tableName)
 
-    def __init__(self, tableName: str, tablePKName: str, remoteCursor):
+    def __init__(
+        self, tableName: str, tablePKName: str, remoteCursor, schemeName: str = None
+    ):
         """
         Base Remote Table Class Constructor
 
         :param str tableName: Table Name to Initialize
         :param str tablePKName: Table Primary Key Field Name
+        :param str schemeName: Scheme Name where the Table is Located. Default is ```None``
         :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
-        # Store Table and Primary Key Column Names
+        # Store Scheme (if It inside One), Table and Primary Key Column Names
+        self._schemeName = schemeName
         self._tableName = tableName
         self._tablePKName = tablePKName
+
+        # Set Full Table Name
+        if schemeName == None:
+            self._fullTableName = sql.Identifier(self._tableName)
+
+        else:
+            self._fullTableName = sql.SQL(".").join(
+                [sql.Identifier(self._schemeName), sql.Identifier(self._tableName)]
+            )
 
         # Store Database Connection Cursor
         self._c = remoteCursor
@@ -167,15 +182,15 @@ class BaseTable:
 
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
-            return sql.SQL("SELECT * FROM {tableName} WHERE {field} = (%s)").format(
-                tableName=sql.Identifier(self._tableName),
+            return sql.SQL("SELECT * FROM {fullTableName} WHERE {field} = (%s)").format(
+                fullTableName=self._fullTableName,
                 field=sql.Identifier(field),
             )
 
         return sql.SQL(
-            "SELECT * FROM {tableName} WHERE {field} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {fullTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
-            tableName=sql.Identifier(self._tableName),
+            fullTableName=self._fullTableName,
             field=sql.Identifier(field),
             orderBy=sql.Identifier(orderBy),
         )
@@ -193,17 +208,17 @@ class BaseTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+                "SELECT * FROM {fullTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
             ).format(
-                tableName=sql.Identifier(self._tableName),
+                fullTableName=self._fullTableName,
                 field1=sql.Identifier(field1),
                 field2=sql.Identifier(field2),
             )
 
         return sql.SQL(
-            "SELECT * FROM {tableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {fullTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
-            tableName=sql.Identifier(self._tableName),
+            fullTableName=self._fullTableName,
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
             orderBy=sql.Identifier(orderBy),
@@ -221,14 +236,14 @@ class BaseTable:
 
         # Get Query to Sort the Rows in Ascending Order
         if not desc:
-            return sql.SQL("SELECT * FROM {tableName} ORDER BY {order}").format(
-                tableName=sql.Identifier(self._tableName),
+            return sql.SQL("SELECT * FROM {fullTableName} ORDER BY {order}").format(
+                fullTableName=self._fullTableName,
                 order=sql.Identifier(orderBy),
             )
 
         # Get Query to Sort the Rows in Descending Order
-        return sql.SQL("SELECT * FROM {tableName} ORDER BY {order} DESC").format(
-            tableName=sql.Identifier(self._tableName),
+        return sql.SQL("SELECT * FROM {fullTableName} ORDER BY {order} DESC").format(
+            fullTableName=sql.Identifier(self._fullTableName),
             order=sql.Identifier(orderBy),
         )
 
@@ -243,9 +258,9 @@ class BaseTable:
         """
 
         return sql.SQL(
-            "UPDATE {tableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
+            "UPDATE {fullTableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
         ).format(
-            tableName=sql.Identifier(self._tableName),
+            fullTableName=self._fullTableName,
             compareField=sql.Identifier(compareField),
             modField=sql.Identifier(modField),
         )
@@ -407,11 +422,15 @@ class SpecializationTable:
     _c = None
     _items = None
 
-    # Protected Fields
+    # Specialization and Specialization's Parent Scheme, Table, Table PK and Scheme + Table Name
     _tableName = None
     _parentTableName = None
     _tablePKFKName = None
     _parentTablePKName = None
+    _schemeName = None
+    _parentSchemeName = None
+    _fullTableName = None  # (schemeName.tableName)
+    _fullParentTableName = None  # (parentSchemeName.parentTableName)
 
     # Constructor
     def __init__(
@@ -421,6 +440,8 @@ class SpecializationTable:
         tablePKFKName: str,
         parentTablePKName: str,
         remoteCursor,
+        schemeName: str = None,
+        parentSchemeName: str = None,
     ):
         """
         Specialization Table Remote Class Constructor
@@ -429,14 +450,39 @@ class SpecializationTable:
         :param str parentTableName: Parent Table Name to Initialize
         :param str tablePKFKName: Table Primary Key Foreign Key Field Name
         :param str parentTablePKName: Parent Table Primary Key Field Name
+        :param str schemeName: Scheme Name where the Table is Located. Default is ``None``
+        :param str parentSchemeName: Scheme Name where the Parent Table is Located. Default is ``None``
         :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
-        # Store Table and Columns Names
+        # Store Scheme (if It inside One), Table and Primary Key Column Names
         self._tableName = tableName
         self._parentTableName = parentTableName
         self._tablePKFKName = tablePKFKName
         self._parentTablePKName = parentTablePKName
+        self._schemeName = schemeName
+        self._parentSchemeName = parentSchemeName
+
+        # Set Full Table Name
+        if schemeName == None:
+            self._fullTableName = sql.Identifier(self._tableName)
+
+        else:
+            self._fullTableName = sql.SQL(".").join(
+                [sql.Identifier(self._schemeName), sql.Identifier(self._tableName)]
+            )
+
+        # Set Full Parent Table Name
+        if parentSchemeName == None:
+            self._fullParentTableName = sql.Identifier(self._parentTableName)
+
+        else:
+            self._fullParentTableName = sql.SQL(".").join(
+                [
+                    sql.Identifier(self._parentSchemeName),
+                    sql.Identifier(self._parentTableName),
+                ]
+            )
 
         # Store Database Connection Cursor
         self._c = remoteCursor
@@ -454,20 +500,20 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s)"
+                "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s)"
             ).format(
-                tableName=sql.Identifier(self._tableName),
-                parentTableName=sql.Identifier(self._parentTableName),
+                fullTableName=self._fullTableName,
+                fullParentTableName=self._fullParentTableName,
                 tablePKFKName=sql.Identifier(self._tablePKFKName),
                 parentTablePKName=sql.Identifier(self._parentTablePKName),
                 field=sql.Identifier(field),
             )
 
         return sql.SQL(
-            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
-            tableName=sql.Identifier(self._tableName),
-            parentTableName=sql.Identifier(self._parentTableName),
+            fullTableName=self._fullTableName,
+            fullParentTableName=self._fullParentTableName,
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             field=sql.Identifier(field),
@@ -487,16 +533,16 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {parentTableName} WHERE {field} = (%s)"
+                "SELECT * FROM {fullParentTableName} WHERE {field} = (%s)"
             ).format(
-                tableName=sql.Identifier(self._parentTableName),
+                fullParentTableName=self._parentTableName,
                 field=sql.Identifier(field),
             )
 
         return sql.SQL(
-            "SELECT * FROM {parentTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {fullParentTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
-            tableName=sql.Identifier(self._parentTableName),
+            fullParentTableName=self._parentTableName,
             field=sql.Identifier(field),
             orderBy=sql.Identifier(orderBy),
         )
@@ -515,10 +561,10 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s)"
+                "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s)"
             ).format(
-                tableName=sql.Identifier(self._tableName),
-                parentTableName=sql.Identifier(self._parentTableName),
+                fullTableName=self._fullTableName,
+                fullParentTableName=self._fullParentTableName,
                 tablePKFKName=sql.Identifier(self._tablePKFKName),
                 parentTablePKName=sql.Identifier(self._parentTablePKName),
                 field1=sql.Identifier(field1),
@@ -526,10 +572,10 @@ class SpecializationTable:
             )
 
         return sql.SQL(
-            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
-            tableName=sql.Identifier(self._tableName),
-            parentTableName=sql.Identifier(self._parentTableName),
+            fullTableName=self._fullTableName,
+            fullParentTableName=self._fullParentTableName,
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             field1=sql.Identifier(field1),
@@ -551,17 +597,17 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {parentTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+                "SELECT * FROM {fullParentTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
             ).format(
-                parentTableName=sql.Identifier(self._parentTableName),
+                fullParentTableName=self._fullParentTableName,
                 field1=sql.Identifier(field1),
                 field2=sql.Identifier(field2),
             )
 
         return sql.SQL(
-            "SELECT * FROM {parentTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {fullParentTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
-            parentTableName=sql.Identifier(self._parentTableName),
+            fullParentTableName=self._fullParentTableName,
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
             orderBy=sql.Identifier(orderBy),
@@ -580,10 +626,10 @@ class SpecializationTable:
         # Get Query to Sort the Rows in Ascending Order
         if not desc:
             return sql.SQL(
-                "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} ORDER BY {order}"
+                "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} ORDER BY {order}"
             ).format(
-                tableName=sql.Identifier(self._tableName),
-                parentTableName=sql.Identifier(self._parentTableName),
+                fullTableName=self._fullTableName,
+                fullParentTableName=self._fullParentTableName,
                 tablePKFKName=sql.Identifier(self._tablePKFKName),
                 parentTablePKName=sql.Identifier(self._parentTablePKName),
                 order=sql.Identifier(orderBy),
@@ -591,20 +637,20 @@ class SpecializationTable:
 
         # Get Query to Sort the Rows in Descending Order
         return sql.SQL(
-            "SELECT * FROM {tableName} AS child INNER JOIN {parentTableName} AS parent ON child.{tablePKFKName} =parent.{parentTablePKName} ORDER BY {order} DESC"
+            "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} =parent.{parentTablePKName} ORDER BY {order} DESC"
         ).format(
-            tableName=sql.Identifier(self._tableName),
-            parentTableName=sql.Identifier(self._parentTableName),
+            fullTableName=self._fullTableName,
+            fullParentTableName=self._fullParentTableName,
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             order=sql.Identifier(orderBy),
         )
 
-    def __modifyQuery(self, tableName: str, compareField: str, modField: str):
+    def __modifyQuery(self, fullTableName, compareField: str, modField: str):
         """
         Method to Modify a Row Field Value with a Given Unique Identifier at a Given Table
 
-        :param str tableName: Table Name to Modify
+        :param fullTableName: SQL Identifier or Composed Table Name to Modify
         :param str compareField: Field to be Compared
         :param str modField: Field to Modify
         :return: SQL Query
@@ -612,25 +658,25 @@ class SpecializationTable:
         """
 
         return sql.SQL(
-            "UPDATE {tableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
+            "UPDATE {fullTableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
         ).format(
-            tableName=sql.Identifier(tableName),
+            fullTableName=fullTableName,
             modField=sql.Identifier(modField),
             compareField=sql.Identifier(compareField),
         )
 
-    def __removeQuery(self, tableName: str, field: str):
+    def __removeQuery(self, fullTableName, field: str):
         """
         Method to Get the Query to Remove a Row with a Given Value at a Given Field and Table
 
-        :param str tableName: Table that Contains the Row/s to be Removed
+        :param fullTableName: SQL Identifier or Composed Table that Contains the Row/s to be Removed
         :param str field: Field to be Compared
         :return: SQL Query
         :rtype: Composed
         """
 
-        return sql.SQL("DELETE FROM {tableName} WHERE {field} = (%s)").format(
-            tableName=sql.Identifier(tableName), field=sql.Identifier(field)
+        return sql.SQL("DELETE FROM {fullTableName} WHERE {field} = (%s)").format(
+            fullTableName=fullTableName, field=sql.Identifier(field)
         )
 
     def __modify(self, parentTable: bool, idValue: int, field: str, value) -> None:
@@ -648,18 +694,21 @@ class SpecializationTable:
 
         idField = None
         tableName = None
+        fullTableName = None
 
         # Check if the User wants to Modify the Row from the Parent Table
         if parentTable:
             idField = self._parentTablePKName
             tableName = self._parentTableName
+            fullTableName = self._fullParentTableName
 
         else:
             idField = self._tablePKFKName
             tableName = self._tableName
+            fullTableName = self._fullTableName
 
         # Get Query to Modify the Given Row
-        query = self.__modifyQuery(tableName, idField, field)
+        query = self.__modifyQuery(fullTableName, idField, field)
 
         # Execute the Query and Print a Success Message
         try:
@@ -880,11 +929,11 @@ class SpecializationTable:
         idField = self._tablePKFKName
         tableName = self._tableName
 
-        # Get Query to Remove Row from the Specialization's Table
-        tableQuery = self.__removeQuery(tableName, idField)
+        # Get Query to Remove Row from the Specialization Table
+        tableQuery = self.__removeQuery(self._fullTableName, idField)
 
         # Get Query to Remove Row from the Specialization's Parent Table
-        parentTableQuery = self.__removeQuery(parentTableName, parentIdField)
+        parentTableQuery = self.__removeQuery(self._fullParentTableName, parentIdField)
 
         try:
             # Remove Row from Specialization Table

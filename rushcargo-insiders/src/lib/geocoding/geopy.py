@@ -11,7 +11,7 @@ from ..controller.constants import (
     DICT_COUNTRY_NAME,
 )
 
-from ..model.constants import CITY_ID
+from ..model.constants import CITIES_ID
 
 
 class NominatimGeocoder:
@@ -108,7 +108,10 @@ class NominatimGeocoder:
                 print(coincidence.raw)
 
                 # Check if it's a Region
-                if    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_STATE:
+                if (
+                    coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_PROVINCE
+                    or coincidence.raw[NOMINATIM_ADDRESS_TYPE] == NOMINATIM_STATE
+                ):
                     return self.__getName(coincidence)
 
             # Invalid Location
@@ -193,7 +196,7 @@ class NominatimGeocoder:
                 raise PlaceNotFound(location[DICT_REGION_ID], location[DICT_CITY_NAME])
 
             # Set City ID from City Table
-            coords[CITY_ID] = location[DICT_CITY_ID]
+            coords[CITIES_ID] = location[DICT_CITY_ID]
 
             # Set Latitude and Longitude Coordinates Received by the Nominatim API
             coords[NOMINATIM_LATITUDE] = geopyLocation.raw[NOMINATIM_LATITUDE]

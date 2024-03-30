@@ -30,7 +30,9 @@ class CountriesTable(BaseTable):
         """
 
         # Initialize Base Table Class
-        super().__init__(COUNTRIES_TABLE_NAME, COUNTRIES_ID, remoteCursor)
+        super().__init__(
+            COUNTRIES_TABLE_NAME, COUNTRIES_ID, remoteCursor, LOCATIONS_SCHEME_NAME
+        )
 
     def __print(self) -> int:
         """
@@ -44,7 +46,7 @@ class CountriesTable(BaseTable):
         nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Country", nRows)
+        table = getTable("Countries", nRows)
 
         # Add Country Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -70,8 +72,8 @@ class CountriesTable(BaseTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
-            tableName=sql.Identifier(self._tableName),
+        return sql.SQL("INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s)").format(
+            fullTableName=self._fullTableName,
             fields=sql.SQL(",").join(
                 [sql.Identifier(COUNTRIES_NAME), sql.Identifier(COUNTRIES_PHONE_PREFIX)]
             ),
@@ -205,7 +207,7 @@ class RegionsTable(BaseTable):
         """
 
         # Initialize Base Table Class
-        super().__init__(REGIONS_TABLE_NAME, REGIONS_ID, remoteCursor)
+        super().__init__(REGIONS_TABLE_NAME, REGIONS_ID, remoteCursor, LOCATIONS_SCHEME_NAME)
 
     def __print(self) -> int:
         """
@@ -219,7 +221,7 @@ class RegionsTable(BaseTable):
         nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("Region", nRows)
+        table = getTable("Regions", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -257,8 +259,8 @@ class RegionsTable(BaseTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
-            tableName=sql.Identifier(self._tableName),
+        return sql.SQL("INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s)").format(
+            fullTableName=self._fullTableName,
             fields=sql.SQL(",").join(
                 [sql.Identifier(REGIONS_FK_COUNTRY), sql.Identifier(REGIONS_NAME)]
             ),
@@ -433,7 +435,7 @@ class CitiesTable(BaseTable):
         """
 
         # Initialize Base Table Class
-        super().__init__(CITIES_TABLE_NAME, CITIES_ID, remoteCursor)
+        super().__init__(CITIES_TABLE_NAME, CITIES_ID, remoteCursor, LOCATIONS_SCHEME_NAME)
 
     def __print(self) -> int:
         """
@@ -447,7 +449,7 @@ class CitiesTable(BaseTable):
         nRows = len(self._items)
 
         # Initialize Rich Table
-        table = getTable("City", nRows)
+        table = getTable("Cities", nRows)
 
         # Add Table Columns
         table.add_column("ID", justify="left", max_width=ID_NCHAR)
@@ -474,8 +476,8 @@ class CitiesTable(BaseTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {tableName} ({fields}) VALUES (%s, %s)").format(
-            tableName=sql.Identifier(self._tableName),
+        return sql.SQL("INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s)").format(
+            fullTableName=self._fullTableName,
             fields=sql.SQL(",").join(
                 [sql.Identifier(CITIES_FK_REGION), sql.Identifier(CITIES_NAME)]
             ),
@@ -569,7 +571,9 @@ class CitiesTable(BaseTable):
         """
 
         # Get City from its Remote Table
-        if not self.getMult([CITIES_FK_REGION, CITIES_NAME], [regionId, cityName], False):
+        if not self.getMult(
+            [CITIES_FK_REGION, CITIES_NAME], [regionId, cityName], False
+        ):
             return None
 
         # Get City Object from Fetched Item

@@ -1,0 +1,41 @@
+# Matplotlib Graph File Names
+RUSHWGRAPH_CIRCULAR_FILENAME = "rushcargo-warehouse-conns-circular.png"
+RUSHWGRAPH_KAMADA_FILENAME = "rushcargo-warehouse-conns-kamada.png"
+RUSHWGRAPH_RANDOM_FILENAME = "rushcargo-warehouse-conns-random.png"
+RUSHWGRAPH_SHELL_FILENAME = "rushcargo-warehouse-conns-shell.png"
+RUSHWGRAPH_SPECTRAL_FILENAME = "rushcargo-warehouse-conns-spectral.png"
+RUSHWGRAPH_SPRING_FILENAME = "rushcargo-warehouse-conns-spring.png"
+RUSWGRAPH_TITLE = "Warehouses Graph"
+RUSHWGRAPH_DPI = 1000
+RUSHWGRAPH_ORIENTATION = "landscape"
+
+# Spring Layout Values
+SPRING_DISTANCE = 50
+SPRING_ITERATIONS = 200
+
+# Matplotlib Graph Configurations
+GRAPH_WITH_LABELS = True
+GRAPH_WITH_ARROWS = False
+GRAPH_NODE_SHAPE = "o"
+GRAPH_FONT_SIZE = 3
+GRAPH_FONT_COLOR = "whitesmoke"
+GRAPH_FONT_WEIGHT = "bold"
+
+# ... for Warehouse-related Nodes
+GRAPH_WAREHOUSE_NODE_EDGE_COLOR = "#212529"
+GRAPH_REGION_MAIN_WAREHOUSE_NODE_COLOR = "#7048e8"
+GRAPH_REGION_MAIN_WAREHOUSE_NODE_SIZE = 90
+GRAPH_CITY_MAIN_WAREHOUSE_NODE_COLOR = "#d6336c"
+GRAPH_CITY_MAIN_WAREHOUSE_NODE_SIZE = 75
+GRAPH_CITY_WAREHOUSE_NODE_COLOR = "#38d9a9"
+GRAPH_CITY_WAREHOUSE_NODE_SIZE = 60
+
+# ... for Warehouse-related Edges
+GRAPH_WAREHOUSE_EDGE_COLOR = "#343a40"
+GRAPH_REGION_MAIN_WAREHOUSE_WIDTH = 0.5
+GRAPH_CITY_MAIN_WAREHOUSE_WIDTH = 0.25
+
+# Graph Node Types
+GRAPH_REGION_MAIN_WAREHOUSE_NODE = "region-main"
+GRAPH_CITY_MAIN_WAREHOUSE_NODE = "city-main"
+GRAPH_CITY_WAREHOUSE_NODE = "city"

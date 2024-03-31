@@ -8,6 +8,7 @@ use sqlx::{
     Decode,
     Type,
 };
+use std::str::FromStr;
 use time::{PrimitiveDateTime, Time, Date};
 use rust_decimal::Decimal;
 use anyhow::{Result, Error, anyhow};
@@ -58,14 +59,14 @@ impl Package {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ShippingGuideType {
     LockerLocker,
     LockerBranch,
     LockerDelivery,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShippingGuide {
     shipping_num: i64,
     pub package_count: i64,
@@ -139,6 +140,53 @@ impl<'r> FromRow<'r, PgRow> for ShippingGuide {
 impl ShippingGuide {
     pub fn get_id(&self) -> i64 {
         self.shipping_num
+    }
+}
+
+#[derive(Debug)]
+pub enum PayType {
+    Cash,
+    Card,
+    Online,
+}
+
+impl FromStr for PayType {
+    type Err = std::fmt::Error;
+
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        match s {
+            "Cash" => Ok(PayType::Cash),
+            "Card" => Ok(PayType::Card),
+            "Online" => Ok(PayType::Online),
+            _ => Err(std::fmt::Error),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Payment {
+    id: i64,
+    pub client: String,
+    pub transaction_id: String,
+    pub platform: String,
+    pub pay_type: PayType,
+    pub pay_date: Date,
+    pub pay_hour: Time,
+    pub amount: Decimal,
+}
+
+impl<'r> FromRow<'r, PgRow> for Payment {
+    fn from_row(row: &'r PgRow) -> std::prelude::v1::Result<Self, sqlx::Error> {
+        Ok(Payment {
+            id: row.try_get("id")?,
+            client: row.try_get("client")?,
+            transaction_id: row.try_get("reference")?,
+            platform: row.try_get("platform")?,
+            pay_type: PayType::from_str(row.try_get::<&str, _>("pay_type")?).expect("could not parse PayType from str"),
+            pay_date: row.try_get("pay_date")?,
+            pay_hour: row.try_get("pay_hour")?,
+            amount: row.try_get("amount")?,
+        })
     }
 }
 

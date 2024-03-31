@@ -77,7 +77,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             sender.send(Event::SelectTableItem(TableType::LockerPackages))
                         }
                         KeyCode::Enter => {
-                            if let Some(_) = app_lock.get_client_packages_ref().selected_packages {
+                            if let Some(_) = app_lock.get_packages_ref().selected_packages {
                                 sender.send(Event::EnterPopup(Some(Popup::ClientOrderMain)))
                             } else { Ok(()) }
                         }

@@ -33,6 +33,7 @@ impl HelpText {
             pkgadmin: PkgAdminHelpText {
                 main: "(Tab) select action | (Esc) back",
                 guides: "(Enter) view info | (a) Place guide order | (b) Reject guide | (Esc) back",
+                guide_info: "(⬆) move up | (⬇) move down | (Esc) back",
             },
             common: CommonHelpText {
                 yay: ":D",
@@ -69,6 +70,7 @@ pub struct ClientHelpText {
 pub struct PkgAdminHelpText {
     pub main: &'static str,
     pub guides: &'static str,
+    pub guide_info: &'static str,
 }
 
 pub struct CommonHelpText {

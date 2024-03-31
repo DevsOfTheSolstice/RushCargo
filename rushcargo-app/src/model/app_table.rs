@@ -12,6 +12,7 @@ pub enum TableType {
     Lockers,
     LockerPackages,
     Guides,
+    GuidePackages,
 }
 
 pub struct TableData {
@@ -47,10 +48,10 @@ impl App {
                 };
                 self.table.state.select(Some(i));
             }
-            TableType::LockerPackages => {
+            TableType::LockerPackages | TableType::GuidePackages => {
                 let i = match self.table.state.selected() {
                     Some(i) => {
-                        if i >= self.get_client_packages_ref().viewing_packages.len() - 1 {
+                        if i >= self.get_packages_ref().viewing_packages.len() - 1 {
                             if let Ok(()) = self.get_packages_next(table_type, pool).await {
                                 0
                             } else {
@@ -64,7 +65,7 @@ impl App {
                 };
                 self.table.state.select(Some(i));
 
-                let packages = self.get_client_packages_mut();
+                let packages = self.get_packages_mut();
 
                 packages.active_package = Some(packages.viewing_packages[i].clone());
             }
@@ -124,7 +125,7 @@ impl App {
                 };
                 self.table.state.select(Some(i));
 
-                let packages = self.get_client_packages_mut();
+                let packages = self.get_packages_mut();
 
                 packages.active_package = Some(packages.viewing_packages[i].clone());
             }
@@ -145,6 +146,7 @@ impl App {
                 };
                 self.table.state.select(Some(i));
             }
+            _ => todo!()
         }
     }
     pub async fn get_packages_next(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
@@ -166,7 +168,31 @@ impl App {
                         let query: Query<'_, Postgres, _> =
                             sqlx::query(base_query)
                             .bind(client.active_locker.as_ref().unwrap().get_id())
-                            .bind(self.get_client_packages_ref().viewing_packages_idx);
+                            .bind(self.get_packages_ref().viewing_packages_idx);
+
+                        query
+                    }
+                    _ => panic!()
+                }
+            }
+            TableType::GuidePackages => {
+                match self.active_screen {
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                        let guide = self.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap();
+                        let base_query =
+                            "
+                                SELECT * FROM packages
+                                INNER JOIN package_descriptions AS descriptions
+                                ON packages.tracking_number=descriptions.tracking_number
+                                WHERE shipping_number=$1
+                                LIMIT 7
+                                OFFSET $2
+                            ";
+
+                        let query: Query<'_, Postgres, _> =
+                            sqlx::query(base_query)
+                            .bind(guide.get_id())
+                            .bind(self.get_packages_ref().viewing_packages_idx);
 
                         query
                     }
@@ -185,10 +211,7 @@ impl App {
 
         let rows_num = rows.len();
 
-        let packages = match self.user {
-            Some(User::Client(_)) => self.get_client_packages_mut(),
-            _ => panic!()
-        };
+        let packages = self.get_packages_mut();
 
         packages.viewing_packages =
             rows
@@ -219,7 +242,7 @@ impl App {
                         let query: Query<'_, Postgres, _> =
                             sqlx::query(base_query)
                             .bind(client.active_locker.as_ref().unwrap().get_id())
-                            .bind(self.get_client_packages_ref().viewing_packages_idx);
+                            .bind(self.get_packages_ref().viewing_packages_idx);
 
                         query
                     }
@@ -236,10 +259,7 @@ impl App {
 
         if rows.is_empty() { return Err(anyhow!("")) }
 
-        let packages = match self.user {
-            Some(User::Client(_)) => self.get_client_packages_mut(),
-            _ => panic!()
-        };
+        let packages = self.get_packages_mut();
 
         packages.viewing_packages_idx -= packages.viewing_packages.len() as i64;
 

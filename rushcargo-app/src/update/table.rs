@@ -1,22 +1,22 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::PgPool;
+use sqlx::{PgPool, Row, FromRow};
 use ratatui::widgets::ListItem;
 use ratatui::prelude::Style;
 use std::io::Write;
 use std::fs::File;
 use anyhow::Result;
 use crate::{
-    HELP_TEXT,
-    BIN_PATH,
-    event::{Event, InputBlacklist},
-    model::{
+    event::{Event, InputBlacklist}, model::{
         app::App,
         app_list::ListType,
+        db_obj::Payment,
         app_table::TableType,
-        common::{User, SubScreen, Screen},
-    }
+        common::{Screen, SubScreen, User}, pkgadmin,
+    },
+    BIN_PATH,
+    HELP_TEXT
 };
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
@@ -47,7 +47,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     }
                 }
                 TableType::LockerPackages => {
-                    let packages = app_lock.get_client_packages_mut();
+                    let packages = app_lock.get_packages_mut();
                     if let Some(active_package) = &packages.active_package {
                         match &mut packages.selected_packages {
                             Some(selected_packages) => {
@@ -66,7 +66,31 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         }
                     }
                 }
-                _ => todo!("select table item on guides table")
+                TableType::Guides => {
+                    if let Some(selection) = app_lock.table.state.selected().clone() {
+                        let guides = app_lock.get_pkgadmin_guides_mut();
+                        guides.active_guide = Some(guides.viewing_guides[selection].clone());
+
+                        let active_guide = guides.active_guide.as_ref().unwrap();
+
+                        let pay_id =
+                            sqlx::query("SELECT * FROM guide_payments WHERE shipping_number=$1")
+                                .bind(active_guide.get_id())
+                                .fetch_one(pool)
+                                .await?
+                                .try_get::<i64, _>("pay_id")?;
+                        
+                        guides.active_guide_payment = Some(Payment::from_row(
+                            &sqlx::query("SELECT * FROM payments WHERE id=$1")
+                                .bind(pay_id)
+                                .fetch_one(pool)
+                                .await?
+                        ).unwrap());
+
+                        app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo), pool).await;
+                    }
+                }
+                _ => {}
             }
             Ok(())
         }

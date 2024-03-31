@@ -6,7 +6,7 @@ use super::{
     db_obj::{Branch, Country, Locker, Warehouse},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     pub username: String,
     pub first_name: String,

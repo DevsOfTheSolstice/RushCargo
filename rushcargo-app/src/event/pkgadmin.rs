@@ -54,6 +54,9 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 KeyCode::Up | KeyCode::Char('k') => {
                     sender.send(Event::PrevTableItem(TableType::Guides))
                 }
+                KeyCode::Enter => {
+                    sender.send(Event::SelectTableItem(TableType::Guides))
+                }
                 _ => Ok(())
             }
         }
@@ -61,6 +64,14 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
             match key_event.code {
                 KeyCode::Esc => {
                     sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminMain)))
+                }
+                _ => Ok(())
+            }
+        }
+        SubScreen::PkgAdminGuideInfo => {
+            match key_event.code {
+                KeyCode::Esc => {
+                    sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminGuides)))
                 }
                 _ => Ok(())
             }

@@ -124,6 +124,115 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
             f.render_stateful_widget(guides_table, guides_table_area, &mut app_lock.table.state);
         }
+        Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+            let help = Paragraph::new(HELP_TEXT.pkgadmin.guide_info).block(help_block);
+            f.render_widget(help, chunks[2]);
+
+            let guide_info_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Length(22),
+                    Constraint::Length(35),
+                    Constraint::Min(1),
+                ])
+                .split(chunks[1]);
+            
+            let clients_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(50),
+                    Constraint::Percentage(50),
+                ]).split(guide_info_chunks[0]);
+            
+            let clients_block = Block::default().borders(Borders::ALL).border_type(BorderType::Plain);
+
+            let active_guide = app_lock.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
+
+            let sender = Paragraph::new(Text::from(vec![
+                Line::styled("Sender:", Style::default().fg(Color::Cyan)),
+                Line::raw(active_guide.sender.username.clone())
+            ]))
+            .centered()
+            .block(clients_block.clone());
+
+            let recipient = Paragraph::new(Text::from(vec![
+                Line::styled("Recipient:", Style::default().fg(Color::Cyan)),
+                Line::raw(active_guide.recipient.username.clone())
+            ]))
+            .centered()
+            .block(clients_block);
+
+            f.render_widget(sender, clients_chunks[0]);
+            f.render_widget(recipient, clients_chunks[1]);
+
+            let packages_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(2),
+                    Constraint::Length(2),
+                ])
+                .split(guide_info_chunks[1].inner(&Margin::new(1, 1)));
+            
+            let packages_area_block = Block::default().borders(Borders::ALL).border_type(BorderType::Plain);
+
+            f.render_widget(packages_area_block, guide_info_chunks[1]);
+
+            let header =
+                Row::new(vec!["#", "Content"])
+                .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
+
+            let widths = [
+                Constraint::Length(3),
+                Constraint::Length(20),
+            ];
+            
+            let packages = pkgadmin.packages.as_ref().unwrap();
+
+            let rows: Vec<Row> =
+                packages.viewing_packages
+                .iter()
+                .enumerate()
+                .map(|(i, package)| {
+                    Row::new(vec![
+                        Text::from((packages.viewing_packages_idx + 1 - (packages.viewing_packages.len() - i) as i64).to_string()),
+                        Text::from(wrap_text(20, package.content.clone())),
+                    ])
+                    .height(2)
+                })
+                .collect();
+
+            let packages_table = Table::new(rows, widths)
+                .column_spacing(3)
+                .header(header.bottom_margin(1))
+                .highlight_style(Style::default().fg(Color::LightYellow).add_modifier(Modifier::REVERSED))
+                .highlight_symbol(vec![Line::raw(" █ "), Line::raw(" █ ")])
+                .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
+
+            f.render_stateful_widget(packages_table, packages_chunks[0], &mut app_lock.table.state);
+            
+            let guides = app_lock.get_pkgadmin_guides_ref();
+            let active_guide = guides.active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
+            
+            let payment = guides.active_guide_payment.as_ref().unwrap();
+
+            let payment_info = Paragraph::new(Text::from(vec![
+                Line::from(vec![
+                    Span::styled("Bank type: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(payment.platform.clone())
+                ]),
+                Line::from(vec![
+                    Span::styled("Amount: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(payment.amount.to_string())
+                ]),
+            ]));
+
+            f.render_widget(payment_info, packages_chunks[1]);
+
+            /*f.render_widget(&test_block, clients_chunks[0]);
+            f.render_widget(&test_block, clients_chunks[1]);
+            f.render_widget(&test_block, guide_info_chunks[1]);
+            f.render_widget(&test_block, guide_info_chunks[2]);*/
+        }
         _ => {} 
     }
 

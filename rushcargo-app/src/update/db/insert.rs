@@ -10,7 +10,7 @@ use crate::{
     model::{
         app::App,
         client::Client,
-        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
+        common::{GetDBErr, Bank, PaymentData, InputMode, Popup, Screen, SubScreen, User},
         db_obj::{Branch, Locker},
     },
 };
@@ -114,7 +114,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 .execute(pool)
                 .await?;
 
-                let package_data = app_lock.get_client_packages_mut();
+                let package_data = app_lock.get_packages_mut();
                 let selected_packages = package_data.selected_packages.as_ref().unwrap();
 
                 for package in selected_packages.iter() {

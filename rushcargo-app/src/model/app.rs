@@ -94,14 +94,7 @@ impl App {
                 client.get_lockers_next(pool).await.expect("could not get initial lockers");
             }
             Screen::Client(SubScreen::ClientLockerPackages) => {
-                self.get_client_mut().packages = Some(
-                    PackageData {
-                        viewing_packages: Vec::new(),
-                        viewing_packages_idx: 0,
-                        selected_packages: None,
-                        active_package: None,
-                    }
-                );
+                self.get_client_mut().packages = Some(PackageData::default());
                 self.get_packages_next(TableType::LockerPackages, pool)
                     .await
                     .unwrap_or_else(|_| self.get_client_mut().packages = Some(PackageData::default()));
@@ -115,11 +108,19 @@ impl App {
                         viewing_guides: Vec::new(),
                         viewing_guides_idx: 0,
                         active_guide: None,
+                        active_guide_payment: None,
                     }
                 );
                 self.get_guides_next(TableType::Guides, pool)
                     .await
                     .unwrap_or_else(|_| self.get_pkgadmin_mut().shipping_guides = Some(ShippingGuideData::default()));
+            }
+            Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                self.get_pkgadmin_mut().packages = Some(PackageData::default());
+                self.get_packages_next(TableType::GuidePackages, pool)
+                    .await
+                    .unwrap_or_else(|_| panic!("the shipping guide had no packages in it"));
+                self.get_active_guide_payment()
             }
             _ => {}
         }
@@ -159,7 +160,6 @@ impl App {
             }
             Some(Screen::PkgAdmin(SubScreen::PkgAdminGuides)) => {
                 self.table.state.select(None);
-                self.get_pkgadmin_mut().shipping_guides = None;
             }
             _ => {}
         }
@@ -293,22 +293,6 @@ impl App {
             }
         ).unwrap()
     }
-    pub fn get_client_packages_ref(&self) -> &PackageData {
-        self.user.as_ref().map(|u|
-            match u {
-                User::Client(client) => client.packages.as_ref().unwrap(),
-                _ => panic!(),
-            }
-        ).unwrap()
-    }
-    pub fn get_client_packages_mut(&mut self) -> &mut PackageData {
-        self.user.as_mut().map(|u|
-            match u {
-                User::Client(client) => client.packages.as_mut().unwrap(),
-                _ => panic!(),
-            }
-        ).unwrap()
-    }
     pub fn get_pkgadmin_ref(&self) -> &PkgAdminData {
         self.user.as_ref().map(|u|
             match u {
@@ -337,6 +321,24 @@ impl App {
         self.user.as_mut().map(|u|
             match u {
                 User::PkgAdmin(pkgadmin) => pkgadmin.shipping_guides.as_mut().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_packages_ref(&self) -> &PackageData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Client(client_data) => client_data.packages.as_ref().unwrap(),
+                User::PkgAdmin(pkgadmin_data) => pkgadmin_data.packages.as_ref().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_packages_mut(&mut self) -> &mut PackageData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Client(client_data) => client_data.packages.as_mut().unwrap(),
+                User::PkgAdmin(pkgadmin_data) => pkgadmin_data.packages.as_mut().unwrap(),
                 _ => panic!(),
             }
         ).unwrap()

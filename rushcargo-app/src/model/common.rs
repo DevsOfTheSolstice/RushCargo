@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use super::{
     client::ClientData,
     pkgadmin::PkgAdminData,
-    db_obj::{Package, ShippingGuide, Locker},
+    db_obj::{Package, ShippingGuide, Locker, Payment},
 };
 
 #[derive(Debug, Clone)]
@@ -25,6 +25,7 @@ pub enum SubScreen {
 
     PkgAdminMain,
     PkgAdminGuides,
+    PkgAdminGuideInfo,
     PkgAdminAddPackage,
 }
 
@@ -109,6 +110,7 @@ pub struct ShippingGuideData {
     pub viewing_guides: Vec<ShippingGuide>,
     pub viewing_guides_idx: i64,
     pub active_guide: Option<ShippingGuide>,
+    pub active_guide_payment: Option<Payment>,
 }
 
 impl std::default::Default for ShippingGuideData {
@@ -117,6 +119,7 @@ impl std::default::Default for ShippingGuideData {
             viewing_guides: Vec::new(),
             viewing_guides_idx: 0,
             active_guide: None,
+            active_guide_payment: None,
         }
     }
 }

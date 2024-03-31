@@ -19,6 +19,7 @@ CONNECTIONS_SCHEME_NAME = "connections"
 
 # Connections Scheme Tables Name
 WAREHOUSES_CONN_TABLE_NAME = "warehouse_connections"
+WAREHOUSES_CONN = "warehouse_conns"
 
 # Connections Scheme Views Name
 WAREHOUSES_VIEW_NAME = "warehouses"

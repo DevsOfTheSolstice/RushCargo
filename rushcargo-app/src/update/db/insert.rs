@@ -45,13 +45,13 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
             };
         
         let next_shipping_id =
-            sqlx::query("SELECT MAX(shipping_number) FROM shipping_guide")
+            sqlx::query("SELECT MAX(shipping_number) FROM shipping_guides")
                 .fetch_one(pool)
                 .await?
                 .try_get::<i64,_ >("max").unwrap_or(-1) + 1;
 
         let next_payment_id =
-            sqlx::query("SELECT MAX(id) FROM payment")
+            sqlx::query("SELECT MAX(id) FROM payments")
                 .fetch_one(pool)
                 .await?
                 .try_get::<i64, _>("max").unwrap_or(-1) + 1;
@@ -68,8 +68,8 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 sqlx::query(
                     "
-                        INSERT INTO shipping_guide
-                        (shipping_number, client_user_from, client_user_to, locker_sender, locker_receiver, branch_receiver, delivery_included)
+                        INSERT INTO shipping_guides
+                        (shipping_number, client_from, client_to, locker_from, locker_to, branch_to, delivery_included)
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
                     "
                 )
@@ -87,7 +87,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 sqlx::query(
                     "
-                        INSERT INTO payment
+                        INSERT INTO payments
                         (id, client, reference, platform, pay_type, pay_date, pay_hour, amount)
                         VALUES ($1, $2, $3, $4, 'Online payment', $5, $6, $7)
                     "
@@ -105,13 +105,12 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 sqlx::query(
                     "
                         INSERT INTO guide_payments
-                        (pay_id, shipping_number, amount_paid)
-                        VALUES ($1, $2, $3)
+                        (pay_id, shipping_number)
+                        VALUES ($1, $2)
                     "
                 )
                 .bind(next_payment_id)
                 .bind(next_shipping_id)
-                .bind(payment_data.amount)
                 .execute(pool)
                 .await?;
 
@@ -119,7 +118,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 let selected_packages = package_data.selected_packages.as_ref().unwrap();
 
                 for package in selected_packages.iter() {
-                    sqlx::query("UPDATE package SET locker_id=NULL, shipping_number=$1 WHERE tracking_number=$2")
+                    sqlx::query("UPDATE packages SET locker_id=NULL, holder=NULL, delivered=false, shipping_number=$1 WHERE tracking_number=$2")
                         .bind(next_shipping_id)
                         .bind(package.get_id())
                         .execute(pool)

@@ -50,7 +50,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             app_lock.user =
                                 match i {
                                     0 => {
-                                        let first_name = res.try_get("client_name")?;
+                                        let first_name = res.try_get("first_name")?;
                                         let last_name = res.try_get("last_name")?;
                                         Some(User::Client(
                                             ClientData {
@@ -95,7 +95,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 let password_hash: String = res.try_get("user_password")?;
 
                 if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
-                    let admin_type: &str = res.try_get("type")?;
+                    let admin_type: &str = res.try_get("user_type")?;
                     let mut app_lock = app.lock().unwrap();
                     app_lock.user =
                         match admin_type { 

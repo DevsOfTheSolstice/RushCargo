@@ -93,6 +93,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
             let subscreen = 
                 match &app_lock.active_screen {
+                    Screen::Client(sub) => Some(sub),
                     Screen::PkgAdmin(sub) => Some(sub),
                     _ => None
                 };

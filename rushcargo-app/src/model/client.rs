@@ -33,13 +33,13 @@ impl ClientData {
     pub async fn get_lockers_next(&mut self, pool: &PgPool) -> Result<()>{
         let query =
         "
-            SELECT locker.*, country.*, warehouse.*,
-            COUNT(package.tracking_number) AS package_count FROM locker
-            LEFT JOIN package ON locker.locker_id=package.locker_id
-            INNER JOIN country ON locker.country_id=country.country_id
-            INNER JOIN warehouse ON locker.warehouse_id=warehouse.warehouse_id
+            SELECT lockers.*, countries.*, warehouses.*,
+            COUNT(packages.tracking_number) AS package_count FROM lockers
+            LEFT JOIN packages ON lockers.locker_id=packages.locker_id
+            INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
+            INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
             WHERE client=$1
-            GROUP BY locker.locker_id, country.country_id, warehouse.warehouse_id
+            GROUP BY lockers.locker_id, countries.country_id, warehouses.warehouse_id
             ORDER BY package_count DESC
             LIMIT 7
             OFFSET $2
@@ -70,13 +70,13 @@ impl ClientData {
     pub async fn get_lockers_prev(&mut self, pool: &PgPool) -> Result<()> {
         let query =
         "
-            SELECT locker.*, country.*, warehouse.*,
-            COUNT(package.tracking_number) AS package_count FROM locker
-            LEFT JOIN package ON locker.locker_id=package.locker_id
-            INNER JOIN country ON locker.country_id=country.country_id
-            INNER JOIN warehouse ON locker.warehouse_id=warehouse.warehouse_id
+            SELECT lockers.*, countries.*, warehouses.*,
+            COUNT(packages.tracking_number) AS package_count FROM lockers
+            LEFT JOIN packages ON lockers.locker_id=packages.locker_id
+            INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
+            INNER JOIN locations.warehouses AS warehouses ON locker.warehouse=warehouses.warehouse_id
             WHERE client=$1
-            GROUP BY locker.locker_id, country.country_id, warehouse.warehouse_id
+            GROUP BY lockers.locker_id, countries.country_id, warehouses.warehouse_id
             ORDER BY package_count DESC
             LIMIT 7
             OFFSET $2 - 7 * 2

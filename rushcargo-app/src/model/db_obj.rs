@@ -17,7 +17,7 @@ use super::client::Client;
 pub struct Package {
     pub tracking_num: i64,
     pub admin_verification: String,
-    pub building_id: i64,
+    pub building_id: i32,
     pub shipping_num: Option<i64>,
     pub locker_id: Option<i64>,
     pub register_date: Date,
@@ -73,9 +73,9 @@ pub struct ShippingGuide {
     pub recipient: Client,
     pub delivery_included: bool,
     pub locker_sender: Option<i64>,
-    pub branch_sender: Option<i64>,
+    pub branch_sender: Option<i32>,
     pub locker_receiver: Option<i64>,
-    pub branch_receiver: Option<i64>,
+    pub branch_receiver: Option<i32>,
     pub shipping_type: ShippingGuideType, 
 }
 
@@ -96,11 +96,10 @@ impl std::fmt::Display for ShippingGuideType {
 
 impl<'r> FromRow<'r, PgRow> for ShippingGuide {
     fn from_row(row: &'r PgRow) -> std::prelude::v1::Result<Self, sqlx::Error> {
-        let locker_sender: Option<i64> = row.try_get("locker_sender")?;
-        let branch_sender: Option<i64> = row.try_get("branch_sender")?;
-        let locker_receiver: Option<i64> = row.try_get("locker_receiver")?;
-        let branch_receiver: Option<i64> = row.try_get("branch_receiver")?;
-
+        let locker_sender: Option<i64> = row.try_get("locker_from")?;
+        let branch_sender: Option<i32> = row.try_get("branch_from")?;
+        let locker_receiver: Option<i64> = row.try_get("locker_to")?;
+        let branch_receiver: Option<i32> = row.try_get("branch_to")?;
         let shipping_type =
             if let Some(_) = locker_sender {
                 if let Some(_) = locker_receiver {
@@ -119,12 +118,12 @@ impl<'r> FromRow<'r, PgRow> for ShippingGuide {
             package_count: row.try_get("package_count")?,
             sender: Client {
                 username: row.try_get("sender_username")?,
-                first_name: row.try_get("sender_client_name")?,
+                first_name: row.try_get("sender_first_name")?,
                 last_name: row.try_get("sender_last_name")?,
             },
             recipient: Client {
                 username: row.try_get("receiver_username")?,
-                first_name: row.try_get("receiver_client_name")?,
+                first_name: row.try_get("receiver_first_name")?,
                 last_name: row.try_get("receiver_last_name")?,
             },
             delivery_included: row.try_get("delivery_included")?,
@@ -145,8 +144,8 @@ impl ShippingGuide {
 
 #[derive(Debug)]
 pub struct Building {
-    id: i64,
-    pub city_id: i64,
+    id: i32,
+    pub city_id: i32,
     pub name: String,
     pub address_description: String,
     pub gps_latitude: Option<Decimal>,
@@ -171,7 +170,7 @@ impl<'r> FromRow<'r, PgRow> for Building {
 }
 
 impl Building {
-    pub fn get_id(&self) -> i64 {
+    pub fn get_id(&self) -> i32 {
         self.id
     }
 }
@@ -179,29 +178,29 @@ impl Building {
 #[derive(Debug)]
 pub struct Branch {
     id: Building,
-    pub warehouse_connection: Warehouse,
-    pub route_distance: Decimal,
+    pub warehouse: Warehouse,
+    pub route_distance: i64,
 }
 
 impl<'r> FromRow<'r, PgRow> for Branch {
     fn from_row(row: &'r PgRow) -> std::prelude::v1::Result<Self, sqlx::Error> {
         Ok(Branch {
             id: Building::from_row(row)?,
-            warehouse_connection: Warehouse::from_row(row)?,
-            route_distance: row.try_get("rute_distance")?,
+            warehouse: Warehouse::from_row(row)?,
+            route_distance: row.try_get("route_distance")?,
         })
     }
 }
 
 impl Branch {
-    pub fn get_id(&self) -> i64 {
+    pub fn get_id(&self) -> i32 {
         self.id.get_id()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Warehouse {
-    id: i64
+    id: i32
 }
 
 impl<'r> FromRow<'r, PgRow> for Warehouse {
@@ -214,9 +213,9 @@ impl<'r> FromRow<'r, PgRow> for Warehouse {
 
 #[derive(Debug, Clone)]
 pub struct Country {
-    id: i64,
+    id: i16,
     pub name: String,
-    pub phone_prefix: String,
+    pub phone_prefix: i16,
 }
 
 impl<'r> FromRow<'r, PgRow> for Country {

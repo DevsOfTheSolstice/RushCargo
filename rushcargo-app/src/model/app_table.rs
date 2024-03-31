@@ -155,9 +155,9 @@ impl App {
                         let client = self.get_client_ref();
                         let base_query =
                             "
-                                SELECT * FROM package
-                                INNER JOIN package_description AS description
-                                ON package.tracking_number=description.tracking_number
+                                SELECT * FROM packages
+                                INNER JOIN package_descriptions AS descriptions
+                                ON packages.tracking_number=descriptions.tracking_number
                                 WHERE delivered=true AND locker_id=$1
                                 LIMIT 7
                                 OFFSET $2
@@ -208,9 +208,9 @@ impl App {
                         let client = self.get_client_ref();
                         let base_query =
                             "
-                                SELECT * FROM package
-                                INNER JOIN package_description AS description
-                                ON package.tracking_number=description.tracking_number
+                                SELECT * FROM packages
+                                INNER JOIN package_descriptions AS descriptions
+                                ON packages.tracking_number=descriptions.tracking_number
                                 WHERE delivered=true AND locker_id=$1
                                 LIMIT 7
                                 OFFSET $2 - 7 * 2
@@ -258,16 +258,16 @@ impl App {
                     Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
                         let base_query =
                             "
-                                SELECT guide.*,
-                                sender.username AS sender_username, sender.client_name AS sender_client_name, sender.last_name AS sender_last_name,
-                                receiver.username AS receiver_username, receiver.client_name AS receiver_client_name, receiver.last_name AS receiver_last_name,
-                                COUNT(package.tracking_number) AS package_count
-                                FROM shipping_guide AS guide
-                                LEFT JOIN package ON guide.shipping_number=package.shipping_number
-                                INNER JOIN natural_client AS sender ON guide.client_user_from=sender.username
-                                INNER JOIN natural_client AS receiver ON guide.client_user_to=receiver.username
+                                SELECT guides.*,
+                                sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
+                                receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
+                                COUNT(packages.tracking_number) AS package_count
+                                FROM shipping_guides AS guides
+                                LEFT JOIN packages ON guides.shipping_number=packages.shipping_number
+                                INNER JOIN natural_clients AS sender ON guides.client_from=sender.username
+                                INNER JOIN natural_clients AS receiver ON guides.client_to=receiver.username
                                 WHERE shipping_date IS NULL AND shipping_hour IS NULL
-                                GROUP BY guide.shipping_number, sender.username, receiver.username
+                                GROUP BY guides.shipping_number, sender.username, receiver.username
                                 ORDER BY package_count DESC
                                 LIMIT 7
                                 OFFSET $1
@@ -316,16 +316,16 @@ impl App {
                     Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
                         let base_query =
                             "
-                                SELECT guide.*,
-                                sender.username AS sender_username, sender.client_name AS sender_client_name, sender.last_name AS sender_last_name,
-                                receiver.username AS receiver_username, receiver.client_name AS receiver_client_name, receiver.last_name AS receiver_last_name,
-                                COUNT(package.tracking_number) AS package_count
-                                LEFT JOIN package ON guide.shipping_number=package.shipping_number
-                                FROM shipping_guide AS guide
-                                INNER JOIN natural_client AS sender ON guide.client_user_from=sender.username
-                                INNER JOIN natural_client AS receiver ON guide.client_user_to=receiver.username
+                                SELECT guides.*,
+                                sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
+                                receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
+                                COUNT(packages.tracking_number) AS package_count
+                                LEFT JOIN packages ON guide.shipping_number=packages.shipping_number
+                                FROM shipping_guide AS guides
+                                INNER JOIN natural_clients AS sender ON guides.client_from=sender.username
+                                INNER JOIN natural_clients AS receiver ON guides.client_to=receiver.username
                                 WHERE shipping_date IS NULL AND shipping_hour IS NULL
-                                GROUP BY guide.shipping_number, sender.username, receiver.username
+                                GROUP BY guides.shipping_number, sender.username, receiver.username
                                 ORDER BY package_count DESC
                                 LIMIT 7
                                 OFFSET $1 - 7 * 2

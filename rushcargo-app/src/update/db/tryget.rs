@@ -23,7 +23,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let locker_id = locker_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
 
             if let Some(res) =
-                sqlx::query("SELECT * FROM locker WHERE locker_id=$1")
+                sqlx::query("SELECT * FROM lockers WHERE locker_id=$1")
                     .bind(locker_id)
                     .fetch_optional(pool)
                     .await?
@@ -37,7 +37,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 return Ok(())
                             }
 
-                            if sqlx::query("SELECT COUNT(*) AS package_count FROM package WHERE locker_id=$1")
+                            if sqlx::query("SELECT COUNT(*) AS package_count FROM packages WHERE locker_id=$1")
                                 .bind(locker_id)
                                 .fetch_one(pool)
                                 .await?
@@ -50,9 +50,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             let locker_packages_weight =
                                 sqlx::query(
                             "
-                                    SELECT SUM(package_weight) as weight_sum FROM package
-                                    INNER JOIN package_description AS description
-                                    ON package.tracking_number=description.tracking_number
+                                    SELECT SUM(package_weight) as weight_sum FROM packages
+                                    INNER JOIN package_descriptions AS descriptions
+                                    ON packages.tracking_number=descriptions.tracking_number
                                     WHERE locker_id=$1
                                 "
                                 )
@@ -76,13 +76,13 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             let locker_row =
                                 sqlx::query(
                                 "
-                                    SELECT locker.*, country.*, warehouse.*,
-                                    COUNT(package.tracking_number) AS package_count FROM locker
-                                    LEFT JOIN package ON locker.locker_id=package.locker_id
-                                    INNER JOIN country ON locker.country_id=country.country_id
-                                    INNER JOIN warehouse ON locker.warehouse_id=warehouse.warehouse_id
-                                    WHERE locker.locker_id=$1
-                                    GROUP BY locker.locker_id, country.country_id, warehouse.warehouse_id
+                                    SELECT lockers.*, countries.*, warehouses.*,
+                                    COUNT(packages.tracking_number) AS package_count FROM lockers
+                                    LEFT JOIN packages ON lockers.locker_id=packages.locker_id
+                                    INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
+                                    INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
+                                    WHERE lockers.locker_id=$1
+                                    GROUP BY lockers.locker_id, countries.country_id, warehouses.warehouse_id
                                     ORDER BY package_count DESC
                                 ")
                                 .bind(locker_id)
@@ -114,24 +114,24 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         Event::TryGetUserBranch(username, branch_id) => {
             if username.is_empty() || branch_id.is_empty() { return Ok(()); }
 
-            let branch_id = branch_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
+            let branch_id = branch_id.parse::<i32>().expect("could not parse locker_id in TryGetUserLocker event");
 
             if let Some(res) =
-                sqlx::query("SELECT * FROM natural_client WHERE username=$1")
+                sqlx::query("SELECT * FROM natural_clients WHERE username=$1")
                     .bind(&username)
                     .fetch_optional(pool)
                     .await?
             {
-                if branch_id == res.get::<i64, _>("affiliated_branch") {
+                if branch_id == res.get::<i32, _>("affiliated_branch") {
                     let mut app_lock = app.lock().unwrap();
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
                             let branch_res =
                                 sqlx::query(
                                     "
-                                        SELECT * FROM branch
-                                        INNER JOIN warehouse ON branch.warehouse_connection=warehouse.warehouse_id
-                                        INNER JOIN building ON branch.branch_id=building.building_id
+                                        SELECT * FROM locations.branches AS branches
+                                        INNER JOIN locations.warehouses AS warehouses ON branches.warehouse_id=warehouses.warehouse_id
+                                        INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
                                         WHERE branch_id=$1
                                     "
                                 )
@@ -176,10 +176,10 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let motorcyclists =
                 sqlx::query(
                     "
-                        SELECT * FROM natural_client
-                        INNER JOIN motorcyclist ON natural_client.affiliated_branch=motorcyclist.assigned_branch
-                        INNER JOIN vehicle ON motorcyclist.motorcycle=vehicle.vin_vehicle
-                        WHERE natural_client.username=$1
+                        SELECT * FROM natural_clients
+                        INNER JOIN motorcyclists ON natural_clients.affiliated_branch=motorcyclists.affiliated_branch
+                        INNER JOIN vehicles ON motorcyclists.motorcycle=vehicles.vin_vehicle
+                        WHERE natural_clients.username=$1
                     "
                 )
                 .bind(&username)

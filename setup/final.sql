@@ -242,9 +242,9 @@ CREATE TABLE Shipping_Guides (
     branch_to BIGINT,
     locker_to BIGINT,
     delivery_included BOOLEAN NOT NULL,
-    shipping_date DATE NOT NULL,
-    shipping_hour TIME NOT NULL,
-    shipping_type VARCHAR(20) NOT NULL,
+    shipping_date DATE,
+    shipping_hour TIME,
+    shipping_type VARCHAR(20),
     FOREIGN KEY (client_from) REFERENCES Clients(username),
     FOREIGN KEY (client_to) REFERENCES Clients(username),
     FOREIGN KEY (branch_from) REFERENCES locations.Branches(branch_id),
@@ -285,12 +285,12 @@ CREATE TABLE Package_Descriptions (
     package_height DECIMAL(7,2) NOT NULL
 );
 
---38
+--38:
 CREATE TABLE Packages (
     tracking_number BIGSERIAL PRIMARY KEY,
     admin_verification VARCHAR(255) NOT NULL,
-    holder VARCHAR(255) NOT NULL,
-    building_id BIGINT,
+    holder VARCHAR(255),
+    building_id INT,
     shipping_number BIGINT,
     locker_id BIGINT,
     register_date DATE NOT NULL,

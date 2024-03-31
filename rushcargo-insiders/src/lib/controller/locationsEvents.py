@@ -232,9 +232,7 @@ class LocationsEventHandler:
         try:
             # Check if the Country Name is Stored at the Remote Database
             if not self.__countriesTable.get(COUNTRIES_NAME, countryName, False):
-                raise RowNotFound(
-                    COUNTRIES_TABLE_NAME, COUNTRIES_NAME, countryName
-                )
+                raise RowNotFound(COUNTRIES_TABLE_NAME, COUNTRIES_NAME, countryName)
 
         except RowNotFound:
             # Clear Terminal
@@ -525,9 +523,7 @@ class LocationsEventHandler:
 
                 # Check if Country ID Exists
                 if country == None:
-                    raise RowNotFound(
-                        COUNTRIES_TABLE_NAME, COUNTRIES_ID, countryId
-                    )
+                    raise RowNotFound(COUNTRIES_TABLE_NAME, COUNTRIES_ID, countryId)
 
                 return countryId
 
@@ -581,9 +577,7 @@ class LocationsEventHandler:
                     raise RowNotFound(REGIONS_TABLE_NAME, REGIONS_ID, regionId)
 
                 elif region.countryId != countryId:
-                    raise InvalidLocation(
-                        region.name, COUNTRIES_TABLE_NAME, countryId
-                    )
+                    raise InvalidLocation(region.name, COUNTRIES_TABLE_NAME, countryId)
 
                 return regionId
 
@@ -705,9 +699,7 @@ class LocationsEventHandler:
 
                 # Check if Warehouse ID Exists
                 if warehouse == None:
-                    raise RowNotFound(
-                        WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, buildingId
-                    )
+                    raise RowNotFound(WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, buildingId)
 
                 elif warehouse.cityId != cityId:
                     raise InvalidLocation(
@@ -753,9 +745,7 @@ class LocationsEventHandler:
 
                 # Check if Branch ID Exists
                 if branch == None:
-                    raise RowNotFound(
-                        WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, buildingId
-                    )
+                    raise RowNotFound(WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, buildingId)
 
                 elif branch.cityId != cityId:
                     raise InvalidLocation(
@@ -1198,7 +1188,8 @@ class LocationsEventHandler:
 
         elif tableName == BRANCHES_TABLE_NAME:
             # Select Branch ID
-            branchId = self.getBranchId()
+            cityId = self.getCityId()
+            branchId = self.getBranchId(cityId)
 
             # Print Fetched Results
             if not self.__branchesTable.get(BRANCHES_ID, branchId):

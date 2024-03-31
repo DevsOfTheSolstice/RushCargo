@@ -360,19 +360,18 @@ class Branch(Building):
         :return: Branch Object
         :rtype: Self@Branch
         """
-        print(item)  # TO CHECK
 
         (
             _,  # Branch ID, Same as Building ID
-            warehouseConnection,
             routeDistance,
+            warehouseConnection,
             buildingId,
-            email,
-            phone,
+            buildingName,
             gpsLatitude,
             gpsLongitude,
             addressDescription,
-            buildingName,
+            email,
+            phone,
             cityId,
         ) = item
 

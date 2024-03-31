@@ -474,7 +474,7 @@ class BranchesTable(BuildingsTable):
 
         for item in self._items:
             # Intialize Branch from Fetched Item
-            b = Branch.fromItemFetched(item)
+            b = Branch.fromFetchedItem(item)
 
             # Add Row to Rich Table
             table.add_row(
@@ -502,7 +502,6 @@ class BranchesTable(BuildingsTable):
             "INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s, %s)"
         ).format(
             fullTableName=self._fullTableName,
-            tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [
                     sql.Identifier(self._tablePKFKName),
@@ -535,7 +534,7 @@ class BranchesTable(BuildingsTable):
         buildingName = fullBuildingName(self._tableName, buildingName)
 
         # Insert Building to its Remote Table
-        BuildingsTable._add(self, buildingName)
+        BuildingsTable._add(self, location, buildingName)
 
         # Get Building Object of the Recently Inserted Branch Building
         b = BuildingsTable._find(self, location[DICT_CITY_ID], buildingName)

@@ -12,6 +12,7 @@ use crate::{
     model::{
         help_text,
         common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User, GetDBErr},
+        db_obj::PayType,
         app::App,
         client::Client,
     },
@@ -169,7 +170,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Min(2),
-                    Constraint::Length(2),
+                    Constraint::Length(3),
                 ])
                 .split(guide_info_chunks[1].inner(&Margin::new(1, 1)));
             
@@ -215,23 +216,33 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             
             let payment = guides.active_guide_payment.as_ref().unwrap();
 
+            let payment_block = Block::default().borders(Borders::TOP);
+
             let payment_info = Paragraph::new(Text::from(vec![
+                Line::from(
+                    match payment.pay_type {
+                        PayType::Online => {
+                            vec![
+                                Span::styled(" ".to_string() + &payment.pay_type.to_string() + ": ", Style::default().fg(Color::Cyan)),
+                                Span::raw(payment.platform.clone())
+                            ]
+                        }
+                        PayType::Card | PayType::Cash => {
+                            vec![
+                                Span::styled(" ".to_string() + &payment.pay_type.to_string(), Style::default().fg(Color::Cyan))
+                            ]
+                        }
+                    }
+                ),
                 Line::from(vec![
-                    Span::styled("Bank type: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(payment.platform.clone())
+                    Span::styled(" -> Amount: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(payment.amount.to_string() + "$")
                 ]),
-                Line::from(vec![
-                    Span::styled("Amount: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(payment.amount.to_string())
-                ]),
-            ]));
+            ]))
+            .block(payment_block);
+
 
             f.render_widget(payment_info, packages_chunks[1]);
-
-            /*f.render_widget(&test_block, clients_chunks[0]);
-            f.render_widget(&test_block, clients_chunks[1]);
-            f.render_widget(&test_block, guide_info_chunks[1]);
-            f.render_widget(&test_block, guide_info_chunks[2]);*/
         }
         _ => {} 
     }

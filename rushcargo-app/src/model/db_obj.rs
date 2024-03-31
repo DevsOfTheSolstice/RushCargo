@@ -163,6 +163,18 @@ impl FromStr for PayType {
     }
 }
 
+impl std::fmt::Display for PayType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",
+            match self {
+                Self::Cash => "Cash",
+                Self::Card => "Card",
+                Self::Online => "Online",
+            }
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct Payment {
     id: i64,

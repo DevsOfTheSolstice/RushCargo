@@ -120,7 +120,6 @@ impl App {
                 self.get_packages_next(TableType::GuidePackages, pool)
                     .await
                     .unwrap_or_else(|_| panic!("the shipping guide had no packages in it"));
-                self.get_active_guide_payment()
             }
             _ => {}
         }

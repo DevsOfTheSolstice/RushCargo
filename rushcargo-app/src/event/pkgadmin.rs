@@ -73,6 +73,12 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 KeyCode::Esc => {
                     sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminGuides)))
                 }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    sender.send(Event::NextTableItem(TableType::GuidePackages))
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    sender.send(Event::PrevTableItem(TableType::GuidePackages))
+                }
                 _ => Ok(())
             }
         }

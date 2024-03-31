@@ -1,5 +1,15 @@
-CREATE SCHEMA Locations;
-CREATE SCHEMA Connections;
+--Schemas creation for the RushCargo database
+
+CREATE SCHEMA IF NOT EXISTS Locations;
+CREATE SCHEMA IF NOT EXISTS Connections;
+CREATE SCHEMA IF NOT EXISTS Users;
+CREATE SCHEMA IF NOT EXISTS Vehicles;
+CREATE SCHEMA IF NOT EXISTS Orders;
+CREATE SCHEMA IF NOT EXISTS Shippings;
+CREATE SCHEMA IF NOT EXISTS Companies;
+CREATE SCHEMA IF NOT EXISTS Payments;
+
+--Tables creation for the RushCargo database
 
 --1
 CREATE TABLE Locations.Countries (
@@ -68,7 +78,7 @@ CREATE TABLE Locations.Branches (
 );
 
 --8
-CREATE TABLE Legal_Identifications (
+CREATE TABLE Companies.Legal_Identifications (
     legal_id SERIAL PRIMARY KEY,
     document_description VARCHAR(255) NOT NULL,
     expedition_date DATE NOT NULL,
@@ -78,12 +88,12 @@ CREATE TABLE Legal_Identifications (
 );
 
 --9
-CREATE TABLE Allied_Companies (
+CREATE TABLE Companies.Allied_Companies (
     company_id SERIAL PRIMARY KEY,
     email VARCHAR(255),
     phone BIGINT,
     employer_id INT NOT NULL,
-    FOREIGN KEY (employer_id) REFERENCES Legal_Identifications(legal_id)
+    FOREIGN KEY (employer_id) REFERENCES Companies.Legal_Identifications(legal_id)
 );
 
 --10
@@ -94,20 +104,11 @@ CREATE TABLE Locations.Allied_Shipping_Offices (
     warehouse_id INT NOT NULL,
     FOREIGN KEY (office_id) REFERENCES Locations.Buildings(building_id),
     FOREIGN KEY (warehouse_id) REFERENCES Locations.Warehouses(warehouse_id),
-    FOREIGN KEY (company_id) REFERENCES Allied_Companies(company_id)
+    FOREIGN KEY (company_id) REFERENCES Companies.Allied_Companies(company_id)
 );
 
--- Modifications
-ALTER TABLE Locations.Regions
-ADD FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id);
-
-ALTER TABLE Locations.Cities
-ADD FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id);
-
----vvv PROTOTYPE vvv---
-
---7
-CREATE TABLE Vehicles (
+--11
+CREATE TABLE Vehicles.Vehicles (
     vin_vehicle VARCHAR(17) PRIMARY KEY,
     brand VARCHAR(255) NOT NULL,
     model VARCHAR(255) NOT NULL,
@@ -118,8 +119,8 @@ CREATE TABLE Vehicles (
     vehicle_type VARCHAR(255) NOT NULL
 );
 
---17
-CREATE TABLE Root_Users (
+--12
+CREATE TABLE Users.Root_Users (
     username VARCHAR(255) PRIMARY KEY,
     id_document INT NOT NULL,
     warehouse_id BIGSERIAL NOT NULL,
@@ -130,110 +131,110 @@ CREATE TABLE Root_Users (
     last_name VARCHAR(255) NOT NULL,
     -- should be 'PkgAdmin' or 'UsrAdmin'
     user_type VARCHAR(20) NOT NULL,
-    FOREIGN KEY (id_document) REFERENCES Legal_Identifications(legal_id),
+    FOREIGN KEY (id_document) REFERENCES Companies.Legal_Identifications(legal_id),
     FOREIGN KEY (warehouse_id) REFERENCES locations.Warehouses(warehouse_id)
 );
 
---21
-CREATE TABLE Users (
+--13
+CREATE TABLE Users.Users (
     username VARCHAR(255) PRIMARY KEY,
     admin_verification VARCHAR(255),
     admin_suspension VARCHAR(255),
     user_password VARCHAR(255) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     gps_address VARCHAR(255) NOT NULL,
-    FOREIGN KEY (admin_verification) REFERENCES Root_Users(username),
-    FOREIGN KEY (admin_suspension) REFERENCES Root_Users(username)
+    FOREIGN KEY (admin_verification) REFERENCES Users.Root_Users(username),
+    FOREIGN KEY (admin_suspension) REFERENCES Users.Root_Users(username)
 );
 
---22
-CREATE TABLE Drivers (
+--14
+CREATE TABLE Vehicles.Drivers (
     username VARCHAR(255) PRIMARY KEY,
     id_document INT NOT NULL,
     born_date DATE NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     salary DECIMAL(7,2) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Users(username),
-    FOREIGN KEY (id_document) REFERENCES Legal_Identifications(legal_id)
+    FOREIGN KEY (username) REFERENCES Users.Users(username),
+    FOREIGN KEY (id_document) REFERENCES Companies.Legal_Identifications(legal_id)
 );
 
---23
-CREATE TABLE Motorcyclists (
+--15
+CREATE TABLE Vehicles.Motorcyclists (
     username VARCHAR(255) PRIMARY KEY,
     motorcycle VARCHAR(17),
     affiliated_branch BIGINT NOT NULL,
-    FOREIGN KEY (username) REFERENCES Drivers(username),
-    FOREIGN KEY (motorcycle) REFERENCES Vehicles(vin_vehicle),
+    FOREIGN KEY (username) REFERENCES Vehicles.Drivers(username),
+    FOREIGN KEY (motorcycle) REFERENCES Vehicles.Vehicles(vin_vehicle),
     FOREIGN KEY (affiliated_branch) REFERENCES locations.Branches(branch_id)
 );
 
---24
-CREATE TABLE Truckers (
+--16
+CREATE TABLE Vehicles.Truckers (
     username VARCHAR(255) PRIMARY KEY,
     truck VARCHAR(17),
     affiliated_warehouse BIGINT NOT NULL,
-    FOREIGN KEY (username) REFERENCES Drivers(username),
-    FOREIGN KEY (truck) REFERENCES Vehicles(vin_vehicle),
+    FOREIGN KEY (username) REFERENCES Vehicles.Drivers(username),
+    FOREIGN KEY (truck) REFERENCES Vehicles.Vehicles(vin_vehicle),
     FOREIGN KEY (affiliated_warehouse) REFERENCES locations.Warehouses(warehouse_id)
 );
 
---25 
-CREATE TABLE Clients (
+--17 
+CREATE TABLE Users.Clients (
     username VARCHAR(255) PRIMARY KEY,
-    FOREIGN KEY (username) REFERENCES Users(username)
+    FOREIGN KEY (username) REFERENCES Users.Users(username)
 );
 
---26
-CREATE TABLE Client_Debts (
+--18
+CREATE TABLE Users.Client_Debts (
     username VARCHAR(255) PRIMARY KEY,
     debt DECIMAL(4,2) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Clients(username)
+    FOREIGN KEY (username) REFERENCES Users.Clients(username)
 );
 
---27
-CREATE TABLE Natural_Clients (
+--19
+CREATE TABLE Users.Natural_Clients (
     username VARCHAR(255) PRIMARY KEY,
     affiliated_branch INT NOT NULL,
     birthdate DATE NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     address_description VARCHAR (255) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Clients(username),
+    FOREIGN KEY (username) REFERENCES Users.Clients(username),
     FOREIGN KEY (affiliated_branch) REFERENCES locations.Branches(branch_id)
 );
 
---28
-CREATE TABLE Legal_Clients (
+--20
+CREATE TABLE Users.Legal_Clients (
     username VARCHAR(255) PRIMARY KEY,
     company_name VARCHAR(255) NOT NULL,
     company_type VARCHAR(255) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Clients(username)
+    FOREIGN KEY (username) REFERENCES Users.Clients(username)
 );
 
---8
-CREATE TABLE Legal_Client_Affiliations (
+--21
+CREATE TABLE Companies.Legal_Client_Affiliations (
     affiliation_id BIGSERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
     affiliated_branch BIGINT NOT NULL,
     gps_address VARCHAR(255) NOT NULL,
-    FOREIGN KEY (username) REFERENCES Legal_Clients(username),
+    FOREIGN KEY (username) REFERENCES Users.Legal_Clients(username),
     FOREIGN KEY (affiliated_branch) REFERENCES locations.Branches(branch_id)
 );
 
---37
-CREATE TABLE Lockers (
+--22
+CREATE TABLE Shippings.Lockers (
     locker_id BIGSERIAL PRIMARY KEY,
     client VARCHAR(255) NOT NULL,
     country BIGINT,
     warehouse BIGINT,
-    FOREIGN KEY (client) REFERENCES Clients(username),
+    FOREIGN KEY (client) REFERENCES Users.Clients(username),
     FOREIGN KEY (country) REFERENCES locations.Countries(country_id),
     FOREIGN KEY (warehouse) REFERENCES locations.Warehouses(warehouse_id)
 );
 
---29
-CREATE TABLE Shipping_Guides (
+--23
+CREATE TABLE Shippings.Shipping_Guides (
     shipping_number BIGSERIAL PRIMARY KEY,
     client_from VARCHAR(255) NOT NULL,
     client_to VARCHAR(255) NOT NULL,
@@ -245,16 +246,16 @@ CREATE TABLE Shipping_Guides (
     shipping_date DATE,
     shipping_hour TIME,
     shipping_type VARCHAR(20),
-    FOREIGN KEY (client_from) REFERENCES Clients(username),
-    FOREIGN KEY (client_to) REFERENCES Clients(username),
+    FOREIGN KEY (client_from) REFERENCES Users.Clients(username),
+    FOREIGN KEY (client_to) REFERENCES Users.Clients(username),
     FOREIGN KEY (branch_from) REFERENCES locations.Branches(branch_id),
-    FOREIGN KEY (locker_from) REFERENCES Lockers(locker_id),
+    FOREIGN KEY (locker_from) REFERENCES Shippings.Lockers(locker_id),
     FOREIGN KEY (branch_to) REFERENCES locations.Branches(branch_id),
-    FOREIGN KEY (locker_to) REFERENCES Lockers(locker_id)
+    FOREIGN KEY (locker_to) REFERENCES Shippings.Lockers(locker_id)
 );
 
---35
-CREATE TABLE Payments (
+--24
+CREATE TABLE Payments.Payments (
     id BIGSERIAL PRIMARY KEY,
     client VARCHAR(255) NOT NULL,
     reference VARCHAR(255) NOT NULL,
@@ -263,19 +264,19 @@ CREATE TABLE Payments (
     pay_date DATE NOT NULL,
     pay_hour TIME NOT NULL,
     amount DECIMAL(7,2) NOT NULL,
-    FOREIGN KEY (client) REFERENCES Clients(username)
+    FOREIGN KEY (client) REFERENCES Users.Clients(username)
 );
 
---36
-CREATE TABLE Guide_Payments (
+--25
+CREATE TABLE Payments.Guide_Payments (
     pay_id BIGSERIAL PRIMARY KEY,
     shipping_number BIGSERIAL,
-    FOREIGN KEY (pay_id) REFERENCES Payments(id),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number)
+    FOREIGN KEY (pay_id) REFERENCES Payments.Payments(id),
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number)
 );
 
-
-CREATE TABLE Package_Descriptions (
+--26
+CREATE TABLE Shippings.Package_Descriptions (
     tracking_number BIGSERIAL PRIMARY KEY,
     content VARCHAR(255) NOT NULL,
     package_value DECIMAL(10,2) NOT NULL,   
@@ -285,8 +286,8 @@ CREATE TABLE Package_Descriptions (
     package_height DECIMAL(7,2) NOT NULL
 );
 
---38:
-CREATE TABLE Packages (
+--27
+CREATE TABLE Shippings.Packages (
     tracking_number BIGSERIAL PRIMARY KEY,
     admin_verification VARCHAR(255) NOT NULL,
     holder VARCHAR(255),
@@ -296,87 +297,88 @@ CREATE TABLE Packages (
     register_date DATE NOT NULL,
     register_hour TIME NOT NULL,
     delivered BOOLEAN NOT NULL,
-    FOREIGN KEY (tracking_number) REFERENCES Package_Descriptions(tracking_number),
-    FOREIGN KEY (admin_verification) REFERENCES Root_Users(username),
-    FOREIGN KEY (holder) REFERENCES Users(username),
+    FOREIGN KEY (tracking_number) REFERENCES Shippings.Package_Descriptions(tracking_number),
+    FOREIGN KEY (admin_verification) REFERENCES Users.Root_Users(username),
+    FOREIGN KEY (holder) REFERENCES Users.Users(username),
     FOREIGN KEY (building_id) REFERENCES locations.Buildings(building_id),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number),
-    FOREIGN KEY (locker_id) REFERENCES Lockers(locker_id)
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),
+    FOREIGN KEY (locker_id) REFERENCES Shippings.Lockers(locker_id)
 );
 
---41 
-CREATE TABLE Orders (
+--28 
+CREATE TABLE Orders.Orders (
     order_number BIGSERIAL PRIMARY KEY,
     previous_order BIGINT,
     generated_date DATE NOT NULL,
     generated_hour TIME NOT NULL,
-    FOREIGN KEY (previous_order) REFERENCES Orders(order_number)
+    FOREIGN KEY (previous_order) REFERENCES Orders.Orders(order_number)
 );
 
---42
-CREATE TABLE Manual_Orders (
+--29
+CREATE TABLE Orders.Manual_Orders (
     order_number BIGSERIAL PRIMARY KEY,
     admin_verification VARCHAR(255) NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Orders(order_number),
-    FOREIGN KEY (admin_verification) REFERENCES Root_Users(username)
+    FOREIGN KEY (order_number) REFERENCES Orders.Orders(order_number),
+    FOREIGN KEY (admin_verification) REFERENCES Users.Root_Users(username)
 );
 
---43
-CREATE TABLE Automatic_Orders (
+--30
+CREATE TABLE Orders.Automatic_Orders (
     order_number BIGSERIAL PRIMARY KEY,
     admin_verification VARCHAR(255),
     completed_date DATE,
     completed_hour TIME,
-    FOREIGN KEY (order_number) REFERENCES Orders(order_number),
-    FOREIGN KEY (admin_verification) REFERENCES Root_Users(username)
+    FOREIGN KEY (order_number) REFERENCES Orders.Orders(order_number),
+    FOREIGN KEY (admin_verification) REFERENCES Users.Root_Users(username)
 );
 
---44
-CREATE TABLE Order_Pay_Confirmations (
+--31
+CREATE TABLE Orders.Order_Pay_Confirmations (
     order_number BIGINT PRIMARY KEY,
     pay_id BIGINT,
-    FOREIGN KEY (order_number) REFERENCES Manual_Orders(order_number),
-    FOREIGN KEY (pay_id) REFERENCES Payments(id)
+    FOREIGN KEY (order_number) REFERENCES Orders.Manual_Orders(order_number),
+    FOREIGN KEY (pay_id) REFERENCES Payments.Payments(id)
 );
 
---45
-CREATE TABLE Withdrawal_Order (
+--32
+CREATE TABLE Orders.Withdrawal_Order (
     order_number BIGINT PRIMARY KEY,
     client VARCHAR(255) NOT NULL,
     shipping_number BIGINT,
-    FOREIGN KEY (order_number) REFERENCES Manual_Orders(order_number),
-    FOREIGN KEY (client) REFERENCES Clients(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number)
+    FOREIGN KEY (order_number) REFERENCES Orders.Manual_Orders(order_number),
+    FOREIGN KEY (client) REFERENCES Users.Clients(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number)
 );
 
---46
-CREATE TABLE Delivery_Orders (
+--33
+CREATE TABLE Orders.Delivery_Orders (
     order_number BIGINT PRIMARY KEY,
     motorcyclist VARCHAR(255) NOT NULL,
     client VARCHAR(255) NOT NULL,
     shipping_number BIGINT,
-    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
-    FOREIGN KEY (motorcyclist) REFERENCES Motorcyclists(username),
-    FOREIGN KEY (client) REFERENCES Clients(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number)
+    rating DECIMAL(3, 2) CHECK (rating <= 5.0),
+    FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
+    FOREIGN KEY (motorcyclist) REFERENCES Vehicles.Motorcyclists(username),
+    FOREIGN KEY (client) REFERENCES Users.Clients(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number)
 );
 
---47
-CREATE TABLE Warehouse_Transfer_Orders (
+--34
+CREATE TABLE Orders.Warehouse_Transfer_Orders (
     order_number BIGINT PRIMARY KEY,
     trucker VARCHAR(255) NOT NULL,
     warehouse_from BIGINT,
     warehouse_to BIGINT,
     shipping_number BIGSERIAL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
-    FOREIGN KEY (trucker) REFERENCES Truckers(username),
+    FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
+    FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
     FOREIGN KEY (warehouse_from) REFERENCES locations.Warehouses(warehouse_id),
     FOREIGN KEY (warehouse_to) REFERENCES locations.Warehouses(warehouse_id),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number)
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number)
 );
 
---48
-CREATE TABLE Branch_Transfer_Order (
+--35
+CREATE TABLE Orders.Branch_Transfer_Order (
     order_number BIGINT PRIMARY KEY,
     trucker VARCHAR(255) NOT NULL,
     shipping_number BIGSERIAL,
@@ -384,15 +386,15 @@ CREATE TABLE Branch_Transfer_Order (
     branch BIGSERIAL,
     -- true if transfer is warehouse->branch, false if transfer is branch->warehouse
     withdrawal BOOLEAN NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
-    FOREIGN KEY (trucker) REFERENCES Truckers(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number),
+    FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
+    FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),
     FOREIGN KEY (warehouse) REFERENCES locations.Warehouses(warehouse_id),
     FOREIGN KEY (branch) REFERENCES locations.Branches(branch_id)
 );
 
---49
-CREATE TABLE Air_Cargo_Order (
+--36
+CREATE TABLE Orders.Air_Cargo_Order (
     order_number BIGINT PRIMARY KEY,
     trucker VARCHAR(255) NOT NULL,
     shipping_number BIGINT,
@@ -400,15 +402,15 @@ CREATE TABLE Air_Cargo_Order (
     air_freight_forwarder BIGINT,
     -- true if transfer is warehouse->forwarder, false if transfer is forwarder->warehouse
     withdrawal BOOLEAN NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
-    FOREIGN KEY (trucker) REFERENCES Truckers(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number),
+    FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
+    FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),
     FOREIGN KEY (warehouse) REFERENCES locations.Warehouses(warehouse_id),
     FOREIGN KEY (air_freight_forwarder) REFERENCES locations.Allied_Shipping_Offices(office_id)
 );
 
---50
-CREATE TABLE Ocean_Cargo_Order (
+--37
+CREATE TABLE Orders.Ocean_Cargo_Order (
     order_number BIGINT PRIMARY KEY,
     trucker VARCHAR(255) NOT NULL,
     shipping_number BIGINT,
@@ -416,9 +418,38 @@ CREATE TABLE Ocean_Cargo_Order (
     -- true if transfer is warehouse->forwarder, false if transfer is forwarder->warehouse
     ocean_freight_forwarder BIGINT,
     withdrawal BOOLEAN NOT NULL,
-    FOREIGN KEY (order_number) REFERENCES Automatic_Orders(order_number),
-    FOREIGN KEY (trucker) REFERENCES Truckers(username),
-    FOREIGN KEY (shipping_number) REFERENCES Shipping_Guides(shipping_number),
+    FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
+    FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
+    FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),
     FOREIGN KEY (warehouse) REFERENCES locations.Warehouses(warehouse_id),
     FOREIGN KEY (ocean_freight_forwarder) REFERENCES locations.Allied_Shipping_Offices(office_id)
 );
+
+--38
+CREATE TABLE Orders.Assigned_Delivery_Orders (
+    order_number BIGSERIAL PRIMARY KEY,
+    motorcyclist_username VARCHAR(255) NOT NULL,
+    legal_client_affiliation BIGSERIAL NOT NULL,
+    package BIGSERIAL NOT NULL,
+    delivery_gps_address VARCHAR(255) NOT NULL,
+    FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
+    FOREIGN KEY (motorcyclist_username) REFERENCES Vehicles.Motorcyclists(username),
+    FOREIGN KEY (legal_client_affiliation) REFERENCES Companies.Legal_Client_Affiliations(affiliation_id),
+    FOREIGN KEY (package) REFERENCES Shippings.Packages(tracking_number)
+);
+
+--39
+CREATE TABLE Orders.Assigned_Delivery (
+    motocyclist_user VARCHAR(255) PRIMARY KEY,
+    legal_client VARCHAR(255) NOT NULL,
+    Area VARCHAR(255),
+    FOREIGN KEY (motocyclist_user) REFERENCES Vehicles.Motorcyclists(username),
+    FOREIGN KEY (legal_client) REFERENCES Users.Legal_Clients(username)
+);
+
+-- Modifications
+ALTER TABLE Locations.Regions
+ADD FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id);
+
+ALTER TABLE Locations.Cities
+ADD FOREIGN KEY (main_warehouse) REFERENCES Locations.Warehouses(warehouse_id);

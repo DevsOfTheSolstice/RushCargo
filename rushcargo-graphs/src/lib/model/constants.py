@@ -27,7 +27,10 @@ RECEIVERS = "receivers"
 WAREHOUSES_SENDERS_VIEW_NAME = "warehouse_senders"
 SENDERS = "senders"
 REGIONS_MAIN_WAREHOUSES_VIEW_NAME = "region_main_warehouses"
+REGIONS_MAIN = "region_main"
 CITIES_MAIN_WAREHOUSES_VIEW_NAME = "city_main_warehouses"
+CITIES_MAIN = "city_main"
+CITIES = "city"
 
 # Warehouse Connections Table Columns
 WAREHOUSES_CONN_ID = "connection_id"

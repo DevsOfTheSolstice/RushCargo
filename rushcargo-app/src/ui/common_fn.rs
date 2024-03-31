@@ -3,6 +3,7 @@ use ratatui::{
     prelude::{Line, Frame},
     widgets::Clear,
 };
+use rust_decimal::Decimal;
 use anyhow::{Result, anyhow, Error};
 
 pub fn centered_rect(r: &Rect, width: u16, height: u16) -> Result<Rect> {
@@ -44,5 +45,13 @@ pub fn wrap_text(width: usize, text: String) -> Vec<Line<'static>> {
 pub fn clear_chunks(f: &mut Frame, chunks: &std::rc::Rc<[Rect]>) {
     for chunk in chunks.iter() {
         f.render_widget(Clear, *chunk);
+    }
+}
+
+pub fn dimensions_string(val: Decimal) -> String {
+    if val < Decimal::new(100, 0) {
+        String::from(format!("{}cm", val))
+    } else {
+        String::from(format!("{}m", val / Decimal::new(100, 2)))
     }
 }

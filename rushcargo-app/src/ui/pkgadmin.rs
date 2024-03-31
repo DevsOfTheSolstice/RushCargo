@@ -16,7 +16,7 @@ use crate::{
         app::App,
         client::Client,
     },
-    ui::common_fn::{centered_rect, wrap_text},
+    ui::common_fn::{centered_rect, wrap_text, dimensions_string},
     HELP_TEXT
 };
 
@@ -89,7 +89,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             let guides_table_area = chunks[1].inner(&Margin::new(6, 0));
 
             let header =
-                Row::new(vec!["#", "Sender", "Recipient", "Packages"])
+                Row::new(vec!["#", "Sender", "Type", "Packages"])
                 .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::REVERSED));
 
             let widths = [
@@ -109,8 +109,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                     Row::new(vec![(
                         guides.viewing_guides_idx + 1 - (guides.viewing_guides.len() - i) as i64).to_string(),
                         guide.sender.username.clone(),
-                        guide.recipient.username.clone(),
-                        guide.package_count.to_string()
+                        guide.shipping_type.to_string(),
+                        guide.package_count.to_string(),
                     ])
                 })
                 .collect();
@@ -150,6 +150,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             let active_guide = app_lock.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
 
             let sender = Paragraph::new(Text::from(vec![
+                Line::default(),
                 Line::styled("Sender:", Style::default().fg(Color::Cyan)),
                 Line::raw(active_guide.sender.username.clone())
             ]))
@@ -157,6 +158,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             .block(clients_block.clone());
 
             let recipient = Paragraph::new(Text::from(vec![
+                Line::default(),
                 Line::styled("Recipient:", Style::default().fg(Color::Cyan)),
                 Line::raw(active_guide.recipient.username.clone())
             ]))
@@ -212,40 +214,71 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             f.render_stateful_widget(packages_table, packages_chunks[0], &mut app_lock.table.state);
             
             let guides = app_lock.get_pkgadmin_guides_ref();
-            let active_guide = guides.active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
             
             let payment = guides.active_guide_payment.as_ref().unwrap();
 
             let payment_block = Block::default().borders(Borders::TOP);
 
             let payment_info = Paragraph::new(Text::from(vec![
-                Line::from(
-                    match payment.pay_type {
-                        PayType::Online => {
-                            vec![
-                                Span::styled(" ".to_string() + &payment.pay_type.to_string() + ": ", Style::default().fg(Color::Cyan)),
-                                Span::raw(payment.platform.clone())
-                            ]
-                        }
-                        PayType::Card | PayType::Cash => {
-                            vec![
-                                Span::styled(" ".to_string() + &payment.pay_type.to_string(), Style::default().fg(Color::Cyan))
-                            ]
-                        }
+                match payment.pay_type {
+                    PayType::Online => {
+                        Line::from(vec![
+                            Span::styled(" ".to_string() + &payment.platform + ": ", Style::default().fg(Color::Cyan)),
+                            Span::raw(payment.transaction_id.clone())
+                        ])
                     }
-                ),
+                    PayType::Card | PayType::Cash => {
+                        Line::from(Span::styled(" ".to_string() + &payment.pay_type.to_string(), Style::default().fg(Color::Cyan)))
+                    }
+                },
                 Line::from(vec![
                     Span::styled(" -> Amount: ", Style::default().fg(Color::Cyan)),
                     Span::raw(payment.amount.to_string() + "$")
                 ]),
             ]))
-            .block(payment_block);
-
+            .block(payment_block);     
 
             f.render_widget(payment_info, packages_chunks[1]);
-        }
-        _ => {} 
-    }
+            
+            let package_view_block = Block::default().borders(Borders::ALL).border_type(BorderType::Double);
+            f.render_widget(package_view_block, guide_info_chunks[2]);
+            if let Some(active_package) = &app_lock.get_packages_ref().active_package {
+                let package_view_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Min(2),
+                        Constraint::Min(7),
+                    ])
+                    .split(guide_info_chunks[2].inner(&Margin::new(1, 1)));
 
+                let package_title = Paragraph::new(vec![
+                    Line::styled("Package ID:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    Line::styled(active_package.tracking_num.to_string(), Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)),
+                ]).centered();
+
+                f.render_widget(package_title, package_view_chunks[0]);
+
+                let weight = active_package.weight;
+                let height = active_package.height;
+                let width = active_package.width;
+                let length = active_package.length;
+
+                let package_description = Paragraph::new(vec![
+                    Line::from(vec![Span::styled("* Arrival: ", Style::default().fg(Color::Cyan)), Span::raw(active_package.register_date.to_string())]),
+                    Line::from(vec![
+                        Span::styled("* Weight: ", Style::default().fg(Color::Cyan)),
+                        Span::raw(if weight < Decimal::new(1000, 0) { weight.to_string() + "gr" } else { (weight / Decimal::new(1000, 0)).to_string() + "kg" })
+                    ]),
+                    Line::from(vec![Span::styled("* Dimensions: ", Style::default().fg(Color::Cyan))]),
+                    Line::raw(format!("    Height: {}", dimensions_string(height))),
+                    Line::raw(format!("    Width: {}", dimensions_string(width))),
+                    Line::raw(format!("    Length: {}", dimensions_string(length))),
+                ]);
+
+                f.render_widget(package_description, package_view_chunks[1]);
+            }
+        }
+        _ => {}
+    }
     Ok(())
 }

@@ -15,7 +15,7 @@ use crate::{
         app::App,
         client::Client,
     },
-    ui::common_fn::{centered_rect, wrap_text},
+    ui::common_fn::{centered_rect, wrap_text, dimensions_string},
     HELP_TEXT
 };
 
@@ -180,17 +180,17 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
             let package_view_block = Block::default().borders(Borders::ALL).border_type(BorderType::Double);
 
-            let package_view_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(2),
-                    Constraint::Min(7),
-                ])
-                .split(packages_chunks[2].inner(&Margin::new(1, 1)));
-
             f.render_widget(package_view_block, packages_chunks[2]);
             
             if let Some(active_package) = &app_lock.get_packages_ref().active_package {
+                let package_view_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Min(2),
+                        Constraint::Min(7),
+                    ])
+                    .split(packages_chunks[2].inner(&Margin::new(1, 1)));
+
                 let package_title = Paragraph::new(vec![
                     Line::styled("Package ID:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
                     Line::styled(active_package.tracking_num.to_string(), Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)),
@@ -662,12 +662,4 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
         _ => {}
     }
     Ok(())
-}
-
-fn dimensions_string(val: Decimal) -> String {
-    if val < Decimal::new(100, 0) {
-        String::from(format!("{}cm", val))
-    } else {
-        String::from(format!("{}m", val / Decimal::new(100, 2)))
-    }
 }

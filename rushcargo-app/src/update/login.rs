@@ -107,8 +107,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                         first_name: res.try_get("first_name")?,
                                         last_name: res.try_get("last_name")?,
                                     },
-                                    packages: None,
                                     shipping_guides: None,
+                                    packages: None,
+                                    add_package: None,
                                     get_db_err: None,
                                 }
                             )),

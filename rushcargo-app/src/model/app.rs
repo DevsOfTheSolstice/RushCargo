@@ -10,14 +10,12 @@ use crate::{
         app_list::ListData,
         app_table::{TableData, TableType},
         client::ClientData,
-        pkgadmin::PkgAdminData,
-        common::{GetDBErr, User, SubScreen, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
+        pkgadmin::{PkgAdminData, AddPkgData},
+        common::{ShippingGuideData, GetDBErr, User, SubScreen, Div, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
     }
 };
-
-use super::{client, common::ShippingGuideData};
 
 pub struct App {
     pub input: InputFields,
@@ -120,6 +118,10 @@ impl App {
                 self.get_packages_next(TableType::GuidePackages, pool)
                     .await
                     .unwrap_or_else(|_| panic!("the shipping guide had no packages in it"));
+            }
+            Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => {
+                self.get_pkgadmin_mut().add_package = Some(AddPkgData::default());
+                self.input_mode = InputMode::Editing(0);
             }
             _ => {}
         }

@@ -26,7 +26,13 @@ pub enum SubScreen {
     PkgAdminMain,
     PkgAdminGuides,
     PkgAdminGuideInfo,
-    PkgAdminAddPackage,
+    PkgAdminAddPackage(Div),
+}
+
+#[derive(Debug, Clone)]
+pub enum Div {
+    Left,
+    Right
 }
 
 impl std::fmt::Display for Screen {

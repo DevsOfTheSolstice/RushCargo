@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use crate::{
     model::{
         help_text,
-        common::{InputMode, Popup, Screen, SubScreen, TimeoutType, User, GetDBErr},
+        common::{InputMode, Popup, Screen, SubScreen, Div, TimeoutType, User, GetDBErr},
         db_obj::PayType,
         app::App,
         client::Client,
@@ -48,7 +48,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
     let help_block = Block::default().borders(Borders::TOP);
 
-    match app_lock.active_screen {
+    match &app_lock.active_screen {
         Screen::PkgAdmin(SubScreen::PkgAdminMain) => {
             let help = Paragraph::new(HELP_TEXT.pkgadmin.main).block(help_block);
             f.render_widget(help, chunks[2]);
@@ -277,6 +277,209 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
                 f.render_widget(package_description, package_view_chunks[1]);
             }
+        }
+        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(div)) => {
+            let help = Paragraph::new(HELP_TEXT.pkgadmin.add_package).block(help_block);
+            f.render_widget(help, chunks[2]);
+            
+            let main_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(3),
+                    Constraint::Percentage(100),
+                ])
+                .split(chunks[1].inner(&Margin::new(6, 0)));
+
+            let info_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(60),
+                    Constraint::Percentage(40),
+                ])
+                .split(main_chunks[1]);
+
+            let package_info_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                ])
+                .split(info_chunks[0].inner(&Margin::new(2, 1)));
+
+            let title_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
+
+            let title =
+                Paragraph::new("Add a package")
+                .style(Style::default().fg(Color::Yellow))
+                .centered()
+                .block(title_block);
+            
+            f.render_widget(title, main_chunks[0].inner(&Margin::new(20, 0)));
+            
+            let (package_info_style, recipient_info_style) =
+                match div {
+                    Div::Left => (Style::default().fg(Color::White), Style::default().fg(Color::DarkGray)),
+                    Div::Right => (Style::default().fg(Color::DarkGray), Style::default().fg(Color::White)),
+                };
+
+            let package_info_block =
+                Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .style(package_info_style);
+            
+            let package = pkgadmin.add_package.as_ref().unwrap();
+            
+            let width = (info_chunks[0].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
+
+            let (content_text, value_text, weight_text, length_text, width_text, height_text) =
+                ("Content: ", "Value: ", "Weight: ", "Length: ", "Width: ", "Height: ");
+            
+            let (content_scroll, value_scroll, weight_scroll, length_scroll, width_scroll, height_scroll) = (
+                package.content.visual_scroll(width - content_text.len()),
+                package.value.visual_scroll(width - value_text.len()),
+                package.weight.visual_scroll(width - weight_text.len()),
+                package.length.visual_scroll(width - length_text.len()),
+                package.width.visual_scroll(width - weight_text.len()),
+                package.height.visual_scroll(width - height_text.len())
+            );
+            
+            let package_info_area = info_chunks[0].inner(&Margin::new(2, 2));
+
+            match div {
+                Div::Left =>
+                    if let InputMode::Editing(field) = app_lock.input_mode {
+                        f.set_cursor(
+                            package_info_area.x +
+                            match field {
+                                0 =>
+                                    (package.content.visual_cursor().max(content_scroll) - content_scroll) as u16
+                                    + content_text.len() as u16,
+                                1 =>
+                                    (package.value.visual_cursor().max(value_scroll) - value_scroll) as u16
+                                    + value_text.len() as u16,
+                                2 =>
+                                    (package.weight.visual_cursor().max(weight_scroll) - weight_scroll) as u16
+                                    + weight_text.len() as u16,
+                                3 =>
+                                    (package.length.visual_cursor().max(length_scroll) - length_scroll) as u16
+                                    + length_text.len() as u16,
+                                4 =>
+                                    (package.width.visual_cursor().max(width_scroll) - width_scroll) as u16
+                                    + width_text.len() as u16,
+                                5 =>
+                                    (package.height.visual_cursor().max(height_scroll) - height_scroll) as u16
+                                    + height_text.len() as u16,
+                                _ =>
+                                    panic!("unexpected value in InputMode::Editing()")
+                            },
+                            package_info_area.y + field as u16
+                        );
+                    },                                                
+                Div::Right => {}
+            }
+
+            let package_info_highlight = Style::default().fg(Color::Cyan);
+
+            let package_info_title = Paragraph::new("Package Info").style(Style::default().fg(Color::Yellow)).centered();
+            
+            let content = Line::from(vec![
+                Span::styled(content_text, package_info_highlight),
+                Span::raw(package.content.value()),
+            ]);
+                
+            let value = Line::from(vec![
+                Span::styled(value_text, package_info_highlight),
+                Span::raw(package.value.value()),
+            ]);
+
+            let weight = Line::from(vec![
+                Span::styled(weight_text, package_info_highlight),
+                Span::raw(package.weight.value()),
+            ]);
+
+            let length = Line::from(vec![
+                Span::styled(length_text, package_info_highlight),
+                Span::raw(package.length.value()),
+            ]);
+
+            let width = Line::from(vec![
+                Span::styled(width_text, package_info_highlight),
+                Span::raw(package.width.value()),
+            ]);
+            
+            let height = Line::from(vec![
+                Span::styled(height_text, package_info_highlight),
+                Span::raw(package.height.value()),
+            ]);
+
+            let recipient_info_block =
+                Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .style(recipient_info_style);
+
+            f.render_widget(package_info_block, info_chunks[0]);
+            f.render_widget(package_info_title, info_chunks[0].inner(&Margin::new(1, 1)));
+            f.render_widget(content, package_info_chunks[1]);
+            f.render_widget(value, package_info_chunks[2]);
+            f.render_widget(weight, package_info_chunks[3]);
+            f.render_widget(length, package_info_chunks[4]);
+            f.render_widget(width, package_info_chunks[5]);
+            f.render_widget(height, package_info_chunks[6]);
+            
+            let recipient_info_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                ])
+                .split(info_chunks[1].inner(&Margin::new(2, 1)));
+
+            let recipient_info_title = Paragraph::new("Recipient Info").style(Style::default().fg(Color::Yellow)).centered();
+            
+            let (username_text, locker_text, branch_text) =
+                ("Username: ", "Locker ID: ", "Branch ID: ");
+            
+            let width = (recipient_info_chunks[0].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
+
+            let (username_scroll, locker_scroll, branch_scroll) = (
+                package.client.visual_scroll(width - username_text.len()),
+                package.locker.visual_scroll(width - locker_text.len()),
+                package.branch.visual_scroll(width - branch_text.len()),
+            );
+
+            let recipient_info_highlight = Style::default().fg(Color::Cyan);
+
+            let username = Line::from(vec![
+                Span::styled(username_text, recipient_info_highlight),
+                Span::raw(package.client.value()),
+            ]);
+            
+            let locker = Line::from(vec![
+                Span::styled(locker_text, recipient_info_highlight),
+                Span::raw(package.locker.value()),
+            ]);
+            
+            let branch = Line::from(vec![
+                Span::styled(branch_text, recipient_info_highlight),
+                Span::raw(package.branch.value()),
+            ]);
+            
+            f.render_widget(recipient_info_block.clone(), info_chunks[1]);
+            f.render_widget(recipient_info_title, recipient_info_chunks[0]);
+            f.render_widget(username, recipient_info_chunks[2]);
+            f.render_widget(locker, recipient_info_chunks[4]);
+            f.render_widget(branch, recipient_info_chunks[5]);
         }
         _ => {}
     }

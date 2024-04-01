@@ -12,7 +12,8 @@ use std::{
 use crate::{
     event::{Event, InputBlacklist, SENDER_ERR},
     model::{
-        app::App, common::{SubScreen, InputMode, Popup, Screen, User},
+        app::App,
+        common::{SubScreen, Div, InputMode, Popup, Screen, User},
         app_list::ListType,
         app_table::TableType,
     },
@@ -60,10 +61,18 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 _ => Ok(())
             }
         }
-        SubScreen::PkgAdminAddPackage => {
+        SubScreen::PkgAdminAddPackage(Div::Left) => {
             match key_event.code {
                 KeyCode::Esc => {
                     sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminMain)))
+                }
+                _ => Ok(())
+            }
+        }
+        SubScreen::PkgAdminAddPackage(Div::Right) => {
+            match key_event.code {
+                KeyCode::Esc => {
+                    sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left))))
                 }
                 _ => Ok(())
             }

@@ -10,7 +10,7 @@ use crate::{
     model::{
         app::App,
         client::Client,
-        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, User},
+        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, Div, User},
     },
 };
 
@@ -117,7 +117,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 Some(SubScreen::PkgAdminMain) => {
                     match app_lock.action_sel {
                         Some(0) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminGuides), pool).await,
-                        Some(1) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage), pool).await,
+                        Some(1) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)), pool).await,
                         _ => {}
                     }
                 }

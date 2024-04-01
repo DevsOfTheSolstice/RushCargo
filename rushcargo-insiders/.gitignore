@@ -3,3 +3,4 @@
 __pycache__/
 nominatim.db
 nominatim.db-journal
+*.png

@@ -4,11 +4,11 @@ import subprocess
 pythonBin = "./venv/Scripts/python.exe"
 
 # Path to the Python Script that must run under the Virtual Environment
-scriptFile = "./src/drawGraphs.py"
+scriptFile = "./src/app.py"
 
 try:
     # Open Script File
-    subprocess.Popen([pythonBin, scriptFile])
+    subprocess.run([pythonBin, scriptFile])
 
 except Exception as err:
     print(err)

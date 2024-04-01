@@ -8,7 +8,7 @@ scriptFile = "./src/main.py"
 
 try:
     # Open Script File
-    subprocess.Popen([pythonBin, scriptFile])
+    subprocess.run([pythonBin, scriptFile])
 
 except Exception as err:
     print(err)

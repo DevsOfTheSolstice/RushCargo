@@ -6,7 +6,9 @@ class LocationNotFound(Exception):
     Exception Raised when Geopy couldn't Find a Given Location for a Specific Address Type
     """
 
-    def __init__(self, locationName:str, locationType:str, locationAltType:str = None):
+    def __init__(
+        self, locationName: str, locationType: str, locationAltType: str = None
+    ):
         """
         LocationNotFound Exception Constructor
 
@@ -25,7 +27,6 @@ class LocationNotFound(Exception):
             super().__init__(
                 f"GeoPy API couldn't Find '{locationName}' with Address Type of '{locationType}' or Alternative Address Type of '{locationAltType}'. Try Again with a Different Name\n"
             )
-
 
 
 class PlaceNotFound(Exception):
@@ -61,4 +62,24 @@ class RouteNotFound(Exception):
 
         super().__init__(
             f"Route not Found between [lon:'{coords1[NOMINATIM_LONGITUDE]}', lat:'{coords1[NOMINATIM_LATITUDE]}' and [lon:'{coords2[NOMINATIM_LONGITUDE]}', lat:'{coords2[NOMINATIM_LATITUDE]}']\n"
+        )
+
+
+class RouteLimitSurpassed(Exception):
+    """
+    Exception Raised when a the Route Distance between the Two Nodes is too Long and Surpassed a Given Limit
+    """
+
+    def __init__(self, coords1: dict, coords2: dict, meters: int, maxMeters: int):
+        """
+        RouteLimitSurpassed Exception Constructor
+
+        :param dict coords1: Coordinates Dictionary of the Route Starting Point
+        :param str coords2: Coordinates Dictionary of the Route End Point
+        :param int meters: Route Distance Length (in meters)
+        :param int maxMeters: Maximum Route Distance Length Allowed (in meters)
+        """
+
+        super().__init__(
+            f"Route is Too Long between [lon:'{coords1[NOMINATIM_LONGITUDE]}', lat:'{coords1[NOMINATIM_LATITUDE]}' and [lon:'{coords2[NOMINATIM_LONGITUDE]}', lat:'{coords2[NOMINATIM_LATITUDE]}']\nSurpassed the Route Distance Limit by: {(maxMeters-meters)/1000}km"
         )

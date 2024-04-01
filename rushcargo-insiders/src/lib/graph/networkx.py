@@ -1,3 +1,5 @@
+from unidecode import unidecode
+import os
 import networkx as nx
 import matplotlib.pyplot as plt
 from psycopg import sql
@@ -97,9 +99,12 @@ class RushWGraph:
         """
 
         return sql.SQL(
-            "SELECT {regionNameField}, {warehouseIdField} FROM {connectionsSchemeName}.{regionMainWarehousesViewName}"
+            "SELECT {countryNameField}, {regionNameField}, {cityNameField}, {buildingNameField}, {warehouseIdField} FROM {connectionsSchemeName}.{regionMainWarehousesViewName}"
         ).format(
+            countryNameField=sql.Identifier(COUNTRIES_NAME),
             regionNameField=sql.Identifier(REGIONS_NAME),
+            cityNameField=sql.Identifier(CITIES_NAME),
+            buildingNameField=sql.Identifier(BUILDINGS_NAME),
             warehouseIdField=sql.Identifier(WAREHOUSES_ID),
             connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
             regionMainWarehousesViewName=sql.Identifier(
@@ -117,9 +122,12 @@ class RushWGraph:
 
         # Doesn't Include the Intersection of Region Main Warehouses and City Main Warehouses
         return sql.SQL(
-            "SELECT {citiesMain}.{cityNameField}, {citiesMain}.{warehouseIdField} FROM {connectionsSchemeName}.{cityMainWarehousesViewName} AS {citiesMain} FULL OUTER JOIN {connectionsSchemeName}.{regionMainWarehousesViewName} AS {regionsMain} ON {citiesMain}.{warehouseIdField} = {regionsMain}.{warehouseIdField} WHERE {regionsMain}.{warehouseIdField} IS NULL"
+            "SELECT {citiesMain}.{countryNameField}, {citiesMain}.{regionNameField}, {citiesMain}.{cityNameField}, {citiesMain}.{buildingNameField}, {citiesMain}.{warehouseIdField} FROM {connectionsSchemeName}.{cityMainWarehousesViewName} AS {citiesMain} FULL OUTER JOIN {connectionsSchemeName}.{regionMainWarehousesViewName} AS {regionsMain} ON {citiesMain}.{warehouseIdField} = {regionsMain}.{warehouseIdField} WHERE {regionsMain}.{warehouseIdField} IS NULL"
         ).format(
+            countryNameField=sql.Identifier(COUNTRIES_NAME),
+            regionNameField=sql.Identifier(REGIONS_NAME),
             cityNameField=sql.Identifier(CITIES_NAME),
+            buildingNameField=sql.Identifier(BUILDINGS_NAME),
             warehouseIdField=sql.Identifier(WAREHOUSES_ID),
             connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
             cityMainWarehousesViewName=sql.Identifier(CITIES_MAIN_WAREHOUSES_VIEW_NAME),
@@ -139,9 +147,12 @@ class RushWGraph:
         """
 
         return sql.SQL(
-            "SELECT {warehouses}.{cityNameField}, {warehouses}.{warehouseIdField} FROM {connectionsSchemeName}.{warehouses} AS {warehouses} FULL OUTER JOIN {connectionsSchemeName}.{cityMainWarehousesViewName} AS {citiesMain} ON {warehouses}.{warehouseIdField} = {citiesMain}.{warehouseIdField} FULL OUTER JOIN {connectionsSchemeName}.{regionMainWarehousesViewName} AS {regionsMain} ON {warehouses}.{warehouseIdField} = {regionsMain}.{warehouseIdField} WHERE {citiesMain}.{warehouseIdField} IS NULL AND {regionsMain}.{warehouseIdField} IS NULL"
+            "SELECT {warehouses}.{countryNameField}, {warehouses}.{regionNameField}, {warehouses}.{cityNameField}, {warehouses}.{buildingNameField}, {warehouses}.{warehouseIdField} FROM {connectionsSchemeName}.{warehouses} AS {warehouses} FULL OUTER JOIN {connectionsSchemeName}.{cityMainWarehousesViewName} AS {citiesMain} ON {warehouses}.{warehouseIdField} = {citiesMain}.{warehouseIdField} FULL OUTER JOIN {connectionsSchemeName}.{regionMainWarehousesViewName} AS {regionsMain} ON {warehouses}.{warehouseIdField} = {regionsMain}.{warehouseIdField} WHERE {citiesMain}.{warehouseIdField} IS NULL AND {regionsMain}.{warehouseIdField} IS NULL"
         ).format(
+            countryNameField=sql.Identifier(COUNTRIES_NAME),
+            regionNameField=sql.Identifier(REGIONS_NAME),
             cityNameField=sql.Identifier(CITIES_NAME),
+            buildingNameField=sql.Identifier(BUILDINGS_NAME),
             warehouses=sql.Identifier(WAREHOUSES_VIEW_NAME),
             warehouseIdField=sql.Identifier(WAREHOUSES_ID),
             connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
@@ -214,28 +225,33 @@ class RushWGraph:
         except Exception as err:
             print(err)
 
-        # Nodes
-        nodeList = []
-
         # Add Region Main Warehouse Nodes
         for node in self.__items:
             # Get Node Attributes from Tuple
-            _, warehouseId = node
+            countryName, regionName, cityName, buildingName, warehouseId = node
 
-            nodeList.append(warehouseId)
+            # Add Node
+            if not draw:
+                self.__DiGraph.add_node(
+                    warehouseId,
+                    country=unidecode(countryName),
+                    region=unidecode(regionName),
+                    city=unidecode(cityName),
+                    building=unidecode(buildingName),
+                )
 
-        # Add Nodes
-        if not draw:
-            self.__DiGraph.add_nodes_from(nodeList)
-
-        # Add Nodes with Some Style Attributes (when Drawing)
-        else:
-            self.__DiGraph.add_nodes_from(
-                nodeList,
-                color=GRAPH_REGION_MAIN_WAREHOUSE_NODE_COLOR,
-                size=GRAPH_REGION_MAIN_WAREHOUSE_NODE_SIZE,
-                edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
-            )
+            # Add Node with Some Style Attributes (when Drawing)
+            else:
+                self.__DiGraph.add_node(
+                    warehouseId,
+                    country=countryName,
+                    region=regionName,
+                    city=cityName,
+                    building=buildingName,
+                    color=GRAPH_REGION_MAIN_WAREHOUSE_NODE_COLOR,
+                    size=GRAPH_REGION_MAIN_WAREHOUSE_NODE_SIZE,
+                    edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
+                )
 
     def setCitiesMainNodes(self, draw: bool = False):
         """
@@ -256,28 +272,33 @@ class RushWGraph:
         except Exception as err:
             print(err)
 
-        # Nodes
-        nodeList = []
-
         # Add City Main Warehouse Nodes
         for node in self.__items:
             # Get Node Attributes from Tuple
-            _, warehouseId = node
+            countryName, regionName, cityName, buildingName, warehouseId = node
 
-            nodeList.append(warehouseId)
+            # Add Node
+            if not draw:
+                self.__DiGraph.add_node(
+                    warehouseId,
+                    country=unidecode(countryName),
+                    region=unidecode(regionName),
+                    city=unidecode(cityName),
+                    building=unidecode(buildingName),
+                )
 
-        # Add Nodes
-        if not draw:
-            self.__DiGraph.add_nodes_from(nodeList)
-
-        # Add Nodes with Some Style Attributes (when Drawing)
-        else:
-            self.__DiGraph.add_nodes_from(
-                nodeList,
-                color=GRAPH_CITY_MAIN_WAREHOUSE_NODE_COLOR,
-                size=GRAPH_CITY_MAIN_WAREHOUSE_NODE_SIZE,
-                edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
-            )
+            # Add Node with Some Style Attributes (when Drawing)
+            else:
+                self.__DiGraph.add_node(
+                    warehouseId,
+                    country=countryName,
+                    region=regionName,
+                    city=cityName,
+                    building=buildingName,
+                    color=GRAPH_CITY_MAIN_WAREHOUSE_NODE_COLOR,
+                    size=GRAPH_CITY_MAIN_WAREHOUSE_NODE_SIZE,
+                    edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
+                )
 
     def setCitiesNodes(self, draw: bool = False):
         """
@@ -298,28 +319,33 @@ class RushWGraph:
         except Exception as err:
             print(err)
 
-        # Nodes
-        nodeList = []
-
         # Add City Warehouse Nodes
         for node in self.__items:
             # Get Node Attributes from Tuple
-            _, warehouseId = node
+            countryName, regionName, cityName, buildingName, warehouseId = node
 
-            nodeList.append(warehouseId)
+            # Add Node
+            if not draw:
+                self.__DiGraph.add_node(
+                    warehouseId,
+                    country=unidecode(countryName),
+                    region=unidecode(regionName),
+                    city=unidecode(cityName),
+                    building=unidecode(buildingName),
+                )
 
-        # Add Nodes
-        if not draw:
-            self.__DiGraph.add_nodes_from(nodeList)
-
-        # Add Nodes with Some Style Attributes (when Drawing)
-        else:
-            self.__DiGraph.add_nodes_from(
-                nodeList,
-                color=GRAPH_CITY_WAREHOUSE_NODE_COLOR,
-                size=GRAPH_CITY_WAREHOUSE_NODE_SIZE,
-                edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
-            )
+            # Add Node with Some Style Attributes (when Drawing)
+            else:
+                self.__DiGraph.add_node(
+                    warehouseId,
+                    country=countryName,
+                    region=regionName,
+                    city=cityName,
+                    building=buildingName,
+                    color=GRAPH_CITY_WAREHOUSE_NODE_COLOR,
+                    size=GRAPH_CITY_WAREHOUSE_NODE_SIZE,
+                    edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
+                )
 
     def setConnectionsNodeEdges(self, draw: bool = False):
         """
@@ -355,7 +381,6 @@ class RushWGraph:
                 self.__DiGraph.add_edge(
                     warehouseFromId,
                     warehouseToId,
-                    length=routeDistance,
                     weight=routeDistance,
                 )
 
@@ -368,7 +393,6 @@ class RushWGraph:
                     warehouseToId,
                     weight=routeDistance,
                     weightAttraction=1 / routeDistance,
-                    length=routeDistance,
                     edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
                     width=GRAPH_REGION_MAIN_WAREHOUSE_WIDTH,
                 )
@@ -392,6 +416,23 @@ class RushWGraph:
         :rtype: NoneType
         """
 
+        # Change Directory to 'rushcargo-graps/data'
+        try:
+            os.chdir(DATA_DIR)
+
+        except FileNotFoundError:
+            # Create 'rushcargo-graps/data' Directory
+            cwd = os.getcwd()
+            path = os.path.join(cwd, DATA_DIR)
+            os.mkdir(path)
+
+            # Change Current Working Directory
+            os.chdir(DATA_DIR)
+
+        except Exception as err:
+            print(err)
+            return
+
         # Get Nodes Attributes
         colors = self.__getNodesValue("color")
         sizes = self.__getNodesValue("size")
@@ -404,6 +445,7 @@ class RushWGraph:
         # Drawing Arguments
         args = {
             "arrows": GRAPH_WITH_ARROWS,
+            "arrowsize": GRAPH_ARROW_SIZE,
             "node_color": colors,
             "node_size": sizes,
             "edgecolors": edgeColors,
@@ -440,3 +482,58 @@ class RushWGraph:
         # Spring Layout
         nx.draw(self.__DiGraph, pos=self.__spring, **args)
         self.__storeGraph(RUSHWGRAPH_SPRING_FILENAME)
+
+    def getShortest(self, warehouseFromId: int, warehouseToId: int) -> tuple[list, int]:
+        """
+        Method to Get the Shortest Path between the Two Warehouse Nodes
+
+        :return: Tuple that Contains a List of Dictionaries with the Nodes' Data, and the Route Distance
+        :rtype: tuple
+        """
+
+        # Get Nodes that Constitute the Shortest Path between the Two Nodes
+        nodes = nx.shortest_path(
+            self.__DiGraph, int(warehouseFromId), int(warehouseToId), weight="weight"
+        )
+
+        # Get the Distance between the Two Nodes
+        routeDistance = nx.shortest_path_length(
+            self.__DiGraph, int(warehouseFromId), int(warehouseToId), weight="weight"
+        )
+
+        # Nodes Attributes List
+        nodesAttr = []
+        pos = 0
+
+        # Get Nodes Attributes
+        countryName = nx.get_node_attributes(self.__DiGraph, name="country")
+        regionName = nx.get_node_attributes(self.__DiGraph, name="region")
+        cityName = nx.get_node_attributes(self.__DiGraph, name="city")
+        buildingName = nx.get_node_attributes(self.__DiGraph, name="building")
+
+        for node in nodes:
+            nodesAttr.append(
+                {
+                    "pos": pos,
+                    "id": node,
+                    "country": countryName[node],
+                    "region": regionName[node],
+                    "city": cityName[node],
+                    "building": buildingName[node],
+                }
+            )
+            pos += 1
+
+        return nodesAttr, routeDistance
+
+    def hasPath(self, warehouseFromId: int, warehouseToId: int) -> bool:
+        """
+        Method to Check if there's a Path between the Two Warehouse Nodes
+
+        :param int warehouseFromId: Starting Node ID
+        :param int warehouseToId: End Node ID
+        :return: Specifies whether or not there's a Path between the Two Nodes
+        :rtype: bool
+        """
+
+        return nx.has_path(self.__DiGraph, int(warehouseFromId), int(warehouseToId))

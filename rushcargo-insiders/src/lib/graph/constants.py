@@ -1,3 +1,13 @@
+# Data Directory
+DATA_DIR = "data"
+
+# Layouts Available for Plotting
+LAYOUT_CIRCULAR = "circular"
+LAYOUT_KAMADA = "kamada"
+LAYOUT_SHELL = "shell"
+LAYOUT_SPRING = "spring"
+LAYOUT_CMDS = [LAYOUT_CIRCULAR, LAYOUT_KAMADA, LAYOUT_SHELL, LAYOUT_SPRING]
+
 # Matplotlib Graph File Names
 RUSHWGRAPH_CIRCULAR_FILENAME = "rushcargo-warehouse-conns-circular.png"
 RUSHWGRAPH_KAMADA_FILENAME = "rushcargo-warehouse-conns-kamada.png"
@@ -6,7 +16,7 @@ RUSHWGRAPH_SHELL_FILENAME = "rushcargo-warehouse-conns-shell.png"
 RUSHWGRAPH_SPECTRAL_FILENAME = "rushcargo-warehouse-conns-spectral.png"
 RUSHWGRAPH_SPRING_FILENAME = "rushcargo-warehouse-conns-spring.png"
 RUSWGRAPH_TITLE = "Warehouses Graph"
-RUSHWGRAPH_DPI = 1000
+RUSHWGRAPH_DPI = 900
 RUSHWGRAPH_ORIENTATION = "landscape"
 
 # Spring Layout Values
@@ -15,7 +25,8 @@ SPRING_ITERATIONS = 200
 
 # Matplotlib Graph Configurations
 GRAPH_WITH_LABELS = True
-GRAPH_WITH_ARROWS = False
+GRAPH_WITH_ARROWS = True
+GRAPH_ARROW_SIZE = 2
 GRAPH_NODE_SHAPE = "o"
 GRAPH_FONT_SIZE = 3
 GRAPH_FONT_COLOR = "whitesmoke"

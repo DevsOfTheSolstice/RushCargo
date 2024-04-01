@@ -11,7 +11,7 @@ from ..geocoding.constants import (
     DICT_WAREHOUSE_COORDS,
     DICT_WAREHOUSE_ID,
 )
-from ..geocoding.exceptions import RouteNotFound
+from ..geocoding.exceptions import RouteNotFound, RouteLimitSurpassed
 from ..geocoding.routingpy import ORSGeocoder
 
 
@@ -466,8 +466,22 @@ class WarehouseConnectionsTable:
                 warehouseConnDict[DICT_WAREHOUSE_COORDS],
             )
 
+            # Check Route Distance Length
+            if routeDistanceSender > ROUTE_DISTANCE_MAX:
+                raise RouteLimitSurpassed(
+                    warehouseConnDict[DICT_WAREHOUSE_COORDS],
+                    warehouseDict[DICT_WAREHOUSE_COORDS],
+                    routeDistanceSender,
+                    ROUTE_DISTANCE_MAX,
+                )
+
         # There's no Road Connection between the Two Warehouses
         except RouteNotFound as err:
+            console.print(err, style="warning")
+            return
+
+        # The Road Connection between the Two Warehouses is too Long
+        except RouteLimitSurpassed as err:
             console.print(err, style="warning")
             return
 
@@ -519,8 +533,22 @@ class WarehouseConnectionsTable:
                 warehouseDict[DICT_WAREHOUSE_COORDS],
             )
 
+            # Check Route Distance Length
+            if routeDistanceReceiver > ROUTE_DISTANCE_MAX:
+                raise RouteLimitSurpassed(
+                    warehouseConnDict[DICT_WAREHOUSE_COORDS],
+                    warehouseDict[DICT_WAREHOUSE_COORDS],
+                    routeDistanceReceiver,
+                    ROUTE_DISTANCE_MAX,
+                )
+
         # There's no Road Connection between the Two Warehouses
         except RouteNotFound as err:
+            console.print(err, style="warning")
+            return
+
+        # The Road Connection between the Two Warehouses is too Long
+        except RouteLimitSurpassed as err:
             console.print(err, style="warning")
             return
 

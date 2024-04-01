@@ -4,6 +4,7 @@ from .constants import (
     ORS_USER_AGENT,
     ORS_PROFILE_DRIVING,
     ORS_PREF_FASTEST,
+    ORS_PREFERENCE_SHORTEST,
     NOMINATIM_LATITUDE,
     NOMINATIM_LONGITUDE,
 )
@@ -61,7 +62,7 @@ class ORSGeocoder:
             route = self.__geolocator.directions(
                 locations=coords,
                 profile=profile,
-                preference=ORS_PREF_FASTEST,
+                preference=ORS_PREFERENCE_SHORTEST,
             )
 
             # Get Distance in Meters

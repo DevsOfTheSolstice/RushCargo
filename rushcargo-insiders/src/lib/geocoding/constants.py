@@ -27,6 +27,7 @@ NOMINATIM_LONGITUDE = "lon"
 ORS_USER_AGENT = "rushcargo-insiders"
 ORS_PROFILE_DRIVING = "driving-car"
 ORS_PREF_FASTEST = "fastest"
+ORS_PREFERENCE_SHORTEST="shortest"
 
 # Warehouse Connection Dictionary Fields from a Given Main Warehouses View
 DICT_WAREHOUSE_COORDS = "coords"

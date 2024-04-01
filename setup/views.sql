@@ -1,6 +1,6 @@
 --1
 CREATE VIEW Connections.Warehouses AS
-SELECT countries.country_id, regions.region_id, cities.city_id, cities.city_name, buildings.gps_latitude,buildings.gps_longitude,warehouses.warehouse_id
+SELECT countries.country_id,countries.country_name, regions.region_id,regions.region_name, cities.city_id, cities.city_name, buildings.gps_latitude,buildings.gps_longitude,buildings.building_name,warehouses.warehouse_id
 FROM Locations.Countries AS countries INNER JOIN Locations.Regions AS regions ON countries.country_id = regions.country_id
 INNER JOIN Locations.Cities AS cities ON regions.region_id = cities.region_id
 INNER JOIN Locations.Buildings AS buildings ON cities.city_id = buildings.city_id
@@ -16,7 +16,7 @@ SELECT warehouses.*, warehouse_conns.connection_id, warehouse_conns.connection_t
 
 --4
 CREATE VIEW Connections.Region_Main_Warehouses AS
-SELECT warehouses.*, regions.region_name FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Regions AS regions ON regions.main_warehouse = warehouses.warehouse_id;
+SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Regions AS regions ON regions.main_warehouse = warehouses.warehouse_id;
 
 --5
 CREATE VIEW Connections.City_Main_Warehouses AS

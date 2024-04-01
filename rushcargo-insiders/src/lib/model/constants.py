@@ -4,6 +4,9 @@ from rich.theme import Theme
 # Route Distances Debug Mode
 ROUTES_DEBUG_MODE = False
 
+# Maximum Route Distance (500km, between 5-6h by Vehicle)
+ROUTE_DISTANCE_MAX = 500000
+
 # Environment Variables
 ENV_HOST = "HOST"
 ENV_PORT = "PORT"
@@ -102,6 +105,7 @@ CONNECTIONS_SCHEME_NAME = "connections"
 
 # Connections Scheme Tables Name
 WAREHOUSES_CONN_TABLE_NAME = "warehouse_connections"
+WAREHOUSES_CONN = "warehouse_conns"
 
 # Connections Scheme Views Name
 WAREHOUSES_VIEW_NAME = "warehouses"
@@ -110,7 +114,11 @@ RECEIVERS = "receivers"
 WAREHOUSES_SENDERS_VIEW_NAME = "warehouse_senders"
 SENDERS = "senders"
 REGIONS_MAIN_WAREHOUSES_VIEW_NAME = "region_main_warehouses"
+REGIONS_MAIN = "region_main"
 CITIES_MAIN_WAREHOUSES_VIEW_NAME = "city_main_warehouses"
+CITIES_MAIN = "city_main"
+CITIES_MAIN_WAREHOUSES_VIEW_NAME = "city_main_warehouses"
+CITIES = "city"
 
 # Warehouse Connections Table Columns
 WAREHOUSES_CONN_ID = "connection_id"

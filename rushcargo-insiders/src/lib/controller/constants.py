@@ -1,3 +1,6 @@
+# Rich Logger Debug Mode
+RICH_LOGGER_DEBUG_MODE = False
+
 # Location Dictionary Key Types
 DICT_NAME = "name"
 DICT_NAME_ID = "name_id"

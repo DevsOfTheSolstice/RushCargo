@@ -1,5 +1,4 @@
 from unidecode import unidecode
-import os
 import networkx as nx
 import matplotlib.pyplot as plt
 from psycopg import sql
@@ -7,6 +6,9 @@ from psycopg import sql
 from .constants import *
 
 from ..model.constants import *
+
+# Rush Cargo Warehouse Graph
+rushWGraph = None
 
 
 class RushWGraph:
@@ -51,44 +53,29 @@ class RushWGraph:
         # Set Nodes Edges
         self.setConnectionsNodeEdges(draw)
 
-        if draw:
-            # Get Graph Layouts
-            self.__spring = nx.spring_layout(
-                self.__DiGraph,
-                k=SPRING_DISTANCE,
-                iterations=SPRING_ITERATIONS,
-                weight="weightAttraction",
-            )
-            self.__shell = nx.shell_layout(self.__DiGraph)
-            self.__spectral = nx.spectral_layout(self.__DiGraph)
-            self.__random = nx.random_layout(self.__DiGraph)
-            self.__circular = nx.circular_layout(self.__DiGraph)
-            self.__kamada = nx.kamada_kawai_layout(self.__DiGraph)
-
-            # Draw Graph
-            self.draw()
-
-    def __getNodesValue(self, key: str) -> list:
+    def __getNodesValue(self, graph, key: str) -> list:
         """
         Method that Retuns a List of the Nodes Values for a Given Key
 
+        :param graph: NetworkX Graph to Iterate
         :param str key: Key which is Used to Access the Node Attribute Value at Node's ``data``
         :return: List of Nodes Value for a Given Attribute
         :rtype: list
         """
 
-        return [node[1][key] for node in self.__DiGraph.nodes(data=True)]
+        return [node[1][key] for node in graph.nodes(data=True)]
 
-    def __getEdgesValue(self, key: str) -> list:
+    def __getEdgesValue(self, graph, key: str) -> list:
         """
         Method that Retuns a List of the Nodes Edges Values for a Given Key
 
+        :param graph: NetworkX Graph to Iterate
         :param str key: Key which is Used to Access the Edge Attribute Value
         :return: List of Edges Value for a Given Attribute
         :rtype: list
         """
 
-        return nx.get_edge_attributes(self.__DiGraph, key).values()
+        return nx.get_edge_attributes(graph, key).values()
 
     def __regionsMainNodesQuery(self):
         """
@@ -184,21 +171,26 @@ class RushWGraph:
             warehouseConnType=sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
         )
 
-    def __storeGraph(self, title: str):
+    def __storeGraph(self, baseFileName: str, layout: str, level: str, locationId: int):
         """
         Method to Store the NetworkX Graph Image Locally
 
-        :param str title: Graph File Name
+        :param str baseFileName: Graph Base File Name
+        :param str layout: Graph Layout
+        :param str level: Graph Level Command (``countries``, ``regions`` and ``cities``)
+        :param int locationId: Location ID at its Remote Table where the Warehouses are Located
         :return: Nothing
         :rtype: None
         """
 
         # Set Graph Title
-        plt.title(RUSWGRAPH_TITLE)
+        plt.title(f"{RUSWGRAPH_TITLE}: Location ID {locationId} at {level} Table")
 
         # Save Graph Locally
         plt.savefig(
-            title,
+            f"{baseFileName}-{level}-{locationId}-{layout}.png",
+            bbox_inches=RUSWGRAPH_BBOX,
+            transparent=GRAPH_TRANSPARENT,
             dpi=RUSHWGRAPH_DPI,
             orientation=RUSHWGRAPH_ORIENTATION,
         )
@@ -248,8 +240,8 @@ class RushWGraph:
                     region=regionName,
                     city=cityName,
                     building=buildingName,
+                    alpha=GRAPH_REGION_MAIN_WAREHOUSE_NODE_ALPHA,
                     color=GRAPH_REGION_MAIN_WAREHOUSE_NODE_COLOR,
-                    size=GRAPH_REGION_MAIN_WAREHOUSE_NODE_SIZE,
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
@@ -295,8 +287,8 @@ class RushWGraph:
                     region=regionName,
                     city=cityName,
                     building=buildingName,
+                    alpha=GRAPH_CITY_MAIN_WAREHOUSE_NODE_ALPHA,
                     color=GRAPH_CITY_MAIN_WAREHOUSE_NODE_COLOR,
-                    size=GRAPH_CITY_MAIN_WAREHOUSE_NODE_SIZE,
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
@@ -342,8 +334,8 @@ class RushWGraph:
                     region=regionName,
                     city=cityName,
                     building=buildingName,
+                    alpha=GRAPH_CITY_WAREHOUSE_NODE_ALPHA,
                     color=GRAPH_CITY_WAREHOUSE_NODE_COLOR,
-                    size=GRAPH_CITY_WAREHOUSE_NODE_SIZE,
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
@@ -394,7 +386,6 @@ class RushWGraph:
                     weight=routeDistance,
                     weightAttraction=1 / routeDistance,
                     edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
-                    width=GRAPH_REGION_MAIN_WAREHOUSE_WIDTH,
                 )
 
             # Add Edge of Connection Type 'City'
@@ -405,83 +396,129 @@ class RushWGraph:
                     weight=routeDistance,
                     weightAttraction=1000000 / routeDistance,
                     edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
-                    width=GRAPH_REGION_MAIN_WAREHOUSE_WIDTH,
                 )
 
-    def draw(self):
+    def draw(self, layout: str, level: str, locationId: int, warehouseIds: list[int]):
         """
         Method to Draw the Graph and it in a Local File
 
+        :param str layout: Graph Layout
+        :param str level: Graph Level Command (``countries``, ``regions`` and ``cities``)
+        :param int locationId: Location ID at its Remote Table where the Warehouses are Located
+        :param list warehouseIds: List of Warehouse Node IDs to Draw
         :return: Nothing
         :rtype: NoneType
         """
 
-        # Change Directory to 'rushcargo-graps/data'
-        try:
-            os.chdir(DATA_DIR)
-
-        except FileNotFoundError:
-            # Create 'rushcargo-graps/data' Directory
-            cwd = os.getcwd()
-            path = os.path.join(cwd, DATA_DIR)
-            os.mkdir(path)
-
-            # Change Current Working Directory
-            os.chdir(DATA_DIR)
-
-        except Exception as err:
-            print(err)
-            return
-
-        # Get Nodes Attributes
-        colors = self.__getNodesValue("color")
-        sizes = self.__getNodesValue("size")
-        edgeColors = self.__getNodesValue("edgecolors")
-
-        # Get Nodes Edges Attributes
-        widths = list(self.__getEdgesValue("width"))
-        edgeColor = self.__getEdgesValue("edge_color")
-
-        # Drawing Arguments
-        args = {
-            "arrows": GRAPH_WITH_ARROWS,
-            "arrowsize": GRAPH_ARROW_SIZE,
-            "node_color": colors,
-            "node_size": sizes,
-            "edgecolors": edgeColors,
-            "width": widths,
-            "edge_color": edgeColor,
-            "with_labels": GRAPH_WITH_LABELS,
-            "font_color": GRAPH_FONT_COLOR,
-            "font_size": GRAPH_FONT_SIZE,
-            "font_weight": GRAPH_FONT_WEIGHT,
-        }
-
         # Draw and Store Graphs in Different Styles
+        pos = None
 
         # Circular Layout
-        nx.draw(self.__DiGraph, pos=self.__circular, **args)
-        self.__storeGraph(RUSHWGRAPH_CIRCULAR_FILENAME)
+        if layout == LAYOUT_CIRCULAR:
+            # Check if the Nodes Positions for the Circular Layout have been Calculated
+            if self.__circular == None:
+                self.__circular = nx.circular_layout(self.__DiGraph)
+
+            pos = self.__circular
 
         # Kamada Kawai Layout
-        nx.draw(self.__DiGraph, pos=self.__kamada, **args)
-        self.__storeGraph(RUSHWGRAPH_KAMADA_FILENAME)
+        elif layout == LAYOUT_KAMADA:
+            # Check if the Nodes Positions for the Kamada Kawaii Layout have been Calculated
+            if self.__kamada == None:
+                self.__kamada = nx.kamada_kawai_layout(self.__DiGraph)
 
-        # Random Layout
-        nx.draw(self.__DiGraph, pos=self.__random, **args)
-        self.__storeGraph(RUSHWGRAPH_RANDOM_FILENAME)
+            pos = self.__kamada
 
         # Shell Layout
-        nx.draw(self.__DiGraph, pos=self.__shell, **args)
-        self.__storeGraph(RUSHWGRAPH_SHELL_FILENAME)
+        elif layout == LAYOUT_SHELL:
+            # Check if the Nodes Positions for the Shell Layout have been Calculated
+            if self.__shell == None:
+                self.__shell = nx.shell_layout(self.__DiGraph)
 
-        # Spectral Layout
-        nx.draw(self.__DiGraph, pos=self.__spectral, **args)
-        self.__storeGraph(RUSHWGRAPH_SPECTRAL_FILENAME)
+            pos = self.__shell
 
         # Spring Layout
-        nx.draw(self.__DiGraph, pos=self.__spring, **args)
-        self.__storeGraph(RUSHWGRAPH_SPRING_FILENAME)
+        elif layout == LAYOUT_SPRING:
+            # Check if the Nodes Positions for the Spring Layout have been Calculated
+            if self.__spring == None:
+                self.__spring = nx.spring_layout(
+                    self.__DiGraph,
+                    k=SPRING_DISTANCE,
+                    iterations=SPRING_ITERATIONS,
+                    weight="weightAttraction",
+                )
+
+            pos = self.__spring
+
+        # Get Nodes Degree
+        nodesDegree = self.__DiGraph.degree()
+
+        # Remove Isolated Nodes from Warehouses IDs
+        for n in nodesDegree:
+            # Check Node Degree
+            if n[1] != 0:
+                continue
+
+            try:
+                index = warehouseIds.index(n[0])
+                del warehouseIds[index]
+
+            except ValueError:
+                pass
+
+        # Subgraph to Print
+        subgraph = nx.induced_subgraph(self.__DiGraph, warehouseIds)
+
+        # Get Nodes Attributes
+        nodesAlpha = self.__getNodesValue(subgraph, "alpha")
+        nodeColors = self.__getNodesValue(subgraph, "color")
+        nodeEdgeColors = self.__getNodesValue(subgraph, "edgecolors")
+
+        # Get Size Factor
+        factor = None
+
+        if level == COUNTRIES_TABLE_NAME:
+            factor = GRAPH_COUNTRY_WAREHOUSE_SIZE_FACTOR
+
+        elif level == REGIONS_TABLE_NAME:
+            factor = GRAPH_REGION_WAREHOUSE_SIZE_FACTOR
+
+        elif level == CITIES_TABLE_NAME:
+            factor = GRAPH_CITY_WAREHOUSE_SIZE_FACTOR
+
+        # Get Nodes Edges Attributes
+        edgeColor = self.__getEdgesValue(subgraph, "edge_color")
+
+        # Draw the Graph with the Given Layout, and Save it Locally
+        plt.figure()
+        nx.draw_networkx_nodes(
+            subgraph,
+            pos=pos,
+            alpha=nodesAlpha,
+            node_size=GRAPH_NODE_SIZE * factor,
+            node_color=nodeColors,
+            edgecolors=nodeEdgeColors,
+        )
+        nx.draw_networkx_labels(
+            subgraph,
+            pos=pos,
+            alpha=GRAPH_FONT_ALPHA,
+            font_color=GRAPH_FONT_COLOR,
+            font_size=GRAPH_FONT_SIZE,
+            font_weight=GRAPH_FONT_WEIGHT,
+        )
+        nx.draw_networkx_edges(
+            subgraph,
+            pos=pos,
+            arrows=GRAPH_WITH_ARROWS,
+            alpha=GRAPH_WAREHOUSE_EDGE_ALPHA,
+            edge_color=edgeColor,
+            node_size=GRAPH_NODE_SIZE * factor,
+            width=GRAPH_EDGE_WIDTH * factor,
+        )
+
+        # Drawing Arguments
+        self.__storeGraph(RUSHWGRAPH_FILENAME, layout, level, locationId)
 
     def getShortest(self, warehouseFromId: int, warehouseToId: int) -> tuple[list, int]:
         """

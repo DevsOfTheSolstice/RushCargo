@@ -1,4 +1,5 @@
 # Main Menu Messages
+PROG_MSG = "Rush Cargo Insiders"
 TITLE_MSG = """\n\n\
 |     ____             __    ______                       |             
 |    / __ \__  _______/ /_  / ____/___ __________ _____   |
@@ -14,9 +15,12 @@ Made by: DevsOfTheSolstice
 """
 
 # Get Argument Handler Messages
-ACTION_MSG ="\nWhat do you want to do?"
-SCHEME_MSG = "At which Scheme?"
-TABLE_MSG = "At which Table?"
+CMD_TYPE_MSG = "\nWhat do you want to Interact with?"
+DB_ACTION_MSG = "What do you want to do?"
+DB_SCHEME_MSG = "At which Scheme?"
+DB_TABLE_MSG = "At which Table?"
+GRAPH_TYPE_MSG = "At which Graph do you want to Work with?"
+GRAPH_LEVEL_MSG = "At which Graph Level do you want to Work with?"
 
 # All Handler Messages
 ALL_SORT_BY_MSG = "How do you want to Sort it?"

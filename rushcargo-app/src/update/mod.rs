@@ -15,8 +15,9 @@ use crate::{
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
-        Event::SwitchInput | Event::SwitchAction | Event::SelectAction |
-        Event::EnterScreen(_) | Event::EnterPopup(_) | Event::ToggleDisplayMsg
+        Event::SwitchInput | Event::NextInput | Event::PrevInput | 
+        Event::SwitchAction | Event::SelectAction | Event::EnterScreen(_) |
+        Event::EnterPopup(_) | Event::SwitchDiv | Event::ToggleDisplayMsg
         => common::update(app, pool, event).await,
 
         Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)

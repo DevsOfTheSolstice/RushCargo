@@ -66,14 +66,67 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 KeyCode::Esc => {
                     sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminMain)))
                 }
-                _ => Ok(())
+                KeyCode::Down => {
+                    sender.send(Event::NextInput)
+                }
+                KeyCode::Up => {
+                    sender.send(Event::PrevInput)
+                }
+                KeyCode::Enter => {
+                    sender.send(Event::SwitchDiv)
+                }
+                _ => {
+                    match app_lock.input_mode {
+                        InputMode::Editing(0) => sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric)),
+                        InputMode::Editing(1) | InputMode::Editing(2) | InputMode::Editing(3) |
+                        InputMode::Editing(4) | InputMode::Editing(5) =>
+                            sender.send(Event::KeyInput(key_event, InputBlacklist::Money)),
+                        _ => Ok(())
+                    }
+                }
             }
         }
         SubScreen::PkgAdminAddPackage(Div::Right) => {
-            match key_event.code {
-                KeyCode::Esc => {
-                    sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left))))
-                }
+            match app_lock.active_popup {
+                None =>
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left))))
+                        }
+                        KeyCode::Down => {
+                            sender.send(Event::NextInput)
+                        }
+                        KeyCode::Up => {
+                            sender.send(Event::PrevInput)
+                        }
+                        KeyCode::Enter => {
+                            let add_package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+
+                            let (locker_empty, branch_empty) = (add_package.locker.value().is_empty(), add_package.branch.value().is_empty());
+
+                            if add_package.is_missing_attr() {
+                                Ok(())
+                            } else if !locker_empty && !branch_empty {
+                                sender.send(Event::EnterPopup(Some(Popup::FieldExcess)))
+                            } else if !locker_empty {
+                                sender.send(Event::TryGetUserLocker(add_package.client.value().to_string(), add_package.locker.value().to_string()))
+                            } else {
+                                sender.send(Event::TryGetUserBranch(add_package.client.value().to_string(), add_package.branch.value().to_string()))
+                            }
+                        }
+                        _ => {
+                            match app_lock.input_mode {
+                                InputMode::Editing(0) => sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric)),
+                                InputMode::Editing(1) | InputMode::Editing(2) =>
+                                    sender.send(Event::KeyInput(key_event, InputBlacklist::Numeric)),
+                                _ => Ok(())
+                            }
+                        }
+                    }
+                Some(Popup::FieldExcess) =>
+                    match key_event.code {
+                        _ => sender.send(Event::EnterPopup(None)),
+                    },
                 _ => Ok(())
             }
         }

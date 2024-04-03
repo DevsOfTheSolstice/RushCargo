@@ -51,3 +51,17 @@ impl std::default::Default for AddPkgData {
         }
     }
 }
+
+impl AddPkgData {
+    pub fn is_missing_attr(&self) -> bool {
+        self.content.value().is_empty() ||
+        self.value.value().is_empty() ||
+        self.weight.value().is_empty() ||
+        self.length.value().is_empty() ||
+        self.width.value().is_empty() ||
+        self.height.value().is_empty() ||
+        self.client.value().is_empty() ||
+        (self.locker.value().is_empty() &&
+        self.branch.value().is_empty())
+    }
+}

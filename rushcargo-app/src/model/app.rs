@@ -68,7 +68,7 @@ impl App {
 impl App {
     pub async fn enter_screen(&mut self, screen: Screen, pool: &PgPool) {
         self.should_clear_screen = true;
-        self.cleanup_screen(&screen);
+        self.cleanup_screen();
         self.active_screen = screen.clone();
         
         match self.active_screen {
@@ -120,51 +120,60 @@ impl App {
                     .unwrap_or_else(|_| panic!("the shipping guide had no packages in it"));
             }
             Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => {
-                self.get_pkgadmin_mut().add_package = Some(AddPkgData::default());
+                if let Some(Screen::PkgAdmin(SubScreen::PkgAdminMain)) = self.prev_screen {
+                    self.get_pkgadmin_mut().add_package = Some(AddPkgData::default());
+                }
+                self.input_mode = InputMode::Editing(0);
+            }
+            Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => {
                 self.input_mode = InputMode::Editing(0);
             }
             _ => {}
         }
     }
 
-    fn cleanup_screen(&mut self, next_screen: &Screen) {
-        match self.prev_screen {
-            Some(Screen::Title) => {
+    fn cleanup_screen(&mut self) {
+        self.prev_screen = Some(self.active_screen.clone());
+
+        match self.active_screen {
+            Screen::Title => {
                 self.title = None;
                 self.list.state.0.select(None);
                 self.timeout.remove(&TimeoutType::CubeTick);
             }
-            Some(Screen::Settings) => {
+            Screen::Settings => {
                 self.list.state.0.select(None);
             }
-            Some(Screen::Login) => {
+            Screen::Login => {
                 self.input.0.reset();
                 self.input.1.reset();
                 self.input_mode = InputMode::Normal;
             }
-            Some(Screen::Client(SubScreen::ClientMain)) => {
+            Screen::Client(SubScreen::ClientMain) => {
                 self.action_sel = None;
             }
-            Some(Screen::Client(SubScreen::ClientLockers)) => {
+            Screen::Client(SubScreen::ClientLockers) => {
                 if let Some(User::Client(client)) = &mut self.user {
                     client.viewing_lockers = None;
                     client.viewing_lockers_idx = 0;
                 }
                 self.table.state.select(None);
             }
-            Some(Screen::Client(SubScreen::ClientLockerPackages)) => {
+            Screen::Client(SubScreen::ClientLockerPackages) => {
                 self.get_client_mut().packages = None;
                 self.table.state.select(None);
             }
-            Some(Screen::PkgAdmin(SubScreen::PkgAdminMain)) => {
+            Screen::PkgAdmin(SubScreen::PkgAdminMain) => {
                 self.action_sel = None;
             }
-            Some(Screen::PkgAdmin(SubScreen::PkgAdminGuides)) => {
+            Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
                 self.table.state.select(None);
+            }
+            Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => {
+                self.input_mode = InputMode::Normal;
             }
             _ => {}
         }
-        self.prev_screen = Some(next_screen.clone());
     }
 
     pub async fn enter_popup(&mut self, popup: Option<Popup>, pool: &PgPool) {

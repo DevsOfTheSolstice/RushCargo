@@ -32,6 +32,23 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             app.lock().unwrap().enter_popup(popup, pool).await;
             Ok(())
         }
+        Event::SwitchDiv => {
+            let mut app_lock = app.lock().unwrap();
+
+            let active_screen = app_lock.active_screen.clone();
+
+            match active_screen {
+                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(div)) =>
+                    app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(
+                        if let Div::Left = div { Div::Right }
+                        else { Div::Left }
+                    )
+                ), pool)
+                .await,
+                _ => unimplemented!("div for screen {:?}", app_lock.active_screen)
+            }
+            Ok(())
+        }
         Event::ToggleDisplayMsg => {
             app.lock().unwrap().toggle_displaymsg();
             Ok(())
@@ -42,6 +59,40 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             if let InputMode::Editing(field) = app_lock.input_mode {
                 if field == 0 { app_lock.input_mode = InputMode::Editing(1) }
                 else { app_lock.input_mode = InputMode::Editing(0) }
+            }
+            Ok(())
+        }
+        Event::NextInput => {
+            let mut app_lock = app.lock().unwrap();
+
+            if let InputMode::Editing(field) = app_lock.input_mode {
+                let limit =
+                    match app_lock.active_screen {
+                        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => 5,
+                        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => 2,
+                        _ => unimplemented!("{:?} for {:?}", event, app_lock.active_screen)
+                };
+                app_lock.input_mode = InputMode::Editing(
+                    if field < limit { field + 1 }
+                    else { 0 }
+                );
+            }
+            Ok(())
+        }
+        Event::PrevInput => {
+            let mut app_lock = app.lock().unwrap();
+
+            if let InputMode::Editing(field) = app_lock.input_mode {
+                let limit =
+                    match app_lock.active_screen {
+                        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => 5,
+                        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => 2,
+                        _ => unimplemented!("{:?} for {:?}", event, app_lock.active_screen)
+                };
+                app_lock.input_mode = InputMode::Editing(
+                    if field == 0 { limit }
+                    else { field - 1 }
+                );
             }
             Ok(())
         }
@@ -133,17 +184,42 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 InputMode::Normal => panic!("KeyInput event fired when InputMode was normal")
             };
 
+            let input_obj = match app_lock.active_screen {
+                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => {
+                    let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                    match field {
+                        0 => &mut add_package.content,
+                        1 => &mut add_package.value,
+                        2 => &mut add_package.weight,
+                        3 => &mut add_package.length,
+                        4 => &mut add_package.width,
+                        5 => &mut add_package.height,
+                        _ => unimplemented!("input field {} for screen {:?}", field, app_lock.active_screen)
+                    }
+                }
+                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => {
+                    let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                    match field {
+                        0 => &mut add_package.client,
+                        1 => &mut add_package.locker,
+                        2 => &mut add_package.branch,
+                        _ => unimplemented!("input field {} for screen {:?}", field, app_lock.active_screen)
+                    }
+                }
+                _ => {
+                    match field {
+                        0 => &mut app_lock.input.0,
+                        1 => &mut app_lock.input.1,
+                        _ => unimplemented!("input field {} for screen {:?}", field, app_lock.active_screen)
+                    }
+                }
+            };
+
             if let KeyCode::Char(char) = key_event.code {
                 match blacklist {
                     InputBlacklist::None => {}
                     InputBlacklist::Money => {
-                        let input_value = {
-                            if field == 0 {
-                                app_lock.input.0.value()
-                            } else {
-                                app_lock.input.1.value()
-                            }
-                        };
+                        let input_value = input_obj.value();
 
                         if char != '.' {
                             if !char.is_numeric() {
@@ -154,7 +230,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 }
                             }
                         } else {
-                            if app_lock.input.0.value().contains('.') {
+                            if input_value.contains('.') {
                                 return Ok(())
                             } 
                         }
@@ -164,8 +240,13 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             return Ok(())
                         }
                     }
-                    InputBlacklist::Alphanumeric => {
+                    InputBlacklist::AlphanumericNoSpace => {
                         if !char.is_alphanumeric() {
+                            return Ok(())
+                        }
+                    }
+                    InputBlacklist::Alphanumeric => {
+                        if !char.is_alphanumeric() && char != ' ' {
                             return Ok(())
                         }
                     }
@@ -181,9 +262,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     }
                 }
             };
- 
-            if field == 0 { app_lock.input.0.handle_event(&CrosstermEvent::Key(key_event)); }
-            else { app_lock.input.1.handle_event(&CrosstermEvent::Key(key_event)); }
+
+            input_obj.handle_event(&CrosstermEvent::Key(key_event));
+            
             Ok(())
         }
         _ => panic!("An event of type {:?} was passed to the common update function", event)

@@ -71,6 +71,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             if locker_packages_weight + selected_packages_weight >= Decimal::new(500000, 0)
                             {
                                 client_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(500000, 0) - locker_packages_weight));
+                                return Ok(());
                             }
 
                             let locker_row =
@@ -100,6 +101,42 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             );
                         
                             app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
+                        }
+                        Some(User::PkgAdmin(pkgadmin_data)) => {
+                            let package = pkgadmin_data.add_package.as_ref().unwrap();
+
+                            if sqlx::query("SELECT COUNT(*) AS package_count FROM packages WHERE locker_id=$1")
+                                .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
+                                .fetch_one(pool)
+                                .await?
+                                .get::<i64, _>("package_count") >= 5
+                            {
+                                pkgadmin_data.get_db_err = Some(GetDBErr::LockerTooManyPackages);
+                                return Ok(())
+                            }
+                            
+                            let package_weight_decimal = Decimal::from_str_exact(package.weight.value()).expect("could not parse package weight");
+                            if sqlx::query(
+                                    "
+                                        SELECT SUM(package_weight) as weight_sum FROM packages
+                                        INNER JOIN package_descriptions AS descriptions
+                                        ON packages.tracking_number=descriptions.tracking_number
+                                        WHERE locker_id=$1
+                                    "
+                                )
+                                .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
+                                .fetch_one(pool)
+                                .await?
+                                .try_get::<Decimal, _>("weight_sum")
+                                .unwrap_or(Decimal::new(0, 0))
+                                >
+                                package_weight_decimal
+                            {
+                                pkgadmin_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(500000, 0) - package_weight_decimal));
+                                return Ok(());
+                            }
+
+                            panic!("Verified! :)");
                         }
                         _ => {}
                     }
@@ -266,10 +303,16 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 fn set_getdberr(app: &mut Arc<Mutex<App>>, err: GetDBErr) {
     let mut app_lock = app.lock().unwrap();
 
-    match &mut app_lock.user {
-        Some(User::Client(client_data)) => {
-            client_data.get_db_err = Some(err);
-        }
-        _ => unimplemented!("update::db::tryget::set_getdberr for user {:?}", app_lock.user)
-    }
+    let get_db_err =
+        match &mut app_lock.user {
+            Some(User::Client(client_data)) => {
+                &mut client_data.get_db_err
+            }
+            Some(User::PkgAdmin(pkgadmin_data)) => {
+                &mut pkgadmin_data.get_db_err
+            }
+            _ => unimplemented!("update::db::tryget::set_getdberr for user {:?}", app_lock.user)
+        };
+    
+    *get_db_err = Some(err);
 }

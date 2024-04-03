@@ -62,6 +62,8 @@ pub enum Popup {
     ClientOrderBranch,
     ClientOrderDelivery,
     ClientInputPayment,
+
+    FieldExcess,
 }
 
 #[derive(Debug)]

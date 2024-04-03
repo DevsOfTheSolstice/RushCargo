@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Offset},
     prelude::{Alignment, Frame, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
@@ -279,7 +279,13 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             }
         }
         Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(div)) => {
-            let help = Paragraph::new(HELP_TEXT.pkgadmin.add_package).block(help_block);
+            let help = Paragraph::new(
+                match div {
+                    Div::Left => HELP_TEXT.pkgadmin.add_package_left,
+                    Div::Right => HELP_TEXT.pkgadmin.add_package_right,
+                })
+                .block(help_block);
+
             f.render_widget(help, chunks[2]);
             
             let main_chunks = Layout::default()
@@ -321,17 +327,27 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             
             f.render_widget(title, main_chunks[0].inner(&Margin::new(20, 0)));
             
-            let (package_info_style, recipient_info_style) =
+            let (lstyle_title, rstyle_title, lstyle_highlight, rstyle_highlight, lstyle_normal, rstyle_normal) =
                 match div {
-                    Div::Left => (Style::default().fg(Color::White), Style::default().fg(Color::DarkGray)),
-                    Div::Right => (Style::default().fg(Color::DarkGray), Style::default().fg(Color::White)),
+                    Div::Left =>
+                        (
+                            Style::default().fg(Color::Yellow), Style::default().fg(Color::DarkGray),
+                            Style::default().fg(Color::Cyan), Style::default().fg(Color::DarkGray),
+                            Style::default().fg(Color::White), Style::default().fg(Color::DarkGray)
+                        ),
+                    Div::Right =>
+                        (
+                            Style::default().fg(Color::DarkGray), Style::default().fg(Color::Yellow),
+                            Style::default().fg(Color::DarkGray), Style::default().fg(Color::Cyan),
+                            Style::default().fg(Color::DarkGray), Style::default().fg(Color::White)
+                        )
                 };
 
             let package_info_block =
                 Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .style(package_info_style);
+                .style(lstyle_normal);
             
             let package = pkgadmin.add_package.as_ref().unwrap();
             
@@ -348,12 +364,22 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 package.width.visual_scroll(width - weight_text.len()),
                 package.height.visual_scroll(width - height_text.len())
             );
-            
-            let package_info_area = info_chunks[0].inner(&Margin::new(2, 2));
 
+            let width = (info_chunks[1].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
+            
+            let (username_text, locker_text, branch_text) =
+                ("Username: ", "Locker ID: ", "Branch ID: ");
+
+            let (username_scroll, locker_scroll, branch_scroll) = (
+                package.client.visual_scroll(width - username_text.len()),
+                package.locker.visual_scroll(width - locker_text.len()),
+                package.branch.visual_scroll(width - branch_text.len())
+            );
+            
             match div {
                 Div::Left =>
                     if let InputMode::Editing(field) = app_lock.input_mode {
+                        let package_info_area = info_chunks[0].inner(&Margin::new(2, 2));
                         f.set_cursor(
                             package_info_area.x +
                             match field {
@@ -380,58 +406,100 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                             },
                             package_info_area.y + field as u16
                         );
-                    },                                                
-                Div::Right => {}
+                    },
+                Div::Right => {
+                    if let InputMode::Editing(field) = app_lock.input_mode {
+                        let package_info_area = info_chunks[1].inner(&Margin::new(2, 2));
+                        let (offset_x, offset_y) =
+                            match field {
+                                0 =>
+                                    ((package.client.visual_cursor().max(username_scroll) - username_scroll) as u16
+                                    + username_text.len() as u16,
+                                    1 + field as u16),
+                                1 =>
+                                    ((package.locker.visual_cursor().max(locker_scroll) - locker_scroll) as u16
+                                    + locker_text.len() as u16,
+                                    2 + field as u16),
+                                2 =>
+                                    ((package.branch.visual_cursor().max(branch_scroll) - branch_scroll) as u16
+                                    + branch_text.len() as u16,
+                                    2 + field as u16),
+                                _ =>
+                                    panic!("unexpected value in InputMode::Editing()")
+                            };
+                        f.set_cursor(package_info_area.x + offset_x, package_info_area.y + offset_y);
+                    }
+                }
             }
 
-            let package_info_highlight = Style::default().fg(Color::Cyan);
+            let package_info_title = Paragraph::new(
+                "Package Info"
+            )
+            .style(lstyle_title)
+            .centered();
 
-            let package_info_title = Paragraph::new("Package Info").style(Style::default().fg(Color::Yellow)).centered();
+            let content_title = Line::styled(content_text, lstyle_highlight);
+            let content = Paragraph::new(
+                Line::styled(
+                package.content.value(), lstyle_normal
+                )
+            )
+            .scroll((0, content_scroll as u16));
             
-            let content = Line::from(vec![
-                Span::styled(content_text, package_info_highlight),
-                Span::raw(package.content.value()),
-            ]);
-                
-            let value = Line::from(vec![
-                Span::styled(value_text, package_info_highlight),
-                Span::raw(package.value.value()),
-            ]);
+            let value_title = Line::styled(value_text, lstyle_highlight);
+            let value = Paragraph::new(
+                Line::styled(
+                    package.value.value(), lstyle_normal
+                )
+            )
+            .scroll((0, value_scroll as u16));
 
-            let weight = Line::from(vec![
-                Span::styled(weight_text, package_info_highlight),
-                Span::raw(package.weight.value()),
-            ]);
+            let weight_title = Line::styled(weight_text, lstyle_highlight);
+            let weight = Paragraph::new(
+                Line::styled(
+                    package.weight.value(), lstyle_normal
+                )
+            )
+            .scroll((0, weight_scroll as u16));
 
-            let length = Line::from(vec![
-                Span::styled(length_text, package_info_highlight),
-                Span::raw(package.length.value()),
-            ]);
+            let length_title = Line::styled(length_text, lstyle_highlight);
+            let length = Paragraph::new(
+                Line::styled(
+                    package.length.value(), lstyle_normal
+                )
+            )
+            .scroll((0, length_scroll as u16));
 
-            let width = Line::from(vec![
-                Span::styled(width_text, package_info_highlight),
-                Span::raw(package.width.value()),
-            ]);
+            let width_title = Line::styled(width_text, lstyle_highlight);
+            let width = Paragraph::new(
+                Line::styled(
+                    package.width.value(), lstyle_normal
+                )
+            )
+            .scroll((0, width_scroll as u16));
             
-            let height = Line::from(vec![
-                Span::styled(height_text, package_info_highlight),
-                Span::raw(package.height.value()),
-            ]);
-
-            let recipient_info_block =
-                Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .style(recipient_info_style);
+            let height_title = Line::styled(height_text, lstyle_highlight);
+            let height = Paragraph::new(
+                Line::styled(
+                    package.height.value(), lstyle_normal
+                )
+            )
+            .scroll((0, height_scroll as u16));
 
             f.render_widget(package_info_block, info_chunks[0]);
             f.render_widget(package_info_title, info_chunks[0].inner(&Margin::new(1, 1)));
-            f.render_widget(content, package_info_chunks[1]);
-            f.render_widget(value, package_info_chunks[2]);
-            f.render_widget(weight, package_info_chunks[3]);
-            f.render_widget(length, package_info_chunks[4]);
-            f.render_widget(width, package_info_chunks[5]);
-            f.render_widget(height, package_info_chunks[6]);
+            f.render_widget(content_title, package_info_chunks[1]);
+            f.render_widget(content, package_info_chunks[1].offset(Offset { x: content_text.len() as i32, y: 0 }));
+            f.render_widget(value_title, package_info_chunks[2]);
+            f.render_widget(value, package_info_chunks[2].offset(Offset { x: value_text.len() as i32, y: 0 }));
+            f.render_widget(weight_title, package_info_chunks[3]);
+            f.render_widget(weight, package_info_chunks[3].offset(Offset { x: weight_text.len() as i32, y:0 }));
+            f.render_widget(length_title, package_info_chunks[4]);
+            f.render_widget(length, package_info_chunks[4].offset(Offset { x: length_text.len() as i32,y: 0 }));
+            f.render_widget(width_title, package_info_chunks[5]);
+            f.render_widget(width, package_info_chunks[5].offset(Offset { x: width_text.len() as i32, y: 0 }));
+            f.render_widget(height_title, package_info_chunks[6]);
+            f.render_widget(height, package_info_chunks[6].offset(Offset { x: height_text.len() as i32, y: 0 }));
             
             let recipient_info_chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -444,13 +512,19 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                     Constraint::Length(1),
                 ])
                 .split(info_chunks[1].inner(&Margin::new(2, 1)));
+            
+            let recipient_info_block =
+                Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .style(rstyle_normal);
 
-            let recipient_info_title = Paragraph::new("Recipient Info").style(Style::default().fg(Color::Yellow)).centered();
+            let recipient_info_title = Paragraph::new(
+                "Recipient Info"
+            )
+            .style(rstyle_title).centered();
             
-            let (username_text, locker_text, branch_text) =
-                ("Username: ", "Locker ID: ", "Branch ID: ");
-            
-            let width = (recipient_info_chunks[0].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
+            let width = recipient_info_chunks[0].width as usize;
 
             let (username_scroll, locker_scroll, branch_scroll) = (
                 package.client.visual_scroll(width - username_text.len()),
@@ -458,28 +532,61 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 package.branch.visual_scroll(width - branch_text.len()),
             );
 
-            let recipient_info_highlight = Style::default().fg(Color::Cyan);
+            let username_title = Line::styled(username_text, rstyle_highlight);
+            let username = Paragraph::new(
+                Line::styled(
+                    package.client.value(), rstyle_normal
+                )
+            )
+            .scroll((0, username_scroll as u16));
 
-            let username = Line::from(vec![
-                Span::styled(username_text, recipient_info_highlight),
-                Span::raw(package.client.value()),
-            ]);
-            
-            let locker = Line::from(vec![
-                Span::styled(locker_text, recipient_info_highlight),
-                Span::raw(package.locker.value()),
-            ]);
-            
-            let branch = Line::from(vec![
-                Span::styled(branch_text, recipient_info_highlight),
-                Span::raw(package.branch.value()),
-            ]);
+            let locker_title = Line::styled(locker_text, rstyle_highlight); 
+            let locker = Paragraph::new(
+                Line::styled(
+                    package.locker.value(), rstyle_normal
+                )
+            )
+            .scroll((0, locker_scroll as u16));
+
+            let branch_title = Line::styled(branch_text, rstyle_highlight); 
+            let branch = Paragraph::new(
+                Line::styled(
+                    package.branch.value(), rstyle_normal
+                )
+            )
+            .scroll((0, branch_scroll as u16));
             
             f.render_widget(recipient_info_block.clone(), info_chunks[1]);
             f.render_widget(recipient_info_title, recipient_info_chunks[0]);
-            f.render_widget(username, recipient_info_chunks[2]);
-            f.render_widget(locker, recipient_info_chunks[4]);
-            f.render_widget(branch, recipient_info_chunks[5]);
+            f.render_widget(username_title, recipient_info_chunks[2]);
+            f.render_widget(username, recipient_info_chunks[2].offset(Offset { x: username_text.len() as i32, y: 0 }));
+            f.render_widget(locker_title, recipient_info_chunks[4]);
+            f.render_widget(locker, recipient_info_chunks[4].offset(Offset { x: locker_text.len() as i32, y: 0 }));
+            f.render_widget(branch_title, recipient_info_chunks[5]);
+            f.render_widget(branch, recipient_info_chunks[5].offset(Offset { x: branch_text.len() as i32, y: 0 }));
+
+            match app_lock.active_popup {
+                Some(Popup::FieldExcess) => {
+                    let popup_area = centered_rect(&f.size(), 28, 4)?;
+
+                    let err_block =
+                        Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .style(Style::default().fg(Color::Red));
+
+                    let err = Paragraph::new(Text::from(vec![
+                        Line::raw("Remove the input on"),
+                        Line::raw("Locker ID or Branch ID")
+                    ]))
+                    .centered()
+                    .block(err_block);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(err, popup_area);
+                }
+                _ => {}
+            }
         }
         _ => {}
     }

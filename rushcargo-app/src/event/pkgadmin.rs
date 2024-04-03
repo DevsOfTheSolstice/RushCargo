@@ -127,6 +127,49 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                     match key_event.code {
                         _ => sender.send(Event::EnterPopup(None)),
                     },
+                Some(Popup::SelectPayment) =>
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterPopup(None))
+                        }
+                        KeyCode::Tab => {
+                            sender.send(Event::SwitchAction)
+                        }
+                        KeyCode::Enter => {
+                            sender.send(Event::SelectAction)
+                        }
+                        _ => Ok(())
+                    },
+                Some(Popup::OnlinePayment) => {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                           sender.send(Event::EnterPopup(Some(Popup::SelectPayment)))
+                        }
+                        KeyCode::Tab => {
+                            sender.send(Event::SwitchAction)
+                        }
+                        KeyCode::Enter => {
+                            if let Some(_) = app_lock.get_client_ref().send_to_locker {
+                                sender.send(Event::PlaceOrderLockerLocker)
+                            } else if let Some(_) = app_lock.get_client_ref().send_to_branch {
+                                sender.send(Event::PlaceOrderLockerBranch)
+                            } else {
+                                sender.send(Event::PlaceOrderLockerDelivery)
+                            }
+                        }
+                        _ =>
+                            match app_lock.action_sel {
+                                Some(0) => sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric)),
+                                Some(1) =>
+                                    match key_event.code {
+                                        KeyCode::Down | KeyCode::Char('j') => sender.send(Event::NextListItem(ListType::PaymentBanks)),
+                                        KeyCode::Up | KeyCode::Char('k') => sender.send(Event::PrevListItem(ListType::PaymentBanks)),
+                                        _ => Ok(())
+                                    }
+                                _ => Ok(())
+                            }
+                    }
+                }
                 _ => Ok(())
             }
         }

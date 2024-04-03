@@ -187,7 +187,7 @@ impl App {
                 self.input_mode = InputMode::Editing(0);
                 self.get_client_mut().send_with_delivery = false;
             }
-            Some(Popup::ClientInputPayment) => {
+            Some(Popup::OnlinePayment) => {
                 self.action_sel = Some(0);
                 self.input_mode = InputMode::Editing(0);
             }
@@ -220,7 +220,7 @@ impl App {
                 self.get_client_mut().get_db_err = None;
                 self.input_mode = InputMode::Normal;
             }
-            Some(Popup::ClientInputPayment) => {
+            Some(Popup::OnlinePayment) => {
                 self.input.0.reset();
                 self.input.1.reset();
                 self.list.state.0.select(None);
@@ -241,6 +241,9 @@ impl App {
                 self.input.0.reset();
                 self.input.1.reset();
                 self.input_mode = InputMode::Normal;
+            }
+            Some(Popup::SelectPayment) => {
+                self.action_sel = None;
             }
             _ => {}
         }

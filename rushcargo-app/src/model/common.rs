@@ -54,6 +54,7 @@ pub enum Popup {
     Prev,
     OrderSuccessful,
     DisplayMsg,
+    OnlinePayment,
 
     LoginSuccessful,
     ServerUnavailable,
@@ -62,9 +63,11 @@ pub enum Popup {
     ClientOrderLocker,
     ClientOrderBranch,
     ClientOrderDelivery,
-    ClientInputPayment,
 
     FieldExcess,
+    SelectPayment,
+    CashPayment,
+    CardPayment,
 }
 
 #[derive(Debug)]
@@ -79,6 +82,7 @@ pub enum User {
     PkgAdmin(PkgAdminData),
 }
 
+#[derive(Clone)]
 pub enum InputMode {
     Normal,
     /// The value represents the InputField being edited
@@ -139,7 +143,7 @@ impl std::default::Default for ShippingGuideData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Bank {
     PayPal,
     BOFA,
@@ -157,13 +161,20 @@ impl std::fmt::Display for Bank {
 }
 
 #[derive(Debug)]
-pub struct PaymentData {
-    pub amount: Decimal,
-    pub transaction_id: String,
-    pub bank: Bank,
+pub enum PaymentType {
+    Online(Bank),
+    Card,
+    Cash
 }
 
 #[derive(Debug)]
+pub struct PaymentData {
+    pub amount: Decimal,
+    pub transaction_id: Option<String>,
+    pub payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone)]
 pub enum GetDBErr {
     LockerSameAsActive,
     InvalidUserLocker,

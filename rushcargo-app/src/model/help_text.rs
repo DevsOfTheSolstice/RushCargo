@@ -36,6 +36,7 @@ impl HelpText {
                 guide_info: "(⬆) move up | (⬇) move down | (Esc) back",
                 add_package_left: "(Enter) edit recipient | (Tab) switch unit type | (⬆) move up | (⬇) move down",
                 add_package_right: "(Enter) next | (Esc) edit package info | (⬆) move up | (⬇) move down",
+                select_payment: "(Tab) switch payment type | (Enter) select payment type"
             },
             common: CommonHelpText {
                 yay: ":D",
@@ -75,6 +76,7 @@ pub struct PkgAdminHelpText {
     pub guide_info: &'static str,
     pub add_package_left: &'static str,
     pub add_package_right: &'static str,
+    pub select_payment: &'static str,
 }
 
 pub struct CommonHelpText {

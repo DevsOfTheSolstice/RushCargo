@@ -123,7 +123,7 @@ CREATE TABLE Vehicles.Vehicles (
 CREATE TABLE Users.Root_Users (
     username VARCHAR(255) PRIMARY KEY,
     id_document INT NOT NULL,
-    warehouse_id BIGSERIAL NOT NULL,
+    branch_id INT NOT NULL,
     user_password VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
     birthdate DATE,
@@ -132,7 +132,7 @@ CREATE TABLE Users.Root_Users (
     -- should be 'PkgAdmin' or 'UsrAdmin'
     user_type VARCHAR(20) NOT NULL,
     FOREIGN KEY (id_document) REFERENCES Companies.Legal_Identifications(legal_id),
-    FOREIGN KEY (warehouse_id) REFERENCES locations.Warehouses(warehouse_id)
+    FOREIGN KEY (branch_id) REFERENCES locations.Branches(branch_id)
 );
 
 --13

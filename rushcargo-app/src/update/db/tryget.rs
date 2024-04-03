@@ -100,7 +100,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 }
                             );
                         
-                            app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
+                            app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         Some(User::PkgAdmin(pkgadmin_data)) => {
                             let package = pkgadmin_data.add_package.as_ref().unwrap();
@@ -136,7 +136,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 return Ok(());
                             }
 
-                            panic!("Verified! :)");
+                            app_lock.enter_popup(Some(Popup::SelectPayment), pool).await;
                         }
                         _ => {}
                     }
@@ -186,7 +186,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 }
                             );
                             
-                            app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
+                            app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         _ => unimplemented!("Event::TryGetUserBranch for user {:?}", app_lock.user)
                     }
@@ -282,7 +282,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                     last_name: String::from(""),
                                 }
                             );
-                            app_lock.enter_popup(Some(Popup::ClientInputPayment), pool).await;
+                            app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         _ => unimplemented!("Event::TryGetUserDelivery for user {:?}", app_lock.user)
                     }

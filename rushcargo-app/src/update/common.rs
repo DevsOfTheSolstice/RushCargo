@@ -120,7 +120,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 _ => app_lock.action_sel = Some(0),
                             }
                         }
-                        Some(Popup::ClientInputPayment) => {
+                        Some(Popup::OnlinePayment) => {
                             match app_lock.action_sel {
                                 Some(val) if val < 1 => {
                                     app_lock.action_sel = Some(val + 1);
@@ -139,6 +139,29 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     match app_lock.action_sel {
                         Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
                         _ => app_lock.action_sel = Some(0),
+                    }
+                }
+                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
+                    match app_lock.active_popup {
+                        Some(Popup::SelectPayment) => {
+                            match app_lock.action_sel {
+                                Some(val) if val < 2 => app_lock.action_sel = Some(val + 1),
+                                _ => app_lock.action_sel = Some(0),
+                            }
+                        }
+                        Some(Popup::OnlinePayment) => {
+                            match app_lock.action_sel {
+                                Some(val) if val < 1 => {
+                                    app_lock.action_sel = Some(val + 1);
+                                    app_lock.input_mode = InputMode::Normal;
+                                }
+                                _ => {
+                                    app_lock.action_sel = Some(0);
+                                    app_lock.input_mode = InputMode::Editing(0);
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 _ => {}
@@ -190,6 +213,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         _ => {}
                     }
                 }
+                Some(SubScreen::PkgAdminAddPackage(_)) => {
+                    let mut app_lock = app.lock().unwrap();
+                    match app_lock.action_sel {
+                        Some(0) => app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await,
+                        Some(1) => app_lock.enter_popup(Some(Popup::CardPayment), pool).await,
+                        Some(2) => app_lock.enter_popup(Some(Popup::CashPayment), pool).await,
+                        _ => {}
+                    }
+                }
                 _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app.lock().unwrap().active_screen, subscreen)
             }
             Ok(()) 
@@ -204,24 +236,46 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
             let input_obj = match app_lock.active_screen {
                 Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => {
-                    let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
-                    match field {
-                        0 => &mut add_package.content,
-                        1 => &mut add_package.value,
-                        2 => &mut add_package.weight,
-                        3 => &mut add_package.length,
-                        4 => &mut add_package.width,
-                        5 => &mut add_package.height,
-                        _ => unimplemented!("input field {} for screen {:?}", field, app_lock.active_screen)
+                    match app_lock.active_popup {
+                        None => {
+                            let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                            match field {
+                                0 => &mut add_package.content,
+                                1 => &mut add_package.value,
+                                2 => &mut add_package.weight,
+                                3 => &mut add_package.length,
+                                4 => &mut add_package.width,
+                                5 => &mut add_package.height,
+                                _ => unimplemented!("input field {} for screen {:?}, popup {:?}", field, app_lock.active_screen, app_lock.active_popup)
+                            }
+                        }
+                        Some(Popup::OnlinePayment) => {
+                            match field {
+                                0 => &mut app_lock.input.0,
+                                _ => unimplemented!("input field {} for screen {:?}, popup {:?}", field, app_lock.active_screen, app_lock.active_popup)
+                            }
+                        }
+                        _ => panic!()
                     }
                 }
                 Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => {
-                    let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
-                    match field {
-                        0 => &mut add_package.client,
-                        1 => &mut add_package.locker,
-                        2 => &mut add_package.branch,
-                        _ => unimplemented!("input field {} for screen {:?}", field, app_lock.active_screen)
+                    match app_lock.active_popup {
+                        None => {
+                            let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                            match field {
+                                0 => &mut add_package.client,
+                                1 => &mut add_package.locker,
+                                2 => &mut add_package.branch,
+                                _ => unimplemented!("input field {} for screen {:?}, popup {:?}", field, app_lock.active_screen, app_lock.active_popup)
+                            }
+                        }
+                        Some(Popup::OnlinePayment) => {
+                            match field {
+                                0 => &mut app_lock.input.0,
+                                _ => unimplemented!("input field {} for screen {:?}, popup {:?}", field, app_lock.active_screen, app_lock.active_popup)
+                            }
+                        }
+                        _ => panic!()
                     }
                 }
                 _ => {

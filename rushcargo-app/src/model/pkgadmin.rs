@@ -1,7 +1,7 @@
 use std::ops::Add;
 
 use super::{
-    common::{GetDBErr, PackageData, ShippingGuideData},
+    common::{GetDBErr, PackageData, PaymentData, ShippingGuideData},
     db_obj::ShippingGuide,
 };
 use tui_input::Input;
@@ -34,6 +34,8 @@ pub struct AddPkgData {
     pub client: Input,
     pub locker: Input,
     pub branch: Input,
+    pub payment: Option<PaymentData>,
+    pub shipping_guide: Option<ShippingGuide>,
 }
 
 impl std::default::Default for AddPkgData {
@@ -48,6 +50,8 @@ impl std::default::Default for AddPkgData {
             client: Input::default(),
             locker: Input::default(),
             branch: Input::default(),
+            payment: None,
+            shipping_guide: None,
         }
     }
 }

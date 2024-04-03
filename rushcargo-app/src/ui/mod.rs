@@ -4,6 +4,7 @@ mod login;
 mod client;
 mod pkgadmin;
 mod common_fn;
+mod common_render;
 mod err;
 
 use std::sync::{Arc, Mutex};

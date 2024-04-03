@@ -16,13 +16,14 @@ use crate::{
         app::App,
         client::Client,
     },
-    ui::common_fn::{centered_rect, wrap_text, dimensions_string},
+    ui::{
+        common_fn::{centered_rect, wrap_text, dimensions_string},
+        common_render::online_payment,
+    },
     HELP_TEXT
 };
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
-    let mut app_lock = app.lock().unwrap();
-
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -32,23 +33,26 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
         ])
         .split(centered_rect(&f.size(), 80, 18)?);
 
-    let pkgadmin = app_lock.get_pkgadmin_ref();
-
     let pkgadmin_data_block = Block::default().borders(Borders::ALL).border_type(BorderType::Rounded);
     
-    let pkgadmin_data = Paragraph::new(
-        Line::from(vec![
-            Span::raw(" User "),
-            Span::styled(pkgadmin.info.username.clone(), Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::raw(format!(": {} {}", pkgadmin.info.first_name.clone(), pkgadmin.info.last_name.clone()))
-        ])
-    ).block(pkgadmin_data_block);
+    let pkgadmin_data = {
+        let app_lock = app.lock().unwrap();
+        let pkgadmin = app_lock.get_pkgadmin_ref();
+        Paragraph::new(
+            Line::from(vec![
+                Span::raw(" User "),
+                Span::styled(pkgadmin.info.username.clone(), Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+                Span::raw(format!(": {} {}", pkgadmin.info.first_name.clone(), pkgadmin.info.last_name.clone()))
+            ])
+        ).block(pkgadmin_data_block)
+    };
 
     f.render_widget(pkgadmin_data, chunks[0]);
 
     let help_block = Block::default().borders(Borders::TOP);
 
-    match &app_lock.active_screen {
+    let active_screen = app.lock().unwrap().active_screen.clone();
+    match active_screen {
         Screen::PkgAdmin(SubScreen::PkgAdminMain) => {
             let help = Paragraph::new(HELP_TEXT.pkgadmin.main).block(help_block);
             f.render_widget(help, chunks[2]);
@@ -65,7 +69,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             let sel_action_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
 
             let order_reqs_action = 
-                if let Some(0) = app_lock.action_sel {
+                if let Some(0) = app.lock().unwrap().action_sel {
                     Paragraph::new("View order requests").centered().block(sel_action_block.clone()).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 } else {
                     Paragraph::new("View order requests").centered().block(unsel_action_block.clone()).style(Style::default().fg(Color::DarkGray))
@@ -74,7 +78,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             f.render_widget(order_reqs_action, actions_chunks[0]);
  
             let add_package_action  =
-                if let Some(1) = app_lock.action_sel {
+                if let Some(1) = app.lock().unwrap().action_sel {
                     Paragraph::new("Add a package").centered().block(sel_action_block).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 } else {
                     Paragraph::new("Add a package").centered().block(unsel_action_block).style(Style::default().fg(Color::DarkGray))
@@ -99,9 +103,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 Constraint::Length(8),
             ];
 
-            let guides = app_lock.get_pkgadmin_guides_ref();
 
-            let rows: Vec<Row> =
+            let rows: Vec<Row> = {
+                let app_lock = app.lock().unwrap();
+                let guides = app_lock.get_pkgadmin_guides_ref();
                 guides.viewing_guides
                 .iter()
                 .enumerate()
@@ -113,7 +118,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                         guide.package_count.to_string(),
                     ])
                 })
-                .collect();
+                .collect()
+            };
 
             let guides_table = Table::new(rows, widths)
                 .column_spacing(3)
@@ -123,7 +129,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
                 .block(Block::default().borders(Borders::ALL).border_type(BorderType::Plain));
 
-            f.render_stateful_widget(guides_table, guides_table_area, &mut app_lock.table.state);
+            f.render_stateful_widget(guides_table, guides_table_area, &mut app.lock().unwrap().table.state);
         }
         Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
             let help = Paragraph::new(HELP_TEXT.pkgadmin.guide_info).block(help_block);
@@ -147,23 +153,30 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             
             let clients_block = Block::default().borders(Borders::ALL).border_type(BorderType::Plain);
 
-            let active_guide = app_lock.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
 
-            let sender = Paragraph::new(Text::from(vec![
-                Line::default(),
-                Line::styled("Sender:", Style::default().fg(Color::Cyan)),
-                Line::raw(active_guide.sender.username.clone())
-            ]))
-            .centered()
-            .block(clients_block.clone());
+            let sender = {
+                let app_lock = app.lock().unwrap();
+                let active_guide = app_lock.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
+                Paragraph::new(Text::from(vec![
+                    Line::default(),
+                    Line::styled("Sender:", Style::default().fg(Color::Cyan)),
+                    Line::raw(active_guide.sender.username.clone())
+                ]))
+                .centered()
+                .block(clients_block.clone())
+            };
 
-            let recipient = Paragraph::new(Text::from(vec![
-                Line::default(),
-                Line::styled("Recipient:", Style::default().fg(Color::Cyan)),
-                Line::raw(active_guide.recipient.username.clone())
-            ]))
-            .centered()
-            .block(clients_block);
+            let recipient = {
+                let app_lock = app.lock().unwrap();
+                let active_guide = app_lock.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap_or_else(|| panic!("active guide was None on SubScreenPkgAdminGuideInfo"));
+                Paragraph::new(Text::from(vec![
+                    Line::default(),
+                    Line::styled("Recipient:", Style::default().fg(Color::Cyan)),
+                    Line::raw(active_guide.recipient.username.clone())
+                ]))
+                .centered()
+                .block(clients_block)
+            };
 
             f.render_widget(sender, clients_chunks[0]);
             f.render_widget(recipient, clients_chunks[1]);
@@ -189,9 +202,9 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 Constraint::Length(20),
             ];
             
-            let packages = pkgadmin.packages.as_ref().unwrap();
-
-            let rows: Vec<Row> =
+            let rows: Vec<Row> = {
+                let app_lock = app.lock().unwrap();
+                let packages = app_lock.get_pkgadmin_ref().packages.as_ref().unwrap();
                 packages.viewing_packages
                 .iter()
                 .enumerate()
@@ -202,7 +215,8 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                     ])
                     .height(2)
                 })
-                .collect();
+                .collect()
+            };
 
             let packages_table = Table::new(rows, widths)
                 .column_spacing(3)
@@ -211,38 +225,40 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .highlight_symbol(vec![Line::raw(" █ "), Line::raw(" █ ")])
                 .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
 
-            f.render_stateful_widget(packages_table, packages_chunks[0], &mut app_lock.table.state);
+            f.render_stateful_widget(packages_table, packages_chunks[0], &mut app.lock().unwrap().table.state);
             
-            let guides = app_lock.get_pkgadmin_guides_ref();
-            
-            let payment = guides.active_guide_payment.as_ref().unwrap();
-
             let payment_block = Block::default().borders(Borders::TOP);
 
-            let payment_info = Paragraph::new(Text::from(vec![
-                match payment.pay_type {
-                    PayType::Online => {
-                        Line::from(vec![
-                            Span::styled(" ".to_string() + &payment.platform + ": ", Style::default().fg(Color::Cyan)),
-                            Span::raw(payment.transaction_id.clone())
-                        ])
-                    }
-                    PayType::Card | PayType::Cash => {
-                        Line::from(Span::styled(" ".to_string() + &payment.pay_type.to_string(), Style::default().fg(Color::Cyan)))
-                    }
-                },
-                Line::from(vec![
-                    Span::styled(" -> Amount: ", Style::default().fg(Color::Cyan)),
-                    Span::raw(payment.amount.to_string() + "$")
-                ]),
-            ]))
-            .block(payment_block);     
+            let payment_info = {
+                let app_lock = app.lock().unwrap();
+                let payment = app_lock.get_pkgadmin_guides_ref().active_guide_payment.as_ref().unwrap();
+                Paragraph::new(Text::from(vec![
+                    match payment.pay_type {
+                        PayType::Online => {
+                            Line::from(vec![
+                                Span::styled(" ".to_string() + &payment.platform + ": ", Style::default().fg(Color::Cyan)),
+                                Span::raw(payment.transaction_id.clone())
+                            ])
+                        }
+                        PayType::Card | PayType::Cash => {
+                            Line::from(Span::styled(" ".to_string() + &payment.pay_type.to_string(), Style::default().fg(Color::Cyan)))
+                        }
+                    },
+                    Line::from(vec![
+                        Span::styled(" -> Amount: ", Style::default().fg(Color::Cyan)),
+                        Span::raw(payment.amount.to_string() + "$")
+                    ]),
+                ]))
+                .block(payment_block)
+            };
 
             f.render_widget(payment_info, packages_chunks[1]);
             
             let package_view_block = Block::default().borders(Borders::ALL).border_type(BorderType::Double);
             f.render_widget(package_view_block, guide_info_chunks[2]);
-            if let Some(active_package) = &app_lock.get_packages_ref().active_package {
+
+            let active_package = app.lock().unwrap().get_packages_ref().active_package.clone();
+            if let Some(active_package) = active_package {
                 let package_view_chunks = Layout::default()
                     .direction(Direction::Vertical)
                     .constraints([
@@ -279,15 +295,6 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             }
         }
         Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(div)) => {
-            let help = Paragraph::new(
-                match div {
-                    Div::Left => HELP_TEXT.pkgadmin.add_package_left,
-                    Div::Right => HELP_TEXT.pkgadmin.add_package_right,
-                })
-                .block(help_block);
-
-            f.render_widget(help, chunks[2]);
-            
             let main_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
@@ -349,37 +356,46 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .border_type(BorderType::Rounded)
                 .style(lstyle_normal);
             
-            let package = pkgadmin.add_package.as_ref().unwrap();
-            
             let width = (info_chunks[0].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
 
             let (content_text, value_text, weight_text, length_text, width_text, height_text) =
                 ("Content: ", "Value: ", "Weight: ", "Length: ", "Width: ", "Height: ");
             
-            let (content_scroll, value_scroll, weight_scroll, length_scroll, width_scroll, height_scroll) = (
-                package.content.visual_scroll(width - content_text.len()),
-                package.value.visual_scroll(width - value_text.len()),
-                package.weight.visual_scroll(width - weight_text.len()),
-                package.length.visual_scroll(width - length_text.len()),
-                package.width.visual_scroll(width - weight_text.len()),
-                package.height.visual_scroll(width - height_text.len())
-            );
+            let (content_scroll, value_scroll, weight_scroll, length_scroll, width_scroll, height_scroll) = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                (
+                    package.content.visual_scroll(width - content_text.len()),
+                    package.value.visual_scroll(width - value_text.len()),
+                    package.weight.visual_scroll(width - weight_text.len()),
+                    package.length.visual_scroll(width - length_text.len()),
+                    package.width.visual_scroll(width - weight_text.len()),
+                    package.height.visual_scroll(width - height_text.len())
+                )
+            };
 
             let width = (info_chunks[1].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
             
             let (username_text, locker_text, branch_text) =
                 ("Username: ", "Locker ID: ", "Branch ID: ");
 
-            let (username_scroll, locker_scroll, branch_scroll) = (
-                package.client.visual_scroll(width - username_text.len()),
-                package.locker.visual_scroll(width - locker_text.len()),
-                package.branch.visual_scroll(width - branch_text.len())
-            );
-            
+            let (username_scroll, locker_scroll, branch_scroll) = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                (
+                    package.client.visual_scroll(width - username_text.len()),
+                    package.locker.visual_scroll(width - locker_text.len()),
+                    package.branch.visual_scroll(width - branch_text.len())
+                )
+            };
+
+            let input_mode = app.lock().unwrap().input_mode.clone(); 
             match div {
                 Div::Left =>
-                    if let InputMode::Editing(field) = app_lock.input_mode {
+                    if let InputMode::Editing(field) = input_mode {
                         let package_info_area = info_chunks[0].inner(&Margin::new(2, 2));
+                        let app_lock = app.lock().unwrap();
+                        let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
                         f.set_cursor(
                             package_info_area.x +
                             match field {
@@ -408,8 +424,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                         );
                     },
                 Div::Right => {
-                    if let InputMode::Editing(field) = app_lock.input_mode {
+                    if let InputMode::Editing(field) = input_mode {
                         let package_info_area = info_chunks[1].inner(&Margin::new(2, 2));
+                        let app_lock = app.lock().unwrap();
+                        let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
                         let (offset_x, offset_y) =
                             match field {
                                 0 =>
@@ -439,52 +457,76 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             .centered();
 
             let content_title = Line::styled(content_text, lstyle_highlight);
-            let content = Paragraph::new(
-                Line::styled(
-                package.content.value(), lstyle_normal
+            let content = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                    package.content.value().to_string(), lstyle_normal
+                    )
                 )
-            )
-            .scroll((0, content_scroll as u16));
+                .scroll((0, content_scroll as u16))
+            };
             
             let value_title = Line::styled(value_text, lstyle_highlight);
-            let value = Paragraph::new(
-                Line::styled(
-                    package.value.value(), lstyle_normal
+            let value = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                    Paragraph::new(
+                    Line::styled(
+                        package.value.value().to_string(), lstyle_normal
+                    )
                 )
-            )
-            .scroll((0, value_scroll as u16));
+                .scroll((0, value_scroll as u16))
+            };
 
             let weight_title = Line::styled(weight_text, lstyle_highlight);
-            let weight = Paragraph::new(
-                Line::styled(
-                    package.weight.value(), lstyle_normal
+            let weight = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.weight.value().to_string(), lstyle_normal
+                    )
                 )
-            )
-            .scroll((0, weight_scroll as u16));
+                .scroll((0, weight_scroll as u16))
+            };
 
             let length_title = Line::styled(length_text, lstyle_highlight);
-            let length = Paragraph::new(
-                Line::styled(
-                    package.length.value(), lstyle_normal
+            let length = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.length.value().to_string(), lstyle_normal
+                    )
                 )
-            )
-            .scroll((0, length_scroll as u16));
+                .scroll((0, length_scroll as u16))
+            };
 
             let width_title = Line::styled(width_text, lstyle_highlight);
-            let width = Paragraph::new(
-                Line::styled(
-                    package.width.value(), lstyle_normal
+            let width = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.width.value().to_string(), lstyle_normal
+                    )
                 )
-            )
-            .scroll((0, width_scroll as u16));
+                .scroll((0, width_scroll as u16))
+            };
             
             let height_title = Line::styled(height_text, lstyle_highlight);
-            let height = Paragraph::new(
-                Line::styled(
-                    package.height.value(), lstyle_normal
+            let height = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.height.value().to_string(), lstyle_normal
+                    )
                 )
-            )
-            .scroll((0, height_scroll as u16));
+                .scroll((0, height_scroll as u16))
+            };
 
             f.render_widget(package_info_block, info_chunks[0]);
             f.render_widget(package_info_title, info_chunks[0].inner(&Margin::new(1, 1)));
@@ -526,35 +568,51 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             
             let width = recipient_info_chunks[0].width as usize;
 
-            let (username_scroll, locker_scroll, branch_scroll) = (
-                package.client.visual_scroll(width - username_text.len()),
-                package.locker.visual_scroll(width - locker_text.len()),
-                package.branch.visual_scroll(width - branch_text.len()),
-            );
+            let (username_scroll, locker_scroll, branch_scroll) = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                (
+                    package.client.visual_scroll(width - username_text.len()),
+                    package.locker.visual_scroll(width - locker_text.len()),
+                    package.branch.visual_scroll(width - branch_text.len()),
+                )
+            };
 
             let username_title = Line::styled(username_text, rstyle_highlight);
-            let username = Paragraph::new(
-                Line::styled(
-                    package.client.value(), rstyle_normal
+            let username = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.client.value().to_string(), rstyle_normal
+                    )
                 )
-            )
-            .scroll((0, username_scroll as u16));
+                .scroll((0, username_scroll as u16))
+            };
 
             let locker_title = Line::styled(locker_text, rstyle_highlight); 
-            let locker = Paragraph::new(
-                Line::styled(
-                    package.locker.value(), rstyle_normal
+            let locker = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.locker.value().to_string(), rstyle_normal
+                    )
                 )
-            )
-            .scroll((0, locker_scroll as u16));
+                .scroll((0, locker_scroll as u16))
+            };
 
             let branch_title = Line::styled(branch_text, rstyle_highlight); 
-            let branch = Paragraph::new(
-                Line::styled(
-                    package.branch.value(), rstyle_normal
+            let branch = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.branch.value().to_string(), rstyle_normal
+                    )
                 )
-            )
-            .scroll((0, branch_scroll as u16));
+                .scroll((0, branch_scroll as u16))
+            };
             
             f.render_widget(recipient_info_block.clone(), info_chunks[1]);
             f.render_widget(recipient_info_title, recipient_info_chunks[0]);
@@ -565,8 +623,28 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             f.render_widget(branch_title, recipient_info_chunks[5]);
             f.render_widget(branch, recipient_info_chunks[5].offset(Offset { x: branch_text.len() as i32, y: 0 }));
 
-            match app_lock.active_popup {
+            let active_popup = app.lock().unwrap().active_popup.clone();
+            match active_popup {
+                None => {
+                    let help = Paragraph::new(
+                        match div {
+                            Div::Left => HELP_TEXT.pkgadmin.add_package_left,
+                            Div::Right => HELP_TEXT.pkgadmin.add_package_right,
+                        })
+                        .block(help_block);
+
+                    f.render_widget(help, chunks[2]);
+                }
                 Some(Popup::FieldExcess) => {
+                    let help = Paragraph::new(
+                        match div {
+                            Div::Left => HELP_TEXT.pkgadmin.add_package_left,
+                            Div::Right => HELP_TEXT.pkgadmin.add_package_right,
+                        })
+                        .block(help_block);
+
+                    f.render_widget(help, chunks[2]);
+
                     let popup_area = centered_rect(&f.size(), 28, 4)?;
 
                     let err_block =
@@ -584,6 +662,50 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
                     f.render_widget(Clear, popup_area);
                     f.render_widget(err, popup_area);
+                }
+                Some(Popup::SelectPayment) => {
+                    let help = Paragraph::new(HELP_TEXT.pkgadmin.select_payment).block(help_block);
+                    f.render_widget(help, chunks[2]);
+
+                    let popup_area = centered_rect(&chunks[1], 26, 7)?;
+
+                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+
+                    f.render_widget(Clear, popup_area);
+                    f.render_widget(popup_block, popup_area);
+
+                    let actions_chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                            Constraint::Min(1),
+                        ])
+                        .split(popup_area.inner(&Margin::new(1, 1)));
+
+                    let sel_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+                    let unsel_style = Style::default().fg(Color::White);
+
+                    let online_action = Paragraph::new("Online payment")
+                        .style(if let Some(0) = app.lock().unwrap().action_sel { sel_style } else { unsel_style })
+                        .centered();
+
+                    let cash_action = Paragraph::new("Cash payment")
+                        .style(if let Some(1) = app.lock().unwrap().action_sel { sel_style } else { unsel_style })
+                        .centered();
+
+                    let card_action = Paragraph::new("Card payment")
+                        .style(if let Some(2) = app.lock().unwrap().action_sel { sel_style } else { unsel_style })
+                        .centered();
+
+                    f.render_widget(online_action, actions_chunks[0]);
+                    f.render_widget(cash_action, actions_chunks[2]);
+                    f.render_widget(card_action, actions_chunks[4]);
+                }
+                Some(Popup::OnlinePayment) => {
+                    online_payment(app, &chunks, f)?;
                 }
                 _ => {}
             }

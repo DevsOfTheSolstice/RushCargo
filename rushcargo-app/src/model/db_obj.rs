@@ -64,11 +64,14 @@ pub enum ShippingGuideType {
     LockerLocker,
     LockerBranch,
     LockerDelivery,
+    InpersonLocker,
+    InpersonBranch,
+    InpersonDelivery,
 }
 
 #[derive(Debug, Clone)]
 pub struct ShippingGuide {
-    shipping_num: i64,
+    pub shipping_num: i64,
     pub package_count: i64,
     pub sender: Client,
     pub recipient: Client,
@@ -77,7 +80,7 @@ pub struct ShippingGuide {
     pub branch_sender: Option<i32>,
     pub locker_receiver: Option<i64>,
     pub branch_receiver: Option<i32>,
-    pub shipping_type: ShippingGuideType, 
+    pub shipping_type: ShippingGuideType,
 }
 
 impl std::fmt::Display for ShippingGuideType {
@@ -90,6 +93,12 @@ impl std::fmt::Display for ShippingGuideType {
                     "Locker->Branch",
                 Self::LockerDelivery =>
                     "Locker->Delivery",
+                Self::InpersonLocker =>
+                    "In-person->Locker",
+                Self::InpersonBranch =>
+                    "In-person->Branch",
+                Self::InpersonDelivery =>
+                    "In-person->Delivery",
             }
         )
     }
@@ -111,7 +120,13 @@ impl<'r> FromRow<'r, PgRow> for ShippingGuide {
                     ShippingGuideType::LockerDelivery
                 }
             } else {
-                unimplemented!()
+                if let Some(_) = locker_receiver {
+                    ShippingGuideType::InpersonLocker
+                } else if let Some(_) = branch_receiver {
+                    ShippingGuideType::InpersonBranch
+                } else {
+                    ShippingGuideType::InpersonDelivery
+                }
             };
 
         Ok(ShippingGuide {

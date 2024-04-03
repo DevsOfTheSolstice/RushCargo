@@ -10,7 +10,7 @@ use crate::{
     model::{
         app::App,
         client::Client,
-        common::{GetDBErr, Bank, PaymentData, InputMode, Popup, Screen, SubScreen, User},
+        common::{Bank, GetDBErr, InputMode, PaymentData, PaymentType, Popup, Screen, SubScreen, User},
         db_obj::{Branch, Locker},
     },
 };
@@ -40,8 +40,8 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
         let payment_data =
             PaymentData {
                 amount: Decimal::new(99, 0),
-                transaction_id: app_lock.input.0.to_string(),
-                bank,
+                transaction_id: Some(app_lock.input.0.to_string()),
+                payment_type: PaymentType::Online(bank.clone()),
             };
         
         let next_shipping_id =
@@ -95,7 +95,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 .bind(next_payment_id)
                 .bind(client_data.info.username.clone())
                 .bind(payment_data.transaction_id)
-                .bind(payment_data.bank.to_string())
+                .bind(bank.to_string())
                 .bind(datetime.date())
                 .bind(datetime.time())
                 .bind(payment_data.amount)

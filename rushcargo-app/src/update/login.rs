@@ -140,7 +140,7 @@ pub async fn login_as(user: UserType, app: &mut Arc<Mutex<App>>, pool: &PgPool) 
                 PkgAdminData {
                     info: PkgAdmin {
                         username: row.try_get("username")?,
-                        warehouse_id: row.try_get("warehouse_id")?,
+                        branch_id: row.try_get("branch_id")?,
                         first_name: row.try_get("first_name")?,
                         last_name: row.try_get("last_name")?,
                     },

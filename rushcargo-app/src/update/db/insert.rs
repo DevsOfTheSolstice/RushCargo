@@ -89,7 +89,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                     "
                         INSERT INTO payments
                         (id, client, reference, platform, pay_type, pay_date, pay_hour, amount)
-                        VALUES ($1, $2, $3, $4, 'Online payment', $5, $6, $7)
+                        VALUES ($1, $2, $3, $4, 'Online', $5, $6, $7)
                     "
                 )
                 .bind(next_payment_id)

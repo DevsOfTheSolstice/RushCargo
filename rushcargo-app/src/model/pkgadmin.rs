@@ -9,7 +9,7 @@ use tui_input::Input;
 #[derive(Debug)]
 pub struct PkgAdmin {
     pub username: String,
-    pub warehouse_id: i64,
+    pub branch_id: i32,
     pub first_name: String,
     pub last_name: String,
 }

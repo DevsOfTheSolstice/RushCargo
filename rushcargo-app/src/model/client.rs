@@ -74,7 +74,7 @@ impl ClientData {
             COUNT(packages.tracking_number) AS package_count FROM lockers
             LEFT JOIN packages ON lockers.locker_id=packages.locker_id
             INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
-            INNER JOIN locations.warehouses AS warehouses ON locker.warehouse=warehouses.warehouse_id
+            INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
             WHERE client=$1
             GROUP BY lockers.locker_id, countries.country_id, warehouses.warehouse_id
             ORDER BY package_count DESC

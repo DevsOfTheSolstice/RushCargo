@@ -1,10 +1,6 @@
-import subprocess
-from lib.graph.networkx import RushWGraph
+from lib.graph.warehouses import RushWGraph, rushWGraph
 from lib.model.database import initdb
 from flask import Flask, request, jsonify
-
-# RushWGraph Class
-rushWGraph = None
 
 app = Flask("RushCargo")
 

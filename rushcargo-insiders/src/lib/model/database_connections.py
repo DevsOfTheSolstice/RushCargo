@@ -5,6 +5,8 @@ from .constants import *
 
 from .database import console
 
+from ..controller.constants import RICH_LOGGER_DEBUG_MODE
+
 from ..geocoding.constants import (
     NOMINATIM_LONGITUDE,
     NOMINATIM_LATITUDE,
@@ -75,7 +77,7 @@ class WarehouseConnectionsTable:
         self, warehouseConnsList: list[tuple[int, float, float]]
     ) -> list[dict]:
         """
-        Method to Get a List of Warehouse Dictionaries, that Contain its ID and Coordinates based on Fetched Warehouse Connections from the Remote Table
+        Method to Get a List of Warehouse Dictionaries, that Contain its ID and Coordinates that have been Fetched from the Warehouse Connections Remote Table
 
         :param list warehouseConnList: List of Fetched Warehouse Connections from the Remote Table
         :return: List of Warehouse Dictionaries that Contain its ID and Coordinates
@@ -96,6 +98,22 @@ class WarehouseConnectionsTable:
             warehouseList.append(warehouseDict)
 
         return warehouseList
+
+    def __getWarehouseIds(self, warehouseList: list[tuple[int]]) -> list[int]:
+        """
+        Method to Get a List that Contains All the Warehouse IDs that have been Fetched from the Warehouses Remote View
+
+        :param list warehouseList: List of Fetched Warehouse IDs from the Remote Table
+        :return: List that Contains All the Warehouse IDs
+        :rtype: list
+        """
+
+        warehouseIdsList = []
+
+        for w in warehouseList:
+            warehouseIdsList.append(w[0])
+
+        return warehouseIdsList
 
     def __isMainWarehouseQuery(
         self, locationIdField: str, tableName: str, warehouseIdField: str
@@ -336,38 +354,6 @@ class WarehouseConnectionsTable:
 
         return warehouseConns
 
-    def getMainRegionWarehouses(self, countryId: int) -> list[dict]:
-        """
-        Method to Get All the Region Main Warehouses from a Given Country ID
-
-        :param int countryId: Country ID where the Regions are Located
-        :return: List of Warehouse Connection Dictionaries
-        :rtype: list
-        """
-
-        # Get Query to Get All the Region Main Warehouses from a Given Country ID
-        query = self.__getMainWarehousesQuery(
-            REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID
-        )
-
-        return self.__getMainWarehouses(query, countryId)
-
-    def getMainCityWarehouses(self, regionId: int) -> list[dict]:
-        """
-        Method to Get All the City Main Warehouses from a Given Region ID
-
-        :param int regionId: Region ID where the Cities are Located
-        :return: List of Warehouse Connection Dictionaries
-        :rtype: list
-        """
-
-        # Get Query to Get All the City Main Warehouses from a Given Region ID
-        query = self.__getMainWarehousesQuery(
-            CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID
-        )
-
-        return self.__getMainWarehouses(query, regionId)
-
     def __getCityWarehousesQuery(self):
         """
         Method that Returns the Query to Get All the Warehouses from a Given City ID
@@ -387,9 +373,132 @@ class WarehouseConnectionsTable:
             cityIdField=sql.Identifier(CITIES_ID),
         )
 
-    def getCityWarehouses(self, cityId: int) -> list[dict]:
+    def getRegionMainWarehouseIds(self, countryId: int) -> list[int]:
         """
-        Method to Get All the Warehouses from a Given City ID
+        Method to Get All the Region Main Warehouse IDs from a Given Country ID
+
+        :param int countryId: Country ID where the Warehouses are Located
+        :return: List of Warehouse IDs
+        :rtype: int
+        """
+
+        # Get Query to Get All the Region Main Warehouses from a Given Country ID
+        query = self.__getMainWarehousesQuery(
+            REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID
+        )
+
+        # Execute the Query and Fetch the Items
+        try:
+            # Get All the Warehouses
+            self._items = self._c.execute(
+                query,
+                [countryId],
+            )
+            self.__fetchall()
+
+        except Exception as err:
+            raise err
+
+        # Get List of Warehouse IDs
+        warehouseIds = self.__getWarehouseIds(self._items)
+
+        return warehouseIds
+
+    def getRegionMainWarehouseDicts(self, countryId: int) -> list[dict]:
+        """
+        Method to Get All the Region Main Warehouse IDs and Coordinates from a Given Country ID
+
+        :param int countryId: Country ID where the Regions are Located
+        :return: List of Warehouse Connection Dictionaries
+        :rtype: list
+        """
+
+        # Get Query to Get All the Region Main Warehouses from a Given Country ID
+        query = self.__getMainWarehousesQuery(
+            REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID
+        )
+
+        return self.__getMainWarehouses(query, countryId)
+
+    def getCityMainWarehouseIds(self, regionId: int) -> list[int]:
+        """
+        Method to Get All the City Main Warehouse IDs from a Given Region ID
+
+        :param int regionId: Region ID where the Warehouses are Located
+        :return: List of Warehouse IDs
+        :rtype: int
+        """
+
+        # Get Query to Get All the City Main Warehouses from a Given Region ID
+        query = self.__getMainWarehousesQuery(
+            CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID
+        )
+
+        # Execute the Query and Fetch the Items
+        try:
+            # Get All the Warehouses
+            self._items = self._c.execute(
+                query,
+                [regionId],
+            )
+            self.__fetchall()
+
+        except Exception as err:
+            raise err
+
+        # Get List of Warehouse IDs
+        warehouseIds = self.__getWarehouseIds(self._items)
+
+        return warehouseIds
+
+    def getCityMainWarehouseDicts(self, regionId: int) -> list[dict]:
+        """
+        Method to Get All the City Main Warehouse IDs and Coordinates from a Given Region ID
+
+        :param int regionId: Region ID where the Cities are Located
+        :return: List of Warehouse Connection Dictionaries
+        :rtype: list
+        """
+
+        # Get Query to Get All the City Main Warehouses from a Given Region ID
+        query = self.__getMainWarehousesQuery(
+            CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID
+        )
+
+        return self.__getMainWarehouses(query, regionId)
+
+    def getCityWarehouseIds(self, cityId: int) -> list[int]:
+        """
+        Method to Get All the Warehouse IDs from a Given City ID
+
+        :param int cityId: City ID where the Warehouses are Located
+        :return: List of Warehouse IDs
+        :rtype: int
+        """
+
+        # Get Query to Get All the Warehouses from a Given City ID
+        query = self.__getCityWarehousesQuery()
+
+        # Execute the Query and Fetch the Items
+        try:
+            # Get All the Warehouses
+            self._items = self._c.execute(
+                query,
+                [cityId],
+            )
+            self.__fetchall()
+
+        except Exception as err:
+            raise err
+
+        # Get List of Warehouse IDs
+        warehouseIds = self.__getWarehouseIds(self._items)
+
+        return warehouseIds
+
+    def getCityWarehouseDicts(self, cityId: int) -> list[dict]:
+        """
+        Method to Get All the Warehouse IDs and Coordinates from a Given City ID
 
         :param int cityId: City ID where the Warehouses are Located
         :return: List of Warehouse Connection Dictionaries
@@ -648,10 +757,10 @@ class WarehouseConnectionsTable:
         """
 
         # Get All the Region Main Warehouses at the Given Country ID
-        regionMainWarehouses = self.getMainRegionWarehouses(countryId)
+        regionMainWarehouses = self.getRegionMainWarehouseDicts(countryId)
 
         # Get All the City Main Warehouses at the Given Region ID
-        cityMainWarehouses = self.getMainCityWarehouses(regionId)
+        cityMainWarehouses = self.getCityMainWarehouseDicts(regionId)
 
         # Set the Region Main Warehouse Connections
         asyncio.run(
@@ -697,10 +806,10 @@ class WarehouseConnectionsTable:
         """
 
         # Get All the City Main Warehouses at the Given Region ID
-        cityMainWarehouses = self.getMainCityWarehouses(regionId)
+        cityMainWarehouses = self.getCityMainWarehouseDicts(regionId)
 
         # Get All the City Warehouses at the Given City ID
-        cityWarehouses = self.getCityWarehouses(cityId)
+        cityWarehouses = self.getCityWarehouseDicts(cityId)
 
         # Set the Region Main Warehouse Connection
         asyncio.run(
@@ -732,7 +841,7 @@ class WarehouseConnectionsTable:
             )
         )
 
-        if not ROUTES_DEBUG_MODE:
+        if not ROUTES_DEBUG_MODE and RICH_LOGGER_DEBUG_MODE:
             console.print("\n")
 
     def insertCityWarehouse(
@@ -761,5 +870,5 @@ class WarehouseConnectionsTable:
             )
         )
 
-        if not ROUTES_DEBUG_MODE:
+        if not ROUTES_DEBUG_MODE and RICH_LOGGER_DEBUG_MODE:
             console.print("\n")

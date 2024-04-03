@@ -17,12 +17,15 @@ from ..geocoding.geopy import (
 )
 from ..geocoding.routingpy import ORSGeocoder
 
+from ..graph.constants import LAYOUT_CMDS
+from ..graph.warehouses import rushWGraph, RushWGraph
+
 from ..io.constants import (
-    ADD,
-    RM,
-    ALL,
-    GET,
-    MOD,
+    DB_ADD,
+    DB_RM,
+    DB_ALL,
+    DB_GET,
+    DB_MOD,
 )
 from ..io.exceptions import GoToMenu
 from ..io.validator import *
@@ -55,6 +58,9 @@ class LocationsEventHandler:
     Class that Handles the Locations Scheme-related Subcommands
     """
 
+    # Database Connection
+    __c = None
+
     # Table Classes
     __countriesTable = None
     __regionsTable = None
@@ -85,6 +91,9 @@ class LocationsEventHandler:
         :param str user: Remote Database Role Name
         :param str ORSApiKey: Open Routing Service API Key
         """
+
+        # Store Database Connection Cursor
+        self.__c = remoteCursor
 
         # Initialize Table Classes
         self.__countriesTable = CountriesTable(remoteCursor)
@@ -530,12 +539,6 @@ class LocationsEventHandler:
             except Exception as err:
                 console.print(err, style="warning")
 
-                # Press ENTER to Continue
-                Prompt.ask(PRESS_ENTER)
-
-                # Clear Terminal
-                clear()
-
                 continue
 
     def getCountryId(self) -> int:
@@ -583,12 +586,6 @@ class LocationsEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
-
-                # Press ENTER to Continue
-                Prompt.ask(PRESS_ENTER)
-
-                # Clear Terminal
-                clear()
 
                 continue
 
@@ -640,12 +637,6 @@ class LocationsEventHandler:
 
             except Exception as err:
                 console.print(err, style="warning")
-
-                # Press ENTER to Continue
-                Prompt.ask(PRESS_ENTER)
-
-                # Clear Terminal
-                clear()
 
                 continue
 
@@ -1479,9 +1470,9 @@ class LocationsEventHandler:
         # Press ENTER to Continue
         Prompt.ask(PRESS_ENTER)
 
-    def handler(self, action: str, tableName: str) -> None:
+    def dbHandler(self, action: str, tableName: str) -> None:
         """
-        Main Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Location-related Subcommands
+        Database Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Location-related Subcommands
 
         :param str action: Location-related Command (``add``, ``all``, ``get``, ``mod`` or ``rm``)
         :param str tableName: Location-related Table Name at Remote Database
@@ -1489,17 +1480,73 @@ class LocationsEventHandler:
         :rtype: NoneType
         """
 
-        if action == ADD:
+        if action == DB_ADD:
             self._addHandler(tableName)
 
-        elif action == GET:
+        elif action == DB_GET:
             self._getHandler(tableName)
 
-        elif action == ALL:
+        elif action == DB_ALL:
             self._allHandler(tableName)
 
-        elif action == MOD:
+        elif action == DB_MOD:
             self._modHandler(tableName)
 
-        elif action == RM:
+        elif action == DB_RM:
             self._rmHandler(tableName)
+
+    def graphHandler(self, graphType: str, level: str) -> None:
+        """
+        Graph Handler of ``countries``, ``regions`` and ``cities`` Graph Level Subcommands
+
+        :param str graphType: Graph Type Command
+        :param str level: Graph Level Command (``countries``, ``regions`` and ``cities``)
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        global rushWGraph
+
+        # Select Graph Layout
+        layout = Prompt.ask("Select a Layout", choices=LAYOUT_CMDS)
+
+        # Check the Graph Type Command
+        if graphType == WAREHOUSES_TABLE_NAME:
+            # Check if the Given Graph is Initialized
+            if rushWGraph == None:
+                rushWGraph = RushWGraph(self.__c, True)
+
+            warehouseIds = None
+            locationId = None
+
+            if level == COUNTRIES_TABLE_NAME:
+                # Select Country ID
+                locationId = countryId = self.getCountryId()
+
+                # Get the Region Main Warehouse IDs at the Given Country
+                warehouseIds = self.__warehouseConnsTable.getRegionMainWarehouseIds(
+                    countryId
+                )
+
+            elif level == REGIONS_TABLE_NAME:
+                # Select Region ID
+                locationId = regionId = self.getRegionId()
+
+                # Get the City Main Warehouse IDs at the Given Region
+                warehouseIds = self.__warehouseConnsTable.getCityMainWarehouseIds(
+                    regionId
+                )
+
+                # Add Region Main Warehouse ID
+                region = self.__regionsTable.find(regionId)
+                warehouseIds.append(region.warehouseId)
+
+            elif level == CITIES_TABLE_NAME:
+                # Select City ID
+                locationId = cityId = self.getCityId()
+
+                # Get the Warehouse IDs at the Given City
+                warehouseIds = self.__warehouseConnsTable.getCityWarehouseIds(cityId)
+
+            # Draw the Graph with the Given Warehouse IDs and Layout. Store it Locally
+            rushWGraph.draw(layout, level, locationId, warehouseIds)

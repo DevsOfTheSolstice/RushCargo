@@ -21,7 +21,9 @@ use lazy_static::lazy_static;
 #[command(version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
-    url: String,
+    db: String,
+    #[arg(short, long)]
+    graphserver: String,
 }
 
 const HELP_TEXT: HelpText = HelpText::default();
@@ -37,6 +39,10 @@ lazy_static! {
             }
             path
         });
+    static ref GRAPH_URL: Mutex<String> = Mutex::new({
+        let args = Args::parse();
+        args.graphserver
+    });
 }
 
 #[tokio::main]
@@ -51,9 +57,10 @@ async fn main() -> Result<()> {
     }*/
     crate::check_files::check_files();
 
-    let args = Args::parse();
-    println!("{}", args.url);
-    let pool = sqlx::postgres::PgPool::connect(&args.url).await?;
+    let pool = {
+        let args = Args::parse();
+        sqlx::postgres::PgPool::connect(&args.db).await?
+    };
 
     let app = App::default();
     let mut app_arc = Arc::new(Mutex::new(app));
@@ -65,20 +72,6 @@ async fn main() -> Result<()> {
     tui.enter()?;
 
     app_arc.lock().unwrap().enter_screen(Screen::Login, &pool).await;
-
-    /*use sqlx::FromRow;
-    let test = crate::model::db_obj::ShippingGuide::from_row(&sqlx::query(
-        "SELECT guide.*,
-        sender.username AS sender_username, sender.client_name AS sender_client_name, sender.last_name AS sender_last_name,
-        receiver.username AS receiver_username, receiver.client_name AS receiver_client_name, receiver.last_name AS receiver_last_name
-        FROM shipping_guide AS guide
-        INNER JOIN natural_client AS sender ON guide.client_user_from=sender.username
-        INNER JOIN natural_client AS receiver ON guide.client_user_to=receiver.username
-        LIMIT 1
-    ")
-    .fetch_one(&pool).await?)?;
-
-    panic!("{}", test.shipping_type);*/
 
     tui.draw(&mut app_arc)?;
 

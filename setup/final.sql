@@ -357,6 +357,7 @@ CREATE TABLE Orders.Delivery_Orders (
     client VARCHAR(255) NOT NULL,
     shipping_number BIGINT,
     rating DECIMAL(3, 2) CHECK (rating <= 5.0),
+    rejected BOOLEAN NOT NULL,
     FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
     FOREIGN KEY (motorcyclist) REFERENCES Vehicles.Motorcyclists(username),
     FOREIGN KEY (client) REFERENCES Users.Clients(username),
@@ -370,6 +371,7 @@ CREATE TABLE Orders.Warehouse_Transfer_Orders (
     warehouse_from BIGINT,
     warehouse_to BIGINT,
     shipping_number BIGSERIAL,
+    rejected BOOLEAN NOT NULL,
     FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
     FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
     FOREIGN KEY (warehouse_from) REFERENCES locations.Warehouses(warehouse_id),
@@ -386,6 +388,7 @@ CREATE TABLE Orders.Branch_Transfer_Order (
     branch BIGSERIAL,
     -- true if transfer is warehouse->branch, false if transfer is branch->warehouse
     withdrawal BOOLEAN NOT NULL,
+    rejected BOOLEAN NOT NULL,
     FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
     FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
     FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),
@@ -402,6 +405,7 @@ CREATE TABLE Orders.Air_Cargo_Order (
     air_freight_forwarder BIGINT,
     -- true if transfer is warehouse->forwarder, false if transfer is forwarder->warehouse
     withdrawal BOOLEAN NOT NULL,
+    rejected BOOLEAN NOT NULL,
     FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
     FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
     FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),
@@ -418,6 +422,7 @@ CREATE TABLE Orders.Ocean_Cargo_Order (
     -- true if transfer is warehouse->forwarder, false if transfer is forwarder->warehouse
     ocean_freight_forwarder BIGINT,
     withdrawal BOOLEAN NOT NULL,
+    rejected BOOLEAN NOT NULL,
     FOREIGN KEY (order_number) REFERENCES Orders.Automatic_Orders(order_number),
     FOREIGN KEY (trucker) REFERENCES Vehicles.Truckers(username),
     FOREIGN KEY (shipping_number) REFERENCES Shippings.Shipping_Guides(shipping_number),

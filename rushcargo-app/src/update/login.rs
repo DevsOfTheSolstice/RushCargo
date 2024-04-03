@@ -6,6 +6,7 @@ use bcrypt::verify;
 use anyhow::Result;
 use crate::{
     HELP_TEXT,
+    GRAPH_URL,
     event::{Event, InputBlacklist},
     model::{
         common::{User, Popup, TimeoutType},
@@ -96,7 +97,11 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                 if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
                     let admin_type: &str = res.try_get("user_type")?;
-                    let mut app_lock = app.lock().unwrap();
+                    match admin_type {
+                        "PkgAdmin" => {
+                            
+                        }
+                    }
                     app_lock.user =
                         match admin_type { 
                             "PkgAdmin" => Some(User::PkgAdmin(

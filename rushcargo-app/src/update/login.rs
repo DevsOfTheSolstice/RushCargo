@@ -9,7 +9,7 @@ use crate::{
     GRAPH_URL,
     event::{Event, InputBlacklist},
     model::{
-        common::{User, Popup, TimeoutType},
+        common::{User, UserType, Popup, TimeoutType},
         client::{ClientData, Client},
         pkgadmin::{PkgAdminData, PkgAdmin},
         app::App,
@@ -99,29 +99,22 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     let admin_type: &str = res.try_get("user_type")?;
                     match admin_type {
                         "PkgAdmin" => {
-                            
+                            let client = reqwest::Client::new();
+                            if !client.get(
+                                GRAPH_URL.lock().unwrap().clone()
+                            )
+                            .send()
+                            .await.is_ok()
+                            {
+                                app.lock().unwrap().temp_row = Some(res);
+                                app.lock().unwrap().enter_popup(Some(Popup::ServerUnavailable), pool).await;
+                                return Ok(());
+                            }
+                            app.lock().unwrap().temp_row = Some(res);
+                            login_as(UserType::PkgAdmin, app, pool).await?;
                         }
+                        _ => panic!("unknown admin type: {}", admin_type),
                     }
-                    app_lock.user =
-                        match admin_type { 
-                            "PkgAdmin" => Some(User::PkgAdmin(
-                                PkgAdminData {
-                                    info: PkgAdmin {
-                                        username,
-                                        warehouse_id: res.try_get("warehouse_id")?,
-                                        first_name: res.try_get("first_name")?,
-                                        last_name: res.try_get("last_name")?,
-                                    },
-                                    shipping_guides: None,
-                                    packages: None,
-                                    add_package: None,
-                                    get_db_err: None,
-                                }
-                            )),
-                            _ => panic!("unknown admin type: {}", admin_type),
-                        };
-
-                    app_lock.enter_popup(Some(Popup::LoginSuccessful), pool).await;
                     return Ok(())
                 }
             }
@@ -136,4 +129,31 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         },
         _ => panic!("An event of type {:?} was passed to the login update function", event)
     }
+}
+
+pub async fn login_as(user: UserType, app: &mut Arc<Mutex<App>>, pool: &PgPool) -> Result<()> {
+    let mut app_lock = app.lock().unwrap();
+    let row = app_lock.temp_row.as_ref().unwrap();
+    match user {
+        UserType::PkgAdmin => {
+            app_lock.user = Some(User::PkgAdmin(
+                PkgAdminData {
+                    info: PkgAdmin {
+                        username: row.try_get("username")?,
+                        warehouse_id: row.try_get("warehouse_id")?,
+                        first_name: row.try_get("first_name")?,
+                        last_name: row.try_get("last_name")?,
+                    },
+                    shipping_guides: None,
+                    packages: None,
+                    add_package: None,
+                    get_db_err: None,
+                }
+            ));
+        }
+        _ => unimplemented!("fn login_as() for user {:?}", user)
+    }
+    app_lock.temp_row = None;
+    app_lock.enter_popup(Some(Popup::LoginSuccessful), pool).await;
+    Ok(())
 }

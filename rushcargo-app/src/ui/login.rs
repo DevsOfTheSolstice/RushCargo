@@ -1,6 +1,6 @@
 use ratatui::{
-    layout::{Layout, Direction, Constraint},
-    prelude::{Alignment, Frame},
+    layout::{Layout, Direction, Constraint, Offset},
+    prelude::{Alignment, Frame, Margin, Modifier},
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Paragraph, Clear}
@@ -112,8 +112,6 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             Popup::LoginSuccessful => {
                 let popup_rect = centered_rect(&f.size(), 28, 3)?;
 
-                f.render_widget(Clear, popup_rect);
-
                 let login_successful_block = Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Thick);
@@ -124,9 +122,73 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .alignment(Alignment::Center)
                 .block(login_successful_block);
 
+                f.render_widget(Clear, popup_rect);
                 f.render_widget(login_successful_popup, popup_rect);
+            }
+            Popup::ServerUnavailable => {
+                let popup_rect = centered_rect(&f.size(), 55, 7)?;
 
-                f.set_cursor(f.size().width, f.size().height);
+                let popup_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Min(2),
+                        Constraint::Percentage(100)
+                    ])
+                    .split(popup_rect.inner(&Margin::new(1, 1)));
+
+                let popup_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Thick)
+                    .style(Style::default().fg(Color::Red));
+                
+                let server_unavailable = Paragraph::new(Text::from(vec![
+                    Line::raw("The server could not be reached."),
+                    Line::raw("Would you like to login with limited functionality?")
+                ]))
+                .centered();
+
+                let (yes_style, yes_borders, no_style, no_borders) =
+                    match app_lock.action_sel {
+                        None => (Style::default().fg(Color::DarkGray), BorderType::Rounded, Style::default().fg(Color::DarkGray), BorderType::Rounded),
+                        Some(0) => (Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), BorderType::Thick, Style::default().fg(Color::DarkGray), BorderType::Rounded),
+                        Some(1) => (Style::default().fg(Color::DarkGray), BorderType::Rounded, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), BorderType::Thick),
+                        _ => panic!()
+                    };
+
+                let action_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                    ])
+                    .split(popup_chunks[1]);
+                
+                let yes_action_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(yes_borders);
+
+                let yes_action = Paragraph::new("Yes")
+                    .centered()
+                    .block(yes_action_block)
+                    .style(yes_style);
+                
+                let no_action_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(no_borders);
+                    
+                let no_action = Paragraph::new("No")
+                    .centered()
+                    .block(no_action_block)
+                    .style(no_style);
+                
+                f.render_widget(Clear, popup_rect);
+                f.render_widget(popup_block, popup_rect);
+                f.render_widget(server_unavailable, popup_chunks[0]);
+                f.render_widget(yes_action, action_chunks[1]);
+                f.render_widget(no_action, action_chunks[3]);
             }
             _ => { unimplemented!() }
         }

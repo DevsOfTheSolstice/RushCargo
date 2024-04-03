@@ -56,6 +56,7 @@ pub enum Popup {
     DisplayMsg,
 
     LoginSuccessful,
+    ServerUnavailable,
 
     ClientOrderMain,
     ClientOrderLocker,
@@ -64,6 +65,12 @@ pub enum Popup {
     ClientInputPayment,
 
     FieldExcess,
+}
+
+#[derive(Debug)]
+pub enum UserType {
+    Client,
+    PkgAdmin
 }
 
 #[derive(Debug)]

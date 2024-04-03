@@ -29,7 +29,15 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 };
                 sender.send(Event::EnterPopup(None))
             } else { panic!() }
-        },
+        }
+        Some(Popup::ServerUnavailable) => {
+            match key_event.code {
+                KeyCode::Esc => sender.send(Event::EnterPopup(None)),
+                KeyCode::Tab => sender.send(Event::SwitchAction),
+                KeyCode::Enter => sender.send(Event::SelectAction),
+                _ => Ok(())
+            }
+        }
         None => {
             match key_event.code {
                 KeyCode::Esc => sender.send(Event::EnterScreen(Screen::Title)),

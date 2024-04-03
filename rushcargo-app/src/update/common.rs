@@ -10,7 +10,7 @@ use crate::{
     model::{
         app::App,
         client::Client,
-        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, Div, User},
+        common::{UserType, InputMode, PaymentData, Popup, Screen, SubScreen, Div, User},
     },
 };
 
@@ -100,6 +100,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let mut app_lock = app.lock().unwrap();
 
             match app_lock.active_screen {
+                Screen::Login => {
+                    match app_lock.action_sel {
+                        Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
+                        _ => app_lock.action_sel = Some(0),
+                    }
+                }
                 Screen::Client(SubScreen::ClientMain) => {
                     match app_lock.action_sel {
                         Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
@@ -140,17 +146,27 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             Ok(())
         }
         Event::SelectAction => {
-            let mut app_lock = app.lock().unwrap();
-
-            let subscreen = 
+            let subscreen = {
+                let app_lock = app.lock().unwrap();
                 match &app_lock.active_screen {
-                    Screen::Client(sub) => Some(sub),
-                    Screen::PkgAdmin(sub) => Some(sub),
+                    Screen::Login => None,
+                    Screen::Client(sub) => Some(sub.clone()),
+                    Screen::PkgAdmin(sub) => Some(sub.clone()),
                     _ => None
-                };
+                }
+            };
 
             match subscreen {
+                None => {
+                    let action_sel = app.lock().unwrap().action_sel.clone();
+                    match action_sel {
+                        Some(0) => super::login::login_as(UserType::PkgAdmin, app, pool).await?,
+                        Some(1) => app.lock().unwrap().enter_popup(None, pool).await,
+                        _ => {}
+                    }
+                }
                 Some(SubScreen::ClientMain) => {
+                    let mut app_lock = app.lock().unwrap();
                     match app_lock.action_sel {
                         Some(0) => app_lock.enter_screen(Screen::Client(SubScreen::ClientLockers), pool).await,
                         Some(1) => app_lock.enter_screen(Screen::Client(SubScreen::ClientSentPackages), pool).await,
@@ -158,6 +174,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     }
                 }
                 Some(SubScreen::ClientLockerPackages) => {
+                    let mut app_lock = app.lock().unwrap();
                     match app_lock.action_sel {
                         Some(0) => app_lock.enter_popup(Some(Popup::ClientOrderLocker), pool).await,
                         Some(1) => app_lock.enter_popup(Some(Popup::ClientOrderBranch), pool).await,
@@ -166,13 +183,14 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     }
                 }
                 Some(SubScreen::PkgAdminMain) => {
+                    let mut app_lock = app.lock().unwrap();
                     match app_lock.action_sel {
                         Some(0) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminGuides), pool).await,
                         Some(1) => app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)), pool).await,
                         _ => {}
                     }
                 }
-                _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app_lock.active_screen, subscreen)
+                _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app.lock().unwrap().active_screen, subscreen)
             }
             Ok(()) 
         }

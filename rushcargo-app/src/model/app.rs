@@ -1,5 +1,5 @@
 use std::{collections::HashMap, path::Display};
-use sqlx::{Row, Pool, Postgres, PgPool};
+use sqlx::{postgres::PgRow, Postgres, PgPool};
 use anyhow::{Result, anyhow};
 use ratatui::widgets::{List, ListState};
 use std::time::{Duration, Instant};
@@ -22,6 +22,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub action_sel: Option<u8>,
     pub failed_logins: u8,
+    pub temp_row: Option<PgRow>,
     pub timeout: HashMap<TimeoutType, Timer>,
     pub settings: SettingsData,
     pub title: Option<Box<TitleData>>,
@@ -48,6 +49,7 @@ impl App {
             input_mode: InputMode::Normal,
             action_sel: None,
             failed_logins: 0,
+            temp_row: None,
             timeout: HashMap::new(),
             settings: settings.unwrap(),
             title: None,
@@ -177,7 +179,7 @@ impl App {
     }
 
     pub async fn enter_popup(&mut self, popup: Option<Popup>, pool: &PgPool) {
-        self.cleanup_popup(&popup);
+        self.cleanup_popup();
         self.active_popup = popup;
 
         match self.active_popup {
@@ -201,8 +203,14 @@ impl App {
         }
     }
 
-    fn cleanup_popup(&mut self, next_popup: &Option<Popup>) {
-        match self.prev_popup {
+    fn cleanup_popup(&mut self) {
+        self.prev_popup = self.active_popup.clone();
+
+        match self.active_popup {
+            Some(Popup::ServerUnavailable) => {
+                self.action_sel = None;
+                self.temp_row = None;
+            }
             Some(Popup::ClientOrderMain) => {
                 self.action_sel = None;
             }
@@ -217,10 +225,11 @@ impl App {
                 self.input.1.reset();
                 self.list.state.0.select(None);
                 self.action_sel = None;
-                self.get_client_mut().send_to_client = None;
-                self.get_client_mut().send_to_branch = None;
-                self.get_client_mut().send_to_client = None;
-                self.get_client_mut().send_payment = None;
+                let client = self.get_client_mut();
+                client.send_to_client = None;
+                client.send_to_branch = None;
+                client.send_to_client = None;
+                client.send_payment = None;
             }
             Some(Popup::ClientOrderBranch) => {
                 self.input.0.reset();
@@ -235,7 +244,6 @@ impl App {
             }
             _ => {}
         }
-        self.prev_popup = next_popup.clone();
     }
     pub fn toggle_displaymsg(&mut self) {
         self.display_msg = !self.display_msg;

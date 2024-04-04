@@ -117,11 +117,22 @@ class NominatimDatabase:
         if self.__conn != None:
             self.__conn.close()
 
+    # Get Database Connection
+    def getConnection(self):
+        """
+        Method to Get Local Database Connection
+
+        :return: Local Database Connection
+        :rtype: Connection
+        """
+
+        return self.__conn
+
     def getCursor(self):
         """
-        Method to Get Remote Database Connection Cursor
+        Method to Get Local Database Connection Cursor
 
-        :return: Remote Database Connection Cursor
+        :return: Local Database Connection Cursor
         :rtype: Cursor
         """
 
@@ -134,17 +145,20 @@ class NominatimTables:
     """
 
     # Database Connection
+    __conn = None
     __c = None
     __item = None
 
-    def __init__(self, cursor):
+    def __init__(self, connection, cursor):
         """
         Nominatim GeoPy Location Tables Class Constructor
 
+        :param Connection connection: Local Database Connection
         :param Cursor cursor: Local Database Connection Cursor
         """
 
-        # Store Dtabase Connection Cursor
+        # Store Database Connection  and Cursor
+        self.__conn = connection
         self.__c = cursor
 
         # Create Nominatim GeoPy Root Table if It doesn't Exist
@@ -731,6 +745,8 @@ class NominatimTables:
         countryNameId = self.getCountryNameId(name)
         self._addCountrySearch(search, countryNameId)
 
+        self.__conn.commit()
+
     def _removeFirstCountryName(self) -> None:
         """
         Method to Remove the First-in Country Name from its Location Name Table
@@ -942,6 +958,8 @@ class NominatimTables:
         # Add Region Search
         regionNameId = self.getRegionNameId(countryNameId, regionName)
         self._addRegionSearch(regionSearch, regionNameId)
+
+        self.__conn.commit()
 
     def _removeFirstRegionName(self) -> None:
         """
@@ -1181,6 +1199,8 @@ class NominatimTables:
 
         # Add City Search
         self._addCitySearch(citySearch, cityNameId)
+
+        self.__conn.commit()
 
     def _removeFirstCityName(self) -> None:
         """

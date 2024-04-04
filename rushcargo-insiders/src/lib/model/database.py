@@ -61,7 +61,8 @@ class Database:
         # Connect to the Remote Database
         try:
             self.__conn = connect(
-                f"host={self.__host} dbname={self.__dbname} user={self.__user} password={self.__password} port={self.__port} sslmode={'require'}"
+                autocommit=True,
+                conninfo=f"host={self.__host} dbname={self.__dbname} user={self.__user} password={self.__password} port={self.__port} sslmode={'require'}",
             )
             self.__c = self.getCursor()
 
@@ -83,7 +84,18 @@ class Database:
         if self.__conn != None:
             self.__conn.close()
 
-    # Get Cursor
+    # Get Database Connection
+    def getConnection(self):
+        """
+        Method to Get Remote Database Connection
+
+        :return: Remote Database Connection
+        :rtype: Connection[TupleRow]
+        """
+
+        return self.__conn
+
+    # Get Database Cursor
     def getCursor(self):
         """
         Method to Get Remote Database Connection Cursor

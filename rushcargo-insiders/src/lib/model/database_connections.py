@@ -74,19 +74,19 @@ class WarehouseConnectionsTable:
         self._items = self._items.fetchall()
 
     def __getWarehouseDicts(
-        self, warehouseConnsList: list[tuple[int, float, float]]
+        self, warehousesList: list[tuple[int, float, float]]
     ) -> list[dict]:
         """
-        Method to Get a List of Warehouse Dictionaries, that Contain its ID and Coordinates that have been Fetched from the Warehouse Connections Remote Table
+        Method to Get a List of Warehouse Dictionaries, that Contain its ID and Coordinates
 
-        :param list warehouseConnList: List of Fetched Warehouse Connections from the Remote Table
+        :param list warehousesList: List of Fetched Warehouses
         :return: List of Warehouse Dictionaries that Contain its ID and Coordinates
         :rtype: list
         """
 
-        warehouseList = []
+        warehouseDictsList = []
 
-        for w in warehouseConnsList:
+        for w in warehousesList:
             warehouseDict = {}
 
             warehouseDict[DICT_WAREHOUSE_ID] = w[0]
@@ -95,11 +95,11 @@ class WarehouseConnectionsTable:
                 NOMINATIM_LONGITUDE: w[2],
             }
 
-            warehouseList.append(warehouseDict)
+            warehouseDictsList.append(warehouseDict)
 
-        return warehouseList
+        return warehouseDictsList
 
-    def __getWarehouseIds(self, warehouseList: list[tuple[int]]) -> list[int]:
+    def __getWarehouseIds(self, warehousesList: list[tuple[int]]) -> list[int]:
         """
         Method to Get a List that Contains All the Warehouse IDs that have been Fetched from the Warehouses Remote View
 
@@ -110,7 +110,7 @@ class WarehouseConnectionsTable:
 
         warehouseIdsList = []
 
-        for w in warehouseList:
+        for w in warehousesList:
             warehouseIdsList.append(w[0])
 
         return warehouseIdsList

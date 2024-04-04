@@ -442,7 +442,6 @@ class RushWGraph:
 
         # Add Region Main Warehouse Nodes
         for key, value in warehousesDict.items():
-
             # Add Node
             if not draw:
                 self.__DiGraph.add_node(
@@ -490,7 +489,7 @@ class RushWGraph:
                     continue
 
                 # Check if It's with the Same Connection Type
-                elif value == CITIES:
+                elif value != CITIES_MAIN:
                     try:
                         self.__DiGraph.remove_node(key)
                         nodesChecked.append(key)

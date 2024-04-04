@@ -134,11 +134,43 @@ impl<'r> FromRow<'r, PgRow> for ShippingGuide {
             package_count: row.try_get("package_count")?,
             sender: Client {
                 username: row.try_get("sender_username")?,
+                affiliated_branch: Branch {
+                    id: Building {
+                        id: row.try_get("sender_building_id")?,
+                        city_id: row.try_get("sender_building_city_id")?,
+                        name: row.try_get("sender_building_name")?,
+                        address_description: row.try_get("sender_building_address_description")?,
+                        gps_latitude: row.try_get("sender_building_gps_latitude")?,
+                        gps_longitude: row.try_get("sender_building_gps_longitude")?,
+                        phone: row.try_get("sender_building_phone")?,
+                        email: row.try_get("sender_building_email")?,
+                    },
+                    warehouse: Warehouse {
+                        id: row.try_get("sender_branch_warehouse_id")?,
+                    },
+                    route_distance: row.try_get("sender_branch_route_distance")?,
+                },
                 first_name: row.try_get("sender_first_name")?,
                 last_name: row.try_get("sender_last_name")?,
             },
             recipient: Client {
                 username: row.try_get("receiver_username")?,
+                affiliated_branch: Branch {
+                    id: Building {
+                        id: row.try_get("receiver_building_id")?,
+                        city_id: row.try_get("receiver_building_city_id")?,
+                        name: row.try_get("receiver_building_name")?,
+                        address_description: row.try_get("receiver_building_address_description")?,
+                        gps_latitude: row.try_get("receiver_building_gps_latitude")?,
+                        gps_longitude: row.try_get("receiver_building_gps_longitude")?,
+                        phone: row.try_get("receiver_building_phone")?,
+                        email: row.try_get("receiver_building_email")?,
+                    },
+                    warehouse: Warehouse {
+                        id: row.try_get("receiver_branch_warehouse_id")?,
+                    },
+                    route_distance: row.try_get("receiver_branch_route_distance")?,
+                },
                 first_name: row.try_get("receiver_first_name")?,
                 last_name: row.try_get("receiver_last_name")?,
             },
@@ -217,15 +249,15 @@ impl<'r> FromRow<'r, PgRow> for Payment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Building {
     id: i32,
     pub city_id: i32,
     pub name: String,
-    pub address_description: String,
+    pub address_description: Option<String>,
     pub gps_latitude: Option<Decimal>,
     pub gps_longitude: Option<Decimal>,
-    pub phone: Option<String>,
+    pub phone: Option<i64>,
     pub email: Option<String>,
 }
 
@@ -250,7 +282,7 @@ impl Building {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Branch {
     id: Building,
     pub warehouse: Warehouse,
@@ -276,6 +308,12 @@ impl Branch {
 #[derive(Debug, Clone)]
 pub struct Warehouse {
     id: i32
+}
+
+impl Warehouse {
+    pub fn get_id(&self) -> i32 {
+        self.id
+    }
 }
 
 impl<'r> FromRow<'r, PgRow> for Warehouse {

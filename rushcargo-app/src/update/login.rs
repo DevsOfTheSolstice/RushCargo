@@ -1,19 +1,20 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Row, PgPool};
+use sqlx::{Row, FromRow, PgPool};
 use bcrypt::verify;
 use anyhow::Result;
 use crate::{
-    HELP_TEXT,
-    GRAPH_URL,
     event::{Event, InputBlacklist},
     model::{
-        common::{User, UserType, Popup, TimeoutType},
-        client::{ClientData, Client},
-        pkgadmin::{PkgAdminData, PkgAdmin},
         app::App,
-    }
+        client::{self, Client, ClientData},
+        db_obj::Branch,
+        common::{Popup, TimeoutType, User, UserType},
+        pkgadmin::{PkgAdmin, PkgAdminData}
+    },
+    GRAPH_URL,
+    HELP_TEXT
 };
 
 static USER_SEARCH_QUERIES: [&str; 4] = [
@@ -53,11 +54,14 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                     0 => {
                                         let first_name = res.try_get("first_name")?;
                                         let last_name = res.try_get("last_name")?;
+                                        let client_row = super::db::tryget::get_full_client(username.clone(), pool).await?;
+
                                         Some(User::Client(
                                             ClientData {
                                                 info:
                                                     Client {
                                                         username,
+                                                        affiliated_branch: Branch::from_row(&client_row)?,
                                                         first_name,
                                                         last_name
                                                     },
@@ -69,6 +73,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                                 get_db_err: None,
                                                 send_to_client: None,
                                                 send_to_branch: None,
+                                                send_route: None,
+                                                send_route_distance: None,
                                                 getuser_fail_count: 0,
                                                 send_payment: None,
                                                 send_with_delivery: false,

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Row, FromRow, PgPool};
+use sqlx::{Row, FromRow, PgPool, postgres::PgRow};
 use anyhow::{Result, anyhow};
 use time::{Date, OffsetDateTime, Time};
 use crate::{
@@ -92,9 +92,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                             client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
 
+                            let client_row = get_full_client(username.clone(), pool).await?;
+
                             client_data.send_to_client = Some(
                                 Client {
-                                    username: username.clone(),
+                                    username: username,
+                                    affiliated_branch: Branch::from_row(&client_row)?,
                                     first_name: String::from(""),
                                     last_name: String::from(""),
                                 }
@@ -169,7 +172,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                         SELECT * FROM locations.branches AS branches
                                         INNER JOIN locations.warehouses AS warehouses ON branches.warehouse_id=warehouses.warehouse_id
                                         INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
-                                        WHERE branch_id=$1
+                                        WHERE branch_id=$-1
                                     "
                                 )
                                 .bind(branch_id)
@@ -177,10 +180,13 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 .await?;
 
                             client_data.send_to_branch = Some(Branch::from_row(&branch_res)?);
+                            
+                            let client_row = get_full_client(username.clone(), pool).await?;
 
                             client_data.send_to_client = Some(
                                 Client {
                                     username,
+                                    affiliated_branch: Branch::from_row(&client_row)?,
                                     first_name: String::from(""),
                                     last_name: String::from(""),
                                 }
@@ -295,12 +301,14 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 && motorcyclist.get::<Decimal, _>("length_capacity") >= packages_length
                 {
                     let mut app_lock = app.lock().unwrap();
+                    let client_row = get_full_client(username.clone(), pool).await?;
 
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
                             client_data.send_to_client = Some(
                                 Client {
                                     username,
+                                    affiliated_branch: Branch::from_row(&client_row)?,
                                     first_name: String::from(""),
                                     last_name: String::from(""),
                                 }
@@ -321,6 +329,22 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         }
         _ => panic!("An event of type {:?} was passed to the db::tryget update function", event)
     }
+}
+
+pub async fn get_full_client(username: String, pool: &PgPool) -> Result<PgRow> {
+    Ok(
+            sqlx::query(
+            "
+            SELECT * FROM users.natural_clients AS clients
+            INNER JOIN locations.branches AS branches ON clients.affiliated_branch=branches.branch_id
+            INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
+            WHERE clients.username=$1
+            "
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await?
+    )
 }
 
 fn set_getdberr(app: &mut Arc<Mutex<App>>, err: GetDBErr) {

@@ -3,6 +3,7 @@ use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
 use super::{
     common::{PackageData, PaymentData, GetDBErr},
+    graph_reqs::WarehouseNode,
     db_obj::{Branch, Country, Locker, Warehouse},
 };
 
@@ -11,6 +12,7 @@ pub struct Client {
     pub username: String,
     pub first_name: String,
     pub last_name: String,
+    pub affiliated_branch: Branch,
 }
 
 #[derive(Debug)]
@@ -24,6 +26,8 @@ pub struct ClientData {
     pub send_to_locker: Option<Locker>,
     pub send_to_client: Option<Client>,
     pub send_to_branch: Option<Branch>,
+    pub send_route: Option<Vec<WarehouseNode>>,
+    pub send_route_distance: Option<i64>,
     pub getuser_fail_count: u8,
     pub send_payment: Option<PaymentData>,
     pub send_with_delivery: bool,

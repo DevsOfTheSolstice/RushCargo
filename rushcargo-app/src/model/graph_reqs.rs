@@ -66,15 +66,7 @@ impl App {
             )                                                                                           
         };
 
-        let mut url = Url::parse(&GRAPH_URL.lock().unwrap()).expect("Invalid GRAPH_URL");
-
-        url.query_pairs_mut()
-            .append_pair("fromId", &warehouse_from.to_string())
-            .append_pair("toId", &warehouse_to.to_string());
-
-        let client = Client::new();
-        let response = client.get(url).send().await?;
-
+        let response = get_server_response(warehouse_from, warehouse_to).await?;
         if response.status().is_success() {
             let data = response.json::<GraphResponse>().await?;
             *route = Some(Vec::new());
@@ -86,4 +78,71 @@ impl App {
 
         Ok(())
     }
+
+    pub async fn get_shortest_locker_locker(&mut self, pool: &PgPool) -> Result<()> {
+        let (warehouse_from, warehouse_to, route, distance) =
+        if let Some(User::Client(client_data)) = &mut self.user {
+            match self.active_screen {
+                Screen::Client(SubScreen::ClientLockerPackages) => {
+                    (
+                        client_data.active_locker.as_ref().unwrap().warehouse.get_id(),
+                        client_data.send_to_locker.as_ref().unwrap().warehouse.get_id(),
+                        &mut client_data.send_route,
+                        &mut client_data.send_route_distance,
+                    )
+                }
+                _ => panic!()
+            }
+        }
+        else {
+            panic!()
+        };
+
+        let response = get_server_response(warehouse_from, warehouse_to).await?;
+        if response.status().is_success() {
+            let data = response.json::<GraphResponse>().await?;
+            *route = Some(Vec::new());
+            if let Some(route) = route {
+                route.extend(data.nodes);
+            }
+            *distance = Some(data.distance);
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_shortest_locker_branch(&mut self, pool: &PgPool) -> Result<()> {
+        let (warehouse_from, branch_to, route, distance) = {
+            if let Some(User::Client(client_data)) = &mut self.user {
+                match self.active_screen {
+                    Screen::Client(SubScreen::ClientLockerPackages) => {
+                        (
+                            client_data.active_locker.as_ref().unwrap().warehouse.get_id(),
+                            client_data.send_to_branch.as_ref().unwrap().get_id(),
+                            &mut client_data.send_route,
+                            &mut client_data.send_route_distance,
+                        )
+                    }
+                    _ => panic!()
+                }
+            } else {
+                panic!();
+            }
+        };
+
+        
+
+        Ok(())
+    }
+}
+
+async fn get_server_response(warehouse_from: i32, warehouse_to: i32) -> Result<reqwest::Response> {
+    let mut url = Url::parse(&GRAPH_URL.lock().unwrap()).expect("Invalid GRAPH_URL");
+
+    url.query_pairs_mut()
+        .append_pair("fromId", &warehouse_from.to_string())
+        .append_pair("toId", &warehouse_to.to_string());
+
+    let client = Client::new();
+    Ok(client.get(url).send().await?)
 }

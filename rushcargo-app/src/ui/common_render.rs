@@ -5,13 +5,17 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Row, Table}
 };
+use rust_decimal::Decimal;
 use anyhow::Result;
 use std::{
     sync::{MutexGuard, Arc, Mutex},
     rc::Rc,
 };
 use crate::{
-    model::app::App,
+    model::{
+        app::App,
+        common::User,
+    },
     ui::common_fn::{centered_rect, wrap_text, dimensions_string},
     HELP_TEXT
 };
@@ -48,11 +52,22 @@ pub fn online_payment(app: &mut Arc<Mutex<App>>, chunks: &Rc<[Rect]>, f: &mut Fr
     let reference_scroll = app_lock.input.0.visual_scroll(width as usize - "* Reference. num: ".len());
 
     let reference_style = Style::default();
+    
+    let pay_amount =
+        match &app_lock.user {
+            Some(User::Client(client_data)) => {
+                Decimal::new(100, 0)
+            }
+            Some(User::PkgAdmin(pkgadmin_data)) => {
+                pkgadmin_data.add_package.as_ref().unwrap().payment.as_ref().unwrap().amount
+            }
+            _ => panic!()
+        };
 
     let pay_text = Paragraph::new(Text::from(vec![
-        Line::from(vec![Span::raw("Amount to pay: "), Span::styled("USD 100", Style::default().fg(Color::Yellow))])
+        Line::from(vec![Span::raw("Amount to pay: "), Span::styled("USD ".to_string() + &pay_amount.to_string(), Style::default().fg(Color::Yellow))])
     ])).centered();
-    
+
     f.render_widget(pay_text, input_chunks[0]);
 
     let reference_block = Block::default()

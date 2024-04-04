@@ -171,7 +171,7 @@ pub enum PaymentType {
 pub struct PaymentData {
     pub amount: Decimal,
     pub transaction_id: Option<String>,
-    pub payment_type: PaymentType,
+    pub payment_type: Option<PaymentType>,
 }
 
 #[derive(Debug, Clone)]

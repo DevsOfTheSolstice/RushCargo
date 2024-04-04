@@ -41,17 +41,17 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
             PaymentData {
                 amount: Decimal::new(99, 0),
                 transaction_id: Some(app_lock.input.0.to_string()),
-                payment_type: PaymentType::Online(bank.clone()),
+                payment_type: Some(PaymentType::Online(bank.clone())),
             };
         
         let next_shipping_id =
-            sqlx::query("SELECT MAX(shipping_number) FROM shipping_guides")
+            sqlx::query("SELECT MAX(shipping_number) FROM shippings.shipping_guides")
                 .fetch_one(pool)
                 .await?
                 .try_get::<i64,_ >("max").unwrap_or(-1) + 1;
 
         let next_payment_id =
-            sqlx::query("SELECT MAX(id) FROM payments")
+            sqlx::query("SELECT MAX(id) FROM payments.payments")
                 .fetch_one(pool)
                 .await?
                 .try_get::<i64, _>("max").unwrap_or(-1) + 1;
@@ -68,7 +68,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 sqlx::query(
                     "
-                        INSERT INTO shipping_guides
+                        INSERT INTO shippings.shipping_guides
                         (shipping_number, client_from, client_to, locker_from, locker_to, branch_to, delivery_included)
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
                     "
@@ -87,7 +87,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 sqlx::query(
                     "
-                        INSERT INTO payments
+                        INSERT INTO payments.payments
                         (id, client, reference, platform, pay_type, pay_date, pay_hour, amount)
                         VALUES ($1, $2, $3, $4, 'Online', $5, $6, $7)
                     "
@@ -104,7 +104,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 sqlx::query(
                     "
-                        INSERT INTO guide_payments
+                        INSERT INTO payments.guide_payments
                         (pay_id, shipping_number)
                         VALUES ($1, $2)
                     "
@@ -118,7 +118,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 let selected_packages = package_data.selected_packages.as_ref().unwrap();
 
                 for package in selected_packages.iter() {
-                    sqlx::query("UPDATE packages SET locker_id=NULL, holder=NULL, delivered=false, shipping_number=$1 WHERE tracking_number=$2")
+                    sqlx::query("UPDATE shippings.packages SET locker_id=NULL, holder=NULL, delivered=false, shipping_number=$1 WHERE tracking_number=$2")
                         .bind(next_shipping_id)
                         .bind(package.get_id())
                         .execute(pool)

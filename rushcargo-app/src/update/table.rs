@@ -74,14 +74,14 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         let active_guide = guides.active_guide.as_ref().unwrap();
 
                         let pay_id =
-                            sqlx::query("SELECT * FROM guide_payments WHERE shipping_number=$1")
+                            sqlx::query("SELECT * FROM payments.guide_payments WHERE shipping_number=$1")
                                 .bind(active_guide.get_id())
                                 .fetch_one(pool)
                                 .await?
                                 .try_get::<i64, _>("pay_id")?;
                         
                         guides.active_guide_payment = Some(Payment::from_row(
-                            &sqlx::query("SELECT * FROM payments WHERE id=$1")
+                            &sqlx::query("SELECT * FROM payments.payments WHERE id=$1")
                                 .bind(pay_id)
                                 .fetch_one(pool)
                                 .await?

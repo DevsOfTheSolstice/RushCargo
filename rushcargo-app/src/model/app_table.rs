@@ -156,8 +156,8 @@ impl App {
                         let client = self.get_client_ref();
                         let base_query =
                             "
-                                SELECT * FROM packages
-                                INNER JOIN package_descriptions AS descriptions
+                                SELECT * FROM shippings.packages AS packages
+                                INNER JOIN shippings.package_descriptions AS descriptions
                                 ON packages.tracking_number=descriptions.tracking_number
                                 WHERE delivered=true AND locker_id=$1
                                 LIMIT 7
@@ -180,8 +180,8 @@ impl App {
                         let guide = self.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap();
                         let base_query =
                             "
-                                SELECT * FROM packages
-                                INNER JOIN package_descriptions AS descriptions
+                                SELECT * FROM shippings.packages AS packages
+                                INNER JOIN shippings.package_descriptions AS descriptions
                                 ON packages.tracking_number=descriptions.tracking_number
                                 WHERE shipping_number=$1
                                 LIMIT 7
@@ -230,8 +230,8 @@ impl App {
                         let client = self.get_client_ref();
                         let base_query =
                             "
-                                SELECT * FROM packages
-                                INNER JOIN package_descriptions AS descriptions
+                                SELECT * FROM shippings.packages AS packages
+                                INNER JOIN shippings.package_descriptions AS descriptions
                                 ON packages.tracking_number=descriptions.tracking_number
                                 WHERE delivered=true AND locker_id=$1
                                 LIMIT 7
@@ -254,8 +254,8 @@ impl App {
                         let guide = self.get_pkgadmin_guides_ref().active_guide.as_ref().unwrap();
                         let base_query =
                             "                                                                                  
-                                SELECT * FROM packages
-                                INNER JOIN package_descriptions AS descriptions
+                                SELECT * FROM shippings.packages AS packages
+                                INNER JOIN shippings.package_descriptions AS descriptions
                                 ON packages.tracking_number=descriptions.tracking_number
                                 WHERE shipping_number=$1
                                 LIMIT 7
@@ -305,10 +305,10 @@ impl App {
                                 sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
                                 receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
                                 COUNT(packages.tracking_number) AS package_count
-                                FROM shipping_guides AS guides
-                                LEFT JOIN packages ON guides.shipping_number=packages.shipping_number
-                                INNER JOIN natural_clients AS sender ON guides.client_from=sender.username
-                                INNER JOIN natural_clients AS receiver ON guides.client_to=receiver.username
+                                FROM shippings.shipping_guides AS guides
+                                LEFT JOIN shippings.packages AS packages ON guides.shipping_number=packages.shipping_number
+                                INNER JOIN users.natural_clients AS sender ON guides.client_from=sender.username
+                                INNER JOIN users.natural_clients AS receiver ON guides.client_to=receiver.username
                                 WHERE shipping_date IS NULL AND shipping_hour IS NULL
                                 GROUP BY guides.shipping_number, sender.username, receiver.username
                                 ORDER BY package_count DESC
@@ -363,10 +363,10 @@ impl App {
                                 sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
                                 receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
                                 COUNT(packages.tracking_number) AS package_count
-                                LEFT JOIN packages ON guide.shipping_number=packages.shipping_number
-                                FROM shipping_guide AS guides
-                                INNER JOIN natural_clients AS sender ON guides.client_from=sender.username
-                                INNER JOIN natural_clients AS receiver ON guides.client_to=receiver.username
+                                LEFT JOIN shippings.packages AS packages ON guide.shipping_number=packages.shipping_number
+                                FROM shippings.shipping_guide AS guides
+                                INNER JOIN users.natural_clients AS sender ON guides.client_from=sender.username
+                                INNER JOIN users.natural_clients AS receiver ON guides.client_to=receiver.username
                                 WHERE shipping_date IS NULL AND shipping_hour IS NULL
                                 GROUP BY guides.shipping_number, sender.username, receiver.username
                                 ORDER BY package_count DESC

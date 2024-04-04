@@ -225,11 +225,13 @@ impl App {
                 self.input.1.reset();
                 self.list.state.0.select(None);
                 self.action_sel = None;
-                let client = self.get_client_mut();
-                client.send_to_client = None;
-                client.send_to_branch = None;
-                client.send_to_client = None;
-                client.send_payment = None;
+                if let Some(User::Client(_)) = self.user {
+                    let client = self.get_client_mut();
+                    client.send_to_client = None;
+                    client.send_to_branch = None;
+                    client.send_to_client = None;
+                    client.send_payment = None;
+                }
             }
             Some(Popup::ClientOrderBranch) => {
                 self.input.0.reset();

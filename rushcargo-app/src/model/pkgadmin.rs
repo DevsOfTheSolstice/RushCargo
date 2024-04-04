@@ -3,6 +3,7 @@ use std::ops::Add;
 use super::{
     common::{GetDBErr, PackageData, PaymentData, ShippingGuideData},
     db_obj::ShippingGuide,
+    graph_reqs::WarehouseNode,
 };
 use tui_input::Input;
 
@@ -35,6 +36,8 @@ pub struct AddPkgData {
     pub locker: Input,
     pub branch: Input,
     pub payment: Option<PaymentData>,
+    pub route: Option<Vec<WarehouseNode>>,
+    pub route_distance: Option<i64>,
     pub shipping_guide: Option<ShippingGuide>,
 }
 
@@ -51,6 +54,8 @@ impl std::default::Default for AddPkgData {
             locker: Input::default(),
             branch: Input::default(),
             payment: None,
+            route: None,
+            route_distance: None,
             shipping_guide: None,
         }
     }

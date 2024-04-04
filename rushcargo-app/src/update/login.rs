@@ -17,10 +17,10 @@ use crate::{
 };
 
 static USER_SEARCH_QUERIES: [&str; 4] = [
-    "SELECT * FROM natural_clients WHERE username = $1",
-    "SELECT * FROM legal_clients WHERE username = $1",
-    "SELECT * FROM truck_drivers WHERE username = $1",
-    "SELECT * FROM motorcyclists WHERE username = $1",
+    "SELECT * FROM users.natural_clients WHERE username = $1",
+    "SELECT * FROM users.legal_clients WHERE username = $1",
+    "SELECT * FROM vehicles.truckers WHERE username = $1",
+    "SELECT * FROM vehicles.motorcyclists WHERE username = $1",
 ];
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
@@ -33,7 +33,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let username: String = app.lock().unwrap().input.0.value().to_string();
             let password: String = app.lock().unwrap().input.1.value().to_string();
 
-            if let Some(res) = sqlx::query("SELECT * FROM users WHERE username = $1")
+            if let Some(res) = sqlx::query("SELECT * FROM users.users WHERE username = $1")
                 .bind(&username)
                 .fetch_optional(pool)
                 .await?
@@ -88,7 +88,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 }
             }
 
-            if let Some(res) = sqlx::query("SELECT * FROM root_users WHERE username=$1")
+            if let Some(res) = sqlx::query("SELECT * FROM users.root_users WHERE username=$1")
                 .bind(&username)
                 .fetch_optional(pool)
                 .await?

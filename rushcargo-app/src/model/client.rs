@@ -34,8 +34,8 @@ impl ClientData {
         let query =
         "
             SELECT lockers.*, countries.*, warehouses.*,
-            COUNT(packages.tracking_number) AS package_count FROM lockers
-            LEFT JOIN packages ON lockers.locker_id=packages.locker_id
+            COUNT(packages.tracking_number) AS package_count FROM shippings.lockers AS lockers
+            LEFT JOIN shippings.packages AS packages ON lockers.locker_id=packages.locker_id
             INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
             INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
             WHERE client=$1
@@ -71,8 +71,8 @@ impl ClientData {
         let query =
         "
             SELECT lockers.*, countries.*, warehouses.*,
-            COUNT(packages.tracking_number) AS package_count FROM lockers
-            LEFT JOIN packages ON lockers.locker_id=packages.locker_id
+            COUNT(packages.tracking_number) AS package_count FROM shippings.lockers AS lockers
+            LEFT JOIN shippings.packages AS packages ON lockers.locker_id=packages.locker_id
             INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
             INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
             WHERE client=$1

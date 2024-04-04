@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
 use sqlx::{Row, FromRow, PgPool};
@@ -10,8 +10,8 @@ use crate::{
     model::{
         app::App,
         client::{self, Client},
-        common::{GetDBErr, Bank, InputMode, PaymentData, Popup, Screen, SubScreen, TimeoutType, User},
-        db_obj::{Branch, Locker},
+        common::{Bank, GetDBErr, InputMode, PaymentData, Popup, Screen, SubScreen, TimeoutType, User},
+        db_obj::{Branch, Locker}, pkgadmin,
     },
 };
 
@@ -23,7 +23,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let locker_id = locker_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
 
             if let Some(res) =
-                sqlx::query("SELECT * FROM lockers WHERE locker_id=$1")
+                sqlx::query("SELECT * FROM shippings.lockers WHERE locker_id=$1")
                     .bind(locker_id)
                     .fetch_optional(pool)
                     .await?
@@ -37,7 +37,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 return Ok(())
                             }
 
-                            if sqlx::query("SELECT COUNT(*) AS package_count FROM packages WHERE locker_id=$1")
+                            if sqlx::query("SELECT COUNT(*) AS package_count FROM shippings.packages WHERE locker_id=$1")
                                 .bind(locker_id)
                                 .fetch_one(pool)
                                 .await?
@@ -50,8 +50,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             let locker_packages_weight =
                                 sqlx::query(
                             "
-                                    SELECT SUM(package_weight) as weight_sum FROM packages
-                                    INNER JOIN package_descriptions AS descriptions
+                                    SELECT SUM(package_weight) as weight_sum FROM shippings.packages
+                                    INNER JOIN shippings.package_descriptions AS descriptions
                                     ON packages.tracking_number=descriptions.tracking_number
                                     WHERE locker_id=$1
                                 "
@@ -78,8 +78,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 sqlx::query(
                                 "
                                     SELECT lockers.*, countries.*, warehouses.*,
-                                    COUNT(packages.tracking_number) AS package_count FROM lockers
-                                    LEFT JOIN packages ON lockers.locker_id=packages.locker_id
+                                    COUNT(packages.tracking_number) AS package_count FROM shippings.lockers AS lockers
+                                    LEFT JOIN shippings.packages AS packages ON lockers.locker_id=packages.locker_id
                                     INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
                                     INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
                                     WHERE lockers.locker_id=$1
@@ -105,7 +105,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         Some(User::PkgAdmin(pkgadmin_data)) => {
                             let package = pkgadmin_data.add_package.as_ref().unwrap();
 
-                            if sqlx::query("SELECT COUNT(*) AS package_count FROM packages WHERE locker_id=$1")
+                            if sqlx::query("SELECT COUNT(*) AS package_count FROM shippings.packages WHERE locker_id=$1")
                                 .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
                                 .fetch_one(pool)
                                 .await?
@@ -118,8 +118,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             let package_weight_decimal = Decimal::from_str_exact(package.weight.value()).expect("could not parse package weight");
                             if sqlx::query(
                                     "
-                                        SELECT SUM(package_weight) as weight_sum FROM packages
-                                        INNER JOIN package_descriptions AS descriptions
+                                        SELECT SUM(package_weight) as weight_sum FROM shippings.packages AS packages
+                                        INNER JOIN shippings.package_descriptions AS descriptions
                                         ON packages.tracking_number=descriptions.tracking_number
                                         WHERE locker_id=$1
                                     "
@@ -154,7 +154,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let branch_id = branch_id.parse::<i32>().expect("could not parse locker_id in TryGetUserLocker event");
 
             if let Some(res) =
-                sqlx::query("SELECT * FROM natural_clients WHERE username=$1")
+                sqlx::query("SELECT * FROM users.natural_clients WHERE username=$1")
                     .bind(&username)
                     .fetch_optional(pool)
                     .await?
@@ -188,6 +188,29 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             
                             app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
+                        Some(User::PkgAdmin(_)) => {
+                            app_lock.get_shortest_branch_branch(pool).await?;
+
+                            let pkgadmin_data = app_lock.get_pkgadmin_mut();
+                            let package = pkgadmin_data.add_package.as_mut().unwrap();
+                            package.payment = {
+                                let amount_calc =
+                                    package.route_distance.unwrap() as f64 * 0.00003 +
+                                    package.weight.value().parse::<f64>().expect("could not parse weight as f64") * 0.0005;
+                                Some(
+                                    PaymentData {
+                                        amount:
+                                            Decimal::from_f64(amount_calc)
+                                            .expect("could not get payment amount from amount_calc")
+                                            .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointNearestEven),
+                                        transaction_id: None,
+                                        payment_type: None
+                                    }
+                                )
+                            };
+                            
+                            app_lock.enter_popup(Some(Popup::SelectPayment), pool).await;
+                        }
                         _ => unimplemented!("Event::TryGetUserBranch for user {:?}", app_lock.user)
                     }
                 }
@@ -213,9 +236,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             let motorcyclists =
                 sqlx::query(
                     "
-                        SELECT * FROM natural_clients
-                        INNER JOIN motorcyclists ON natural_clients.affiliated_branch=motorcyclists.affiliated_branch
-                        INNER JOIN vehicles ON motorcyclists.motorcycle=vehicles.vin_vehicle
+                        SELECT * FROM users.natural_clients
+                        INNER JOIN vehicles.motorcyclists AS motorcyclists ON natural_clients.affiliated_branch=motorcyclists.affiliated_branch
+                        INNER JOIN vehicles.vehicles AS vehicles ON motorcyclists.motorcycle=vehicles.vin_vehicle
                         WHERE natural_clients.username=$1
                     "
                 )

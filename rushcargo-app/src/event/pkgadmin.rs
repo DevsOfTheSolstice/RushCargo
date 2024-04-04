@@ -143,7 +143,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 Some(Popup::OnlinePayment) => {
                     match key_event.code {
                         KeyCode::Esc => {
-                           sender.send(Event::EnterPopup(Some(Popup::SelectPayment)))
+                            sender.send(Event::EnterPopup(Some(Popup::SelectPayment)))
                         }
                         KeyCode::Tab => {
                             sender.send(Event::SwitchAction)

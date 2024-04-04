@@ -32,6 +32,7 @@ class EventHandler:
     """
 
     # Database Connection
+    __conn = None
     __c = None
 
     # Event Handlers
@@ -46,11 +47,14 @@ class EventHandler:
         :param str ORSApiKey: Open Routing Service API Key
         """
 
-        # Store Database Connection Cursor
+        # Store Database Connection and Cursor
+        self.__conn = db.getConnection()
         self.__c = db.getCursor()
 
         # Initialize Location Event Handler
-        self.__locationsEventHandler = LocationsEventHandler(self.__c, user, ORSApiKey)
+        self.__locationsEventHandler = LocationsEventHandler(
+            self.__conn, self.__c, user, ORSApiKey
+        )
 
     def handler(self, argsDict: dict) -> None:
         """
@@ -102,6 +106,9 @@ class EventHandler:
 
                     # Press ENTER to Continue
                     Prompt.ask(PRESS_ENTER)
+
+                    # Clear Terminal
+                    clear()
 
                     argsDict = getEventHandlerArguments()
 

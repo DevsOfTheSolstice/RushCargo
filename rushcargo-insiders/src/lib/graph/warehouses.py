@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from unidecode import unidecode
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -13,19 +15,29 @@ rushWGraph = None
 
 class RushWGraph:
     """
-    Graph Class that Represents a the Rush Cargo Warehouse Connections
+    Graph Class that Represents Rush Cargo Warehouse Connections
     """
 
     # Graph
     __DiGraph = None
+    __busy = None
+    __draw = None
+    __allWarehouses = None
+    __nodesToCheck = None
+
+    # Remote Database
+    __regionsMainNodes = None
+    __citiesMainNodes = None
+    __citiesNodes = None
+    __nodesEdges = None
 
     # Graph Layouts
-    __spring = None
-    __spectral = None
-    __shell = None
-    __random = None
-    __kamada = None
     __circular = None
+    __kamada = None
+    # __random = None
+    __shell = None
+    # __spectral = None
+    __spring = None
 
     # Database Connection
     __c = None
@@ -41,17 +53,95 @@ class RushWGraph:
 
         # Iniliaze NetworkX Graph Class
         self.__DiGraph = nx.DiGraph()
+        self.__draw = draw
+
+        # Set the Graph as Busy
+        self.__busy = True
 
         # Save Database Connection Information
         self.__c = remoteCursor
 
+        # Get Nodes and Nodes Edges from the Remote Database
+        self.__getRegionsMainNodes()
+        self.__getCitiesMainNodes()
+        self.__getCitiesNodes()
+        self.__getNodesEdges()
+
         # Set Nodes
-        self.setRegionsMainNodes(draw)
-        self.setCitiesMainNodes(draw)
-        self.setCitiesNodes(draw)
+        self.__setRegionsMainNodes(draw)
+        self.__setCitiesMainNodes(draw)
+        self.__setCitiesNodes(draw)
 
         # Set Nodes Edges
-        self.setConnectionsNodeEdges(draw)
+        self.__setNodesEdges(draw)
+
+        # Set the Graph as Available
+        self.__busy = False
+
+    def isBusy(self) -> bool:
+        """
+        Method to Check if the Graph is Either Busy or Available
+
+        :return:Specifies whether or not the Graph is Busy. ``True``, for Busy. ``False```, for Available
+        :rtype: bool
+        """
+
+        return self.__busy
+
+    def __getWarehousesDict(
+        self, warehousesList: list[tuple[str, str, str, str, int]]
+    ) -> dict:
+        """
+        Method to Get a Dictionary that Contains All the Warehouses ID, the Country, Region and City where it's Located and its Building Name
+
+        :param list warehousesList: List of Fetched Warehouses
+        :return: Dictionary that Contains All the Warehouses ID, the Locations Name where it's Located and its Building Name
+        :rtype: dict
+        """
+
+        warehousesDict = {}
+
+        for w in warehousesList:
+            countryName, regionName, cityName, buildingName, buildingId = w
+
+            warehousesDict[buildingId] = [
+                countryName,
+                regionName,
+                cityName,
+                buildingName,
+            ]
+
+        return warehousesDict
+
+    def __getWarehouseConnsDicts(
+        self, warehouseConnsList: list[tuple[int, int, int, str]]
+    ) -> dict:
+        """
+        Method to Get a Warehouse Dictionary with its Connections Dictionaries, that Contain the Warehouse Sender and Receiver ID, the Route Distance and the Connection Type
+
+        :param list warehouseConnList: List of Fetched Warehouse Connections
+        :return: Warehouse Dictionary with its Connections Dictionaries that Contain the Warehouse IDs that are Participating in the Given Connection, the Route Distance and the Connection Type
+        :rtype: dict
+        """
+
+        warehouseConnsDicts = {}
+
+        for w in warehouseConnsList:
+            warehouseFromId = w[0]
+            warehouseToId = w[1]
+            routeDistance = w[2]
+            connType = w[3]
+
+            # Check if the Given ID Exists in the Main Dictionary
+            if warehouseFromId not in warehouseConnsDicts:
+                warehouseConnsDicts[warehouseFromId] = {}
+
+            warehouseConnsDicts[warehouseFromId][warehouseToId] = [
+                routeDistance,
+                connType,
+            ]
+
+        return warehouseConnsDicts
 
     def __getNodesValue(self, graph, key: str) -> list:
         """
@@ -77,11 +167,46 @@ class RushWGraph:
 
         return nx.get_edge_attributes(graph, key).values()
 
+    def __allNodesQuery(self):
+        """
+        Method that Retuns a Query to Get All the Warehouse Nodes from its Remote View
+
+        :return: SQL Query Get All the Warehouses from its Remote View
+        :rtype: Composed
+        """
+
+        return sql.SQL(
+            "SELECT {warehouseIdField} FROM {connectionsSchemeName}.{warehousesViewName}"
+        ).format(
+            warehouseIdField=sql.Identifier(WAREHOUSES_ID),
+            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
+            warehousesViewName=sql.Identifier(WAREHOUSES_VIEW_NAME),
+        )
+
+    def __getAllNodes(self):
+        """
+        Method to Get All the Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All the Warehouses from its Remote View
+        allNodesQuery = self.__allNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__items = self.__c.execute(allNodesQuery).fetchall()
+            self.__allWarehouses = dict.fromkeys(item[0] for item in self.__items)
+
+        except Exception as err:
+            print(err)
+
     def __regionsMainNodesQuery(self):
         """
         Method that Retuns a Query to Get All the Regions Main Warehouse Nodes from its Remote View
 
-        :return: SQL Query Get All the Region Main Warehouses from its Remote View
+        :return: SQL Query Get All the Regions Main Warehouses from its Remote View
         :rtype: Composed
         """
 
@@ -98,6 +223,24 @@ class RushWGraph:
                 REGIONS_MAIN_WAREHOUSES_VIEW_NAME
             ),
         )
+
+    def __getRegionsMainNodes(self):
+        """
+        Method to Get All the Regions Main Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All Regions Main Warehouses from its Remote View
+        regionsMainNodesQuery = self.__regionsMainNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__regionsMainNodes = self.__c.execute(regionsMainNodesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
 
     def __citiesMainNodesQuery(self):
         """
@@ -125,6 +268,24 @@ class RushWGraph:
             regionsMain=sql.Identifier(REGIONS_MAIN),
         )
 
+    def __getCitiesMainNodes(self):
+        """
+        Method to Get All the Cities Main Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All Cities Main Warehouses from its Remote View
+        citiesMainNodesQuery = self.__citiesMainNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__citiesMainNodes = self.__c.execute(citiesMainNodesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
+
     def __citiesNodesQuery(self):
         """
         Method that Retuns a Query to Get All the Cities Warehouse Nodes (doesn't Include the Cities Main Warehouse Nodes) from its Remote View
@@ -151,11 +312,29 @@ class RushWGraph:
             regionsMain=sql.Identifier(REGIONS_MAIN),
         )
 
-    def __connectionsNodeEdgesQuery(self):
+    def __getCitiesNodes(self):
+        """
+        Method to Get All the Cities Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All Cities Warehouses from its Remote View
+        citiesNodesQuery = self.__citiesNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__citiesNodes = self.__c.execute(citiesNodesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
+
+    def __nodesEdgesQuery(self):
         """
         Method that Retuns a Query to Get All the Region Main, Cities Main and Cities Warehouse Nodes Edges from its Remote View
 
-        :return: SQL Query Get All the City Warehouses from its Remote View
+        :return: SQL Query Get All the Warehouses Nodes Edges from its Remote View
         :rtype: Composed
         """
 
@@ -171,7 +350,27 @@ class RushWGraph:
             warehouseConnType=sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
         )
 
-    def __storeGraph(self, baseFileName: str, layout: str, level: str, locationId: int):
+    def __getNodesEdges(self):
+        """
+        Method to Get All the Region Main, Cities Main and Cities Warehouse Nodes Edges from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All the Warehouses Nodes Edges from its Remote View
+        nodesEdgesQuery = self.__nodesEdgesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__nodesEdges = self.__c.execute(nodesEdgesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
+
+    def __storeGraph(
+        self, baseFileName: str, layout: str, level: str, locationId: int
+    ) -> None:
         """
         Method to Store the NetworkX Graph Image Locally
 
@@ -198,101 +397,147 @@ class RushWGraph:
         # Clear Figure
         plt.clf()
 
-    def setRegionsMainNodes(self, draw: bool = False):
+    def __setRegionsMainNodes(self, draw: bool = False, update: bool = False) -> None:
         """
         Method that Add All the Regions Main Warehouse Nodes to the NetworkX Graph
 
         :param bool draw: Specifies whether to Draw or not the Nodes
+        :param bool update: Specificies wheter to Update or not the Nodes
         :return: Nothing
         :rtype: None
         """
 
-        # Query to Get All Region Main Warehouses from its Remote View
-        regionsMainQuery = self.__regionsMainNodesQuery()
+        # Get Warehouses Dictionary from Fetched Items
+        warehousesDict = self.__getWarehousesDict(self.__regionsMainNodes)
 
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(regionsMainQuery).fetchall()
+        if update and bool(self.__nodesToCheck):
+            nodesChecked = []
 
-        except Exception as err:
-            print(err)
+            # Remove Nodes that are not inside the Warehouses Dictionary
+            for key, value in self.__nodesToCheck.items():
+                if key not in warehousesDict:
+                    continue
+
+                # Check if It's with the Same Connection Type
+                elif value != REGIONS_MAIN:
+                    try:
+                        self.__DiGraph.remove_node(key)
+                        nodesChecked.append(key)
+
+                    except:
+                        continue
+
+                # Nothing to Modify
+                else:
+                    nodesChecked.append(key)
+                    warehousesDict.pop(key)
+
+            # Remove Nodes from the Warehouse Nodes to Check Dictionary
+            for key in nodesChecked:
+                self.__nodesToCheck.pop(key)
+
+        # Check if the Warehouses Dictionary is Empty
+        if not bool(warehousesDict):
+            return
 
         # Add Region Main Warehouse Nodes
-        for node in self.__items:
-            # Get Node Attributes from Tuple
-            countryName, regionName, cityName, buildingName, warehouseId = node
-
+        for key, value in warehousesDict.items():
             # Add Node
             if not draw:
                 self.__DiGraph.add_node(
-                    warehouseId,
-                    country=unidecode(countryName),
-                    region=unidecode(regionName),
-                    city=unidecode(cityName),
-                    building=unidecode(buildingName),
+                    key,
+                    nodeType=REGIONS_MAIN,
+                    country=unidecode(value[0]),
+                    region=unidecode(value[1]),
+                    city=unidecode(value[2]),
+                    building=unidecode(value[3]),
                 )
 
             # Add Node with Some Style Attributes (when Drawing)
             else:
                 self.__DiGraph.add_node(
-                    warehouseId,
-                    country=countryName,
-                    region=regionName,
-                    city=cityName,
-                    building=buildingName,
+                    key,
+                    nodeType=REGIONS_MAIN,
+                    country=unidecode(value[0]),
+                    region=unidecode(value[1]),
+                    city=unidecode(value[2]),
+                    building=unidecode(value[3]),
                     alpha=GRAPH_REGION_MAIN_WAREHOUSE_NODE_ALPHA,
                     color=GRAPH_REGION_MAIN_WAREHOUSE_NODE_COLOR,
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
-    def setCitiesMainNodes(self, draw: bool = False):
+    def __setCitiesMainNodes(self, draw: bool = False, update: bool = False) -> None:
         """
         Method that Add All the Cities Main Warehouse Nodes to the NetworkX Graph
 
         :param bool draw: Specifies whether to Draw or not the Nodes
+        :param bool update: Specificies wheter to Update or not the Nodes
         :return: Nothing
         :rtype: None
         """
 
-        # Query to Get All Cities Main Warehouses from its Remote View
-        citiesMainQuery = self.__citiesMainNodesQuery()
+        # Get Warehouses Dictionary from Fetched Items
+        warehousesDict = self.__getWarehousesDict(self.__citiesMainNodes)
 
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(citiesMainQuery).fetchall()
+        if update and bool(self.__nodesToCheck):
+            nodesChecked = []
 
-        except Exception as err:
-            print(err)
+            # Remove Nodes that are not inside the Warehouses Dictionary
+            for key, value in self.__nodesToCheck.items():
+                if key not in warehousesDict:
+                    continue
+
+                # Check if It's with the Same Connection Type
+                elif value != CITIES_MAIN:
+                    try:
+                        self.__DiGraph.remove_node(key)
+                        nodesChecked.append(key)
+
+                    except:
+                        continue
+
+                # Nothing to Modify
+                else:
+                    nodesChecked.append(key)
+                    warehousesDict.pop(key)
+
+            # Remove Node from the Warehouse Nodes to Check Dictionary
+            for key in nodesChecked:
+                self.__nodesToCheck.pop(key)
+
+        # Check if the Warehouses Dictionary is Empty
+        if not bool(warehousesDict):
+            return
 
         # Add City Main Warehouse Nodes
-        for node in self.__items:
-            # Get Node Attributes from Tuple
-            countryName, regionName, cityName, buildingName, warehouseId = node
-
+        for key, value in warehousesDict.items():
             # Add Node
             if not draw:
                 self.__DiGraph.add_node(
-                    warehouseId,
-                    country=unidecode(countryName),
-                    region=unidecode(regionName),
-                    city=unidecode(cityName),
-                    building=unidecode(buildingName),
+                    key,
+                    nodeType=CITIES_MAIN,
+                    country=unidecode(value[0]),
+                    region=unidecode(value[1]),
+                    city=unidecode(value[2]),
+                    building=unidecode(value[3]),
                 )
 
             # Add Node with Some Style Attributes (when Drawing)
             else:
                 self.__DiGraph.add_node(
-                    warehouseId,
-                    country=countryName,
-                    region=regionName,
-                    city=cityName,
-                    building=buildingName,
+                    key,
+                    nodeType=CITIES_MAIN,
+                    country=unidecode(value[0]),
+                    region=unidecode(value[1]),
+                    city=unidecode(value[2]),
+                    building=unidecode(value[3]),
                     alpha=GRAPH_CITY_MAIN_WAREHOUSE_NODE_ALPHA,
                     color=GRAPH_CITY_MAIN_WAREHOUSE_NODE_COLOR,
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
-    def setCitiesNodes(self, draw: bool = False):
+    def __setCitiesNodes(self, draw: bool = False) -> None:
         """
         Method that Add All the Cities Warehouse Nodes (doesn't Include the Cities Main Warehouse Nodes) to the NetworkX Graph
 
@@ -301,104 +546,170 @@ class RushWGraph:
         :rtype: None
         """
 
-        # Query to Get All Cities Warehouses from its Remote View
-        citiesQuery = self.__citiesNodesQuery()
+        # Get Warehouses Dictionary from Fetched Items
+        warehousesDict = self.__getWarehousesDict(self.__citiesNodes)
 
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(citiesQuery).fetchall()
-
-        except Exception as err:
-            print(err)
+        # Check if the Warehouses Dictionary is Empty
+        if not bool(warehousesDict):
+            return
 
         # Add City Warehouse Nodes
-        for node in self.__items:
-            # Get Node Attributes from Tuple
-            countryName, regionName, cityName, buildingName, warehouseId = node
-
+        for key, value in warehousesDict.items():
             # Add Node
             if not draw:
                 self.__DiGraph.add_node(
-                    warehouseId,
-                    country=unidecode(countryName),
-                    region=unidecode(regionName),
-                    city=unidecode(cityName),
-                    building=unidecode(buildingName),
+                    key,
+                    nodeType=CITIES,
+                    country=unidecode(value[0]),
+                    region=unidecode(value[1]),
+                    city=unidecode(value[2]),
+                    building=unidecode(value[3]),
                 )
 
             # Add Node with Some Style Attributes (when Drawing)
             else:
                 self.__DiGraph.add_node(
-                    warehouseId,
-                    country=countryName,
-                    region=regionName,
-                    city=cityName,
-                    building=buildingName,
+                    key,
+                    nodeType=CITIES,
+                    country=unidecode(value[0]),
+                    region=unidecode(value[1]),
+                    city=unidecode(value[2]),
+                    building=unidecode(value[3]),
                     alpha=GRAPH_CITY_WAREHOUSE_NODE_ALPHA,
                     color=GRAPH_CITY_WAREHOUSE_NODE_COLOR,
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
-    def setConnectionsNodeEdges(self, draw: bool = False):
+    def __setNodesEdges(self, draw: bool = False, update: bool = False) -> None:
         """
         Method that Add All the Region Main, Cities Main and Cities Warehouse Nodes Edges to the NetworkX Graph
 
         :param bool draw: Specifies whether to Draw or not the Nodes Edges
+        :param bool update: Specificies wheter to Update or not the Nodes Edges
         :return: Nothing
         :rtype: None
         """
 
-        # Query to Get All Warehouses Connections from its Remote View
-        connsQuery = self.__connectionsNodeEdgesQuery()
+        # Get Warehouses Dictionary with its Connections from Fetched Items
+        warehousesConnsDict = self.__getWarehouseConnsDicts(self.__nodesEdges)
 
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(connsQuery).fetchall()
+        if update:
+            # Get Dictionary with the Current Warehouse Nodes Edges
+            currWarehousesConns = list(
+                self.__DiGraph.edges(data=GRAPH_WAREHOUSE_CONN_TYPE)
+            )
 
-        except Exception as err:
-            print(err)
+            fromId = toId = connType = None
+
+            # Remove Nodes Edges that are not inside the Warehouses Connections Dictionary
+            for c in currWarehousesConns:
+                fromId = c[0]
+                toId = c[1]
+                connType = c[2]
+
+                # Check if the Node has been Isolated as a Sender
+                if fromId not in warehousesConnsDict:
+                    self.__DiGraph.remove_edges_from(
+                        [edge for edge in currWarehousesConns if edge[0] == fromId]
+                    )
+
+                # Check if the Node Edge has been Removed from the Graph
+                elif toId not in warehousesConnsDict[fromId]:
+                    self.__DiGraph.remove_edge(fromId, toId)
+
+                # Check if It's with the Same Connection Type
+                elif connType != warehousesConnsDict[fromId][toId][1]:
+                    self.__DiGraph.remove_edge(fromId, toId)
+
+                # Remove Node from the Warehouses Dictionary
+                else:
+                    warehousesConnsDict[fromId].pop(toId)
+
+        connType = None
+
+        # Check if the Warehouses Dictionary is Empty
+        if not bool(warehousesConnsDict):
+            return
 
         # Add Nodes Edges
-        for node in self.__items:
-            # Get Node Edge Attributes from Tuple
-            (
-                warehouseFromId,
-                warehouseToId,
-                routeDistance,
-                connType,
-            ) = node
+        for key, value in warehousesConnsDict.items():
+            for subKey, subValue in value.items():
+                connType = subValue[1]
 
-            # Add Edge Connection
-            if not draw:
-                self.__DiGraph.add_edge(
-                    warehouseFromId,
-                    warehouseToId,
-                    weight=routeDistance,
-                )
+                # Add Edge Connection
+                if not draw:
+                    self.__DiGraph.add_edge(
+                        key,
+                        subKey,
+                        weight=subValue[0],
+                        connType=connType,
+                    )
 
-            # Add Nodes Edges with Some Style Attributes (when Drawing)
+                # Add Nodes Edges with Some Style Attributes (when Drawing)
 
-            # Add Edge of Connection Type 'Region'
-            elif connType == CONN_TYPE_REGION:
-                self.__DiGraph.add_edge(
-                    warehouseFromId,
-                    warehouseToId,
-                    weight=routeDistance,
-                    weightAttraction=1 / routeDistance,
-                    edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
-                )
+                # Add Edge of Connection Type 'Region'
+                elif connType == CONN_TYPE_REGION:
+                    self.__DiGraph.add_edge(
+                        key,
+                        subKey,
+                        weight=subValue[0],
+                        weightAttraction=1 / subValue[0],
+                        edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
+                        connType=connType,
+                    )
 
-            # Add Edge of Connection Type 'City'
-            elif connType == CONN_TYPE_CITY:
-                self.__DiGraph.add_edge(
-                    warehouseFromId,
-                    warehouseToId,
-                    weight=routeDistance,
-                    weightAttraction=1000000 / routeDistance,
-                    edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
-                )
+                # Add Edge of Connection Type 'City'
+                elif connType == CONN_TYPE_CITY:
+                    self.__DiGraph.add_edge(
+                        key,
+                        subKey,
+                        weight=subValue[0],
+                        weightAttraction=1 / subValue[0],
+                        edge_color=GRAPH_WAREHOUSE_EDGE_COLOR,
+                        connType=connType,
+                    )
 
-    def draw(self, layout: str, level: str, locationId: int, warehouseIds: list[int]):
+    def update(self) -> None:
+        """
+        Method to Update the Graph Nodes and Edges
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All the Required Warehouses Nodes and Nodes Edges from its Remote View
+        self.__getAllNodes()
+        self.__getRegionsMainNodes()
+        self.__getCitiesMainNodes()
+        self.__getCitiesNodes()
+        self.__getNodesEdges()
+
+        # Get Current Warehouse Nodes to Check
+        self.__nodesToCheck = dict(self.__DiGraph.nodes(data=GRAPH_WAREHOUSE_NODE_TYPE))
+
+        # Remove Nodes that are not inside the Warehouse Dictionary
+        for key, _ in self.__nodesToCheck.items():
+            # Check if the Node has been Removed from the Graph
+            if key not in self.__allWarehouses:
+                self.__DiGraph.remove_node(key)
+
+        # Set the Graph as Busy
+        self.__busy = True
+
+        # Set Nodes
+        self.__setRegionsMainNodes(self.__draw, True)
+        self.__setCitiesMainNodes(self.__draw, True)
+        self.__setCitiesNodes(self.__draw)
+
+        # Set Nodes Edges
+        self.__setNodesEdges(self.__draw, True)
+
+        # Set the Graph as Available
+        self.__busy = False
+
+    def draw(
+        self, layout: str, level: str, locationId: int, warehouseIds: list[int]
+    ) -> None:
         """
         Method to Draw the Graph and it in a Local File
 
@@ -415,39 +726,31 @@ class RushWGraph:
 
         # Circular Layout
         if layout == LAYOUT_CIRCULAR:
-            # Check if the Nodes Positions for the Circular Layout have been Calculated
-            if self.__circular == None:
-                self.__circular = nx.circular_layout(self.__DiGraph)
-
+            # Calculate Nodes Positions for the Circular Layout
+            self.__circular = nx.circular_layout(self.__DiGraph)
             pos = self.__circular
 
         # Kamada Kawai Layout
         elif layout == LAYOUT_KAMADA:
-            # Check if the Nodes Positions for the Kamada Kawaii Layout have been Calculated
-            if self.__kamada == None:
-                self.__kamada = nx.kamada_kawai_layout(self.__DiGraph)
-
+            # Calculate Nodes Positions for the Kamada Layout
+            self.__kamada = nx.kamada_kawai_layout(self.__DiGraph)
             pos = self.__kamada
 
         # Shell Layout
         elif layout == LAYOUT_SHELL:
-            # Check if the Nodes Positions for the Shell Layout have been Calculated
-            if self.__shell == None:
-                self.__shell = nx.shell_layout(self.__DiGraph)
-
+            # Calculate Nodes Positions for the Shell Layout
+            self.__shell = nx.shell_layout(self.__DiGraph)
             pos = self.__shell
 
         # Spring Layout
         elif layout == LAYOUT_SPRING:
-            # Check if the Nodes Positions for the Spring Layout have been Calculated
-            if self.__spring == None:
-                self.__spring = nx.spring_layout(
-                    self.__DiGraph,
-                    k=SPRING_DISTANCE,
-                    iterations=SPRING_ITERATIONS,
-                    weight="weightAttraction",
-                )
-
+            # Calculate Nodes Positions for the Spring Layout
+            self.__spring = nx.spring_layout(
+                self.__DiGraph,
+                k=SPRING_DISTANCE,
+                iterations=SPRING_ITERATIONS,
+                weight="weightAttraction",
+            )
             pos = self.__spring
 
         # Get Nodes Degree
@@ -460,8 +763,7 @@ class RushWGraph:
                 continue
 
             try:
-                index = warehouseIds.index(n[0])
-                del warehouseIds[index]
+                warehouseIds.remove(n[0])
 
             except ValueError:
                 pass

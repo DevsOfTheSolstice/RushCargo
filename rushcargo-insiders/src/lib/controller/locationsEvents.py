@@ -59,6 +59,7 @@ class LocationsEventHandler:
     """
 
     # Database Connection
+    __conn = None
     __c = None
 
     # Table Classes
@@ -83,16 +84,18 @@ class LocationsEventHandler:
     __GET_CITY_MSG = "Enter City Name"
 
     # Constructor
-    def __init__(self, remoteCursor, user: str, ORSApiKey: str):
+    def __init__(self, remoteConnection, remoteCursor, user: str, ORSApiKey: str):
         """
         Location Event Handler Class Constructor
 
-        :param Cursor[TupleRow] remoteCursor: Remote Database Connection Cursor
+        :param Connection remoteConnection: Remote Database Connection
+        :param Cursor remoteCursor: Remote Database Connection Cursor
         :param str user: Remote Database Role Name
         :param str ORSApiKey: Open Routing Service API Key
         """
 
-        # Store Database Connection Cursor
+        # Store Database Connection and Cursor
+        self.__conn = remoteConnection
         self.__c = remoteCursor
 
         # Initialize Table Classes
@@ -103,12 +106,13 @@ class LocationsEventHandler:
         self.__warehouseConnsTable = WarehouseConnectionsTable(remoteCursor)
         self.__branchesTable = BranchesTable(remoteCursor)
 
-        # Initialize Nominatim GeoPy Local Database and Get Connection Cursor
+        # Initialize Nominatim GeoPy Local Database and Get Connection and Cursor
         self.__localDatabase = NominatimDatabase()
+        localConnection = self.__localDatabase.getConnection()
         localCursor = self.__localDatabase.getCursor()
 
         # Initialize Local Nominatim GeoPy Database Tables Class
-        self.__localTables = NominatimTables(localCursor)
+        self.__localTables = NominatimTables(localConnection, localCursor)
 
         # Initialize Nominatim GeoPy and RoutingPy Geocoders
         self.__nominatimGeocoder = NominatimGeocoder(user)
@@ -993,245 +997,250 @@ class LocationsEventHandler:
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         """
 
-        if tableName == COUNTRIES_TABLE_NAME:
-            # Select Country ID to Modify
-            countryId = self.getCountryId()
+        # Execute in a Transaction Context
+        with self.__conn.transaction():
+            if tableName == COUNTRIES_TABLE_NAME:
+                # Select Country ID to Modify
+                countryId = self.getCountryId()
 
-            # Print Fetched Results
-            if not self.__countriesTable.get(COUNTRIES_ID, countryId):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(MOD_FIELD_MSG, choices=[COUNTRIES_PHONE_PREFIX])
-
-            # Prompt to Ask the New Value
-            if field == COUNTRIES_PHONE_PREFIX:
-                value = str(IntPrompt.ask(MOD_VALUE_MSG))
-
-            # Modify Country
-            self.__countriesTable.modify(countryId, field, value)
-
-        elif tableName == REGIONS_TABLE_NAME:
-            # Select Region ID to Modify
-            regionId = self.getRegionId()
-
-            # Print Fetched Results
-            if not self.__regionsTable.get(REGIONS_ID, regionId):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[
-                    REGIONS_FK_AIR_FORWARDER,
-                    REGIONS_FK_OCEAN_FORWARDER,
-                    REGIONS_FK_WAREHOUSE,
-                ],
-            )
-
-            # Prompt to Ask the New Value
-            if field == REGIONS_FK_AIR_FORWARDER or field == REGIONS_FK_OCEAN_FORWARDER:
-                value = str(IntPrompt.ask(MOD_VALUE_MSG))
-
-                # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
-
-            elif field == REGIONS_FK_WAREHOUSE:
-                # Select Warehouse ID
-                cityId = self.getRegionBuildingCityId(regionId)
-                warehouseId = self.getWarehouseId(cityId)
-
-                # Get Warehouse Dictionary from Warehouse ID
-                warehouseDict = self.__getWarehouseDict(warehouseId)
-
-                # Get Region Object
-                region = self.__regionsTable.find(regionId)
-
-                # Check if there's a Main Warehouse
-                currWarehouseId = region.warehouseId
-
-                if warehouseId == currWarehouseId:
-                    nothingToChange()
+                # Print Fetched Results
+                if not self.__countriesTable.get(COUNTRIES_ID, countryId):
                     return
 
-                # Drop Old Warehouse Connections with all the Main Region Warehouses at the Same Country and all the Main Region Warehouses at the Given Region
-                self.__warehouseConnsTable.removeRegionMainWarehouse(
-                    regionId, currWarehouseId
-                )
-
-                # Remove the Old Region Main Warehouse from the Region Table
-                self.__regionsTable.modify(regionId, REGIONS_FK_WAREHOUSE, None)
-
-                # Get Region Country ID
-                countryId = region.countryId
-
-                # Add Warehouse Connections for the Current Warehouse with All the Main Region Warehouses at the Given Country and all the Main Region Warehouses at the Given Region
-                self.__warehouseConnsTable.insertRegionMainWarehouse(
-                    self.__ORSGeocoder, countryId, regionId, warehouseDict
-                )
-
-                # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSE_ID]
-
-            # Modify Region
-            self.__regionsTable.modify(regionId, field, value)
-
-        elif tableName == CITIES_TABLE_NAME:
-            # Select City ID to Modify
-            cityId = self.getCityId()
-
-            # Print Fetched Results
-            if not self.__citiesTable.get(CITIES_ID, cityId):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[CITIES_FK_WAREHOUSE],
-            )
-
-            # Prompt to Ask the New Value
-            if field == CITIES_FK_WAREHOUSE:
-                # Select Warehouse ID
-                warehouseId = self.getWarehouseId(cityId)
-
-                # Get Warehouse Dictionary Fields from Warehouse ID
-                warehouseDict = self.__getWarehouseDict(warehouseId)
-
-                # Get City Object
-                city = self.__citiesTable.find(cityId)
-
-                # Check if there's a Main Warehouse
-                currWarehouseId = city.warehouseId
-
-                if warehouseId == currWarehouseId:
-                    nothingToChange()
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
                     return
 
-                # Get City Region ID
-                regionId = city.regionId
+                # Ask for Field to Modify
+                field = Prompt.ask(MOD_FIELD_MSG, choices=[COUNTRIES_PHONE_PREFIX])
 
-                # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the City Warehouses at the Given City
-                self.__warehouseConnsTable.removeCityMainWarehouse(
-                    regionId, cityId, currWarehouseId
+                # Prompt to Ask the New Value
+                if field == COUNTRIES_PHONE_PREFIX:
+                    value = str(IntPrompt.ask(MOD_VALUE_MSG))
+
+                # Modify Country
+                self.__countriesTable.modify(countryId, field, value)
+
+            elif tableName == REGIONS_TABLE_NAME:
+                # Select Region ID to Modify
+                regionId = self.getRegionId()
+
+                # Print Fetched Results
+                if not self.__regionsTable.get(REGIONS_ID, regionId):
+                    return
+
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
+
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[
+                        REGIONS_FK_AIR_FORWARDER,
+                        REGIONS_FK_OCEAN_FORWARDER,
+                        REGIONS_FK_WAREHOUSE,
+                    ],
                 )
 
-                # Remove the Old City Main Warehouse from the City Table
-                self.__citiesTable.modify(cityId, CITIES_FK_WAREHOUSE, None)
+                # Prompt to Ask the New Value
+                if (
+                    field == REGIONS_FK_AIR_FORWARDER
+                    or field == REGIONS_FK_OCEAN_FORWARDER
+                ):
+                    value = str(IntPrompt.ask(MOD_VALUE_MSG))
 
-                # Get Region Main Warehouse ID
-                region = self.__regionsTable.find(regionId)
-                regionWarehouseId = region.warehouseId
+                    # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
 
-                # Get Region Warehouse Dictionary Fields from Region Warehouse ID
-                regionWarehouseDict = self.__getWarehouseDict(regionWarehouseId)
+                elif field == REGIONS_FK_WAREHOUSE:
+                    # Select Warehouse ID
+                    cityId = self.getRegionBuildingCityId(regionId)
+                    warehouseId = self.getWarehouseId(cityId)
 
-                # Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the City Warehouses at the Given City
-                self.__warehouseConnsTable.insertCityMainWarehouse(
-                    self.__ORSGeocoder,
-                    regionId,
-                    cityId,
-                    regionWarehouseDict,
-                    warehouseDict,
+                    # Get Warehouse Dictionary from Warehouse ID
+                    warehouseDict = self.__getWarehouseDict(warehouseId)
+
+                    # Get Region Object
+                    region = self.__regionsTable.find(regionId)
+
+                    # Check if there's a Main Warehouse
+                    currWarehouseId = region.warehouseId
+
+                    if warehouseId == currWarehouseId:
+                        nothingToChange()
+                        return
+
+                    # Drop Old Warehouse Connections with all the Main Region Warehouses at the Same Country and all the Main Region Warehouses at the Given Region
+                    self.__warehouseConnsTable.removeRegionMainWarehouse(
+                        regionId, currWarehouseId
+                    )
+
+                    # Remove the Old Region Main Warehouse from the Region Table
+                    self.__regionsTable.modify(regionId, REGIONS_FK_WAREHOUSE, None)
+
+                    # Get Region Country ID
+                    countryId = region.countryId
+
+                    # Add Warehouse Connections for the Current Warehouse with All the Main Region Warehouses at the Given Country and all the Main Region Warehouses at the Given Region
+                    self.__warehouseConnsTable.insertRegionMainWarehouse(
+                        self.__ORSGeocoder, countryId, regionId, warehouseDict
+                    )
+
+                    # Assign Warehouse ID to value
+                    value = warehouseDict[DICT_WAREHOUSE_ID]
+
+                # Modify Region
+                self.__regionsTable.modify(regionId, field, value)
+
+            elif tableName == CITIES_TABLE_NAME:
+                # Select City ID to Modify
+                cityId = self.getCityId()
+
+                # Print Fetched Results
+                if not self.__citiesTable.get(CITIES_ID, cityId):
+                    return
+
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
+
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[CITIES_FK_WAREHOUSE],
                 )
 
-                # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSE_ID]
+                # Prompt to Ask the New Value
+                if field == CITIES_FK_WAREHOUSE:
+                    # Select Warehouse ID
+                    warehouseId = self.getWarehouseId(cityId)
 
-            # Modify City
-            self.__citiesTable.modify(cityId, field, value)
+                    # Get Warehouse Dictionary Fields from Warehouse ID
+                    warehouseDict = self.__getWarehouseDict(warehouseId)
 
-        elif tableName == WAREHOUSES_TABLE_NAME:
-            # Select Warehouse ID
-            cityId = self.getCityId()
-            warehouseId = self.getWarehouseId(cityId)
+                    # Get City Object
+                    city = self.__citiesTable.find(cityId)
 
-            # Print Fetched Results
-            if not self.__warehousesTable.get(WAREHOUSES_ID, warehouseId):
-                return
+                    # Check if there's a Main Warehouse
+                    currWarehouseId = city.warehouseId
 
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
+                    if warehouseId == currWarehouseId:
+                        nothingToChange()
+                        return
 
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[BUILDINGS_NAME, BUILDINGS_PHONE, BUILDINGS_EMAIL],
-            )
+                    # Get City Region ID
+                    regionId = city.regionId
 
-            # Prompt to Ask the New Value
-            value = askBuildingValue(tableName, field)
+                    # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at the Same Region, and all the City Warehouses at the Given City
+                    self.__warehouseConnsTable.removeCityMainWarehouse(
+                        regionId, cityId, currWarehouseId
+                    )
 
-            # Modify Warehouse
-            self.__warehousesTable.modify(warehouseId, field, value)
+                    # Remove the Old City Main Warehouse from the City Table
+                    self.__citiesTable.modify(cityId, CITIES_FK_WAREHOUSE, None)
 
-        elif tableName == BRANCHES_TABLE_NAME:
-            # Select Branch ID
-            cityId = self.getCityId()
-            branchId = self.getBranchId(cityId)
+                    # Get Region Main Warehouse ID
+                    region = self.__regionsTable.find(regionId)
+                    regionWarehouseId = region.warehouseId
 
-            # Print Fetched Results
-            if not self.__branchesTable.get(BRANCHES_ID, branchId):
-                return
+                    # Get Region Warehouse Dictionary Fields from Region Warehouse ID
+                    regionWarehouseDict = self.__getWarehouseDict(regionWarehouseId)
 
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
+                    # Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the Main City Warehouses at the Given Region and all the City Warehouses at the Given City
+                    self.__warehouseConnsTable.insertCityMainWarehouse(
+                        self.__ORSGeocoder,
+                        regionId,
+                        cityId,
+                        regionWarehouseDict,
+                        warehouseDict,
+                    )
 
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[
-                    BRANCHES_FK_WAREHOUSE_CONNECTION,
-                    BUILDINGS_NAME,
-                    BUILDINGS_PHONE,
-                    BUILDINGS_EMAIL,
-                ],
-            )
+                    # Assign Warehouse ID to value
+                    value = warehouseDict[DICT_WAREHOUSE_ID]
 
-            # Prompt to Ask the New Value
-            if field != BRANCHES_FK_WAREHOUSE_CONNECTION:
+                # Modify City
+                self.__citiesTable.modify(cityId, field, value)
+
+            elif tableName == WAREHOUSES_TABLE_NAME:
+                # Select Warehouse ID
+                cityId = self.getCityId()
+                warehouseId = self.getWarehouseId(cityId)
+
+                # Print Fetched Results
+                if not self.__warehousesTable.get(WAREHOUSES_ID, warehouseId):
+                    return
+
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
+
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[BUILDINGS_NAME, BUILDINGS_PHONE, BUILDINGS_EMAIL],
+                )
+
+                # Prompt to Ask the New Value
                 value = askBuildingValue(tableName, field)
 
-                # Modify Branch
-                self.__branchesTable.modify(branchId, field, value)
+                # Modify Warehouse
+                self.__warehousesTable.modify(warehouseId, field, value)
 
-            else:
-                # Get Branch Object
-                branch = self.__branchesTable.find(branchId)
+            elif tableName == BRANCHES_TABLE_NAME:
+                # Select Branch ID
+                cityId = self.getCityId()
+                branchId = self.getBranchId(cityId)
 
-                # Get City ID where the Branch is Located, and the Warehouse at the Given City
-                cityId = branch.cityId
-                warehouseId = self.getWarehouseId(cityId)
+                # Print Fetched Results
+                if not self.__branchesTable.get(BRANCHES_ID, branchId):
+                    return
 
-                # Get Branch Coordinates
-                coords = {
-                    NOMINATIM_LATITUDE: branch.gpsLatitude,
-                    NOMINATIM_LONGITUDE: branch.gpsLongitude,
-                }
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
 
-                # Get Route Distance
-                routeDistance = self.__getRouteDistance(warehouseId, coords)
-
-                # Modify Branch
-                self.__branchesTable.modify(
-                    branchId, BRANCHES_FK_WAREHOUSE_CONNECTION, warehouseId
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[
+                        BRANCHES_FK_WAREHOUSE_CONNECTION,
+                        BUILDINGS_NAME,
+                        BUILDINGS_PHONE,
+                        BUILDINGS_EMAIL,
+                    ],
                 )
-                self.__branchesTable.modify(
-                    branchId, BRANCHES_ROUTE_DISTANCE, routeDistance
-                )
+
+                # Prompt to Ask the New Value
+                if field != BRANCHES_FK_WAREHOUSE_CONNECTION:
+                    value = askBuildingValue(tableName, field)
+
+                    # Modify Branch
+                    self.__branchesTable.modify(branchId, field, value)
+
+                else:
+                    # Get Branch Object
+                    branch = self.__branchesTable.find(branchId)
+
+                    # Get City ID where the Branch is Located, and the Warehouse at the Given City
+                    cityId = branch.cityId
+                    warehouseId = self.getWarehouseId(cityId)
+
+                    # Get Branch Coordinates
+                    coords = {
+                        NOMINATIM_LATITUDE: branch.gpsLatitude,
+                        NOMINATIM_LONGITUDE: branch.gpsLongitude,
+                    }
+
+                    # Get Route Distance
+                    routeDistance = self.__getRouteDistance(warehouseId, coords)
+
+                    # Modify Branch
+                    self.__branchesTable.modify(
+                        branchId, BRANCHES_FK_WAREHOUSE_CONNECTION, warehouseId
+                    )
+                    self.__branchesTable.modify(
+                        branchId, BRANCHES_ROUTE_DISTANCE, routeDistance
+                    )
 
         # Press ENTER to Continue
         Prompt.ask(PRESS_ENTER)
@@ -1246,125 +1255,134 @@ class LocationsEventHandler:
         """
 
         while True:
-            if tableName == COUNTRIES_TABLE_NAME:
-                # Get the Country Name to Insert
-                location = self.getCountryName()
-                if location == None:
+            # Execute in a Transaction Context
+            with self.__conn.transaction():
+                if tableName == COUNTRIES_TABLE_NAME:
+                    # Get the Country Name to Insert
+                    location = self.getCountryName()
+                    if location == None:
+                        return
+
+                    countryName = location[DICT_COUNTRY_NAME]
+
+                    # Ask for the Other Country Fields and Insert the Country to Its Table
+                    self.__countriesTable.add(countryName)
+
                     return
 
-                countryName = location[DICT_COUNTRY_NAME]
+                elif tableName == REGIONS_TABLE_NAME:
+                    # Get the Region Name to Insert and the Country ID where It's Located
+                    location = self.getRegionName()
+                    if location == None:
+                        return
 
-                # Ask for the Other Country Fields and Insert the Country to Its Table
-                self.__countriesTable.add(countryName)
+                    provinceId = location[DICT_COUNTRY_ID]
+                    regionName = location[DICT_REGION_NAME]
 
-                return
+                    # Ask for the Other Region Fields and Insert the Region to Its Table
+                    self.__regionsTable.add(provinceId, regionName)
 
-            elif tableName == REGIONS_TABLE_NAME:
-                # Get the Region Name to Insert and the Country ID where It's Located
-                location = self.getRegionName()
-                if location == None:
-                    return
+                elif tableName == CITIES_TABLE_NAME:
+                    # Get the City Name to Insert and the Region ID where It's Located
+                    location = self.getCityName()
+                    if location == None:
+                        return
 
-                provinceId = location[DICT_COUNTRY_ID]
-                regionName = location[DICT_REGION_NAME]
+                    regionId = location[DICT_REGION_ID]
+                    cityName = location[DICT_CITY_NAME]
 
-                # Ask for the Other Region Fields and Insert the Region to Its Table
-                self.__regionsTable.add(provinceId, regionName)
+                    # Ask for the Other City Fields and Insert the City to Its Table
+                    self.__citiesTable.add(regionId, cityName)
 
-            elif tableName == CITIES_TABLE_NAME:
-                # Get the City Name to Insert and the Region ID where It's Located
-                location = self.getCityName()
-                if location == None:
-                    return
+                elif (
+                    tableName == WAREHOUSES_TABLE_NAME
+                    or tableName == BRANCHES_TABLE_NAME
+                ):
+                    # Get Building Coordinates
+                    location = self.getPlaceCoordinates()
+                    if location == None:
+                        return
 
-                regionId = location[DICT_REGION_ID]
-                cityName = location[DICT_CITY_NAME]
+                    # Get Building Name
+                    buildingName = Prompt.ask("Enter Building Name")
 
-                # Ask for the Other City Fields and Insert the City to Its Table
-                self.__citiesTable.add(regionId, cityName)
+                    # Check Building Name
+                    isAddressValid(tableName, BUILDINGS_NAME, buildingName)
 
-            elif tableName == WAREHOUSES_TABLE_NAME or tableName == BRANCHES_TABLE_NAME:
-                # Get Building Coordinates
-                location = self.getPlaceCoordinates()
-                if location == None:
-                    return
+                    if tableName == WAREHOUSES_TABLE_NAME:
+                        # Ask for the Other Warehouse Fields and Insert the Warehouse to Its Table
+                        warehouseId = self.__warehousesTable.add(location, buildingName)
 
-                # Get Building Name
-                buildingName = Prompt.ask("Enter Building Name")
+                        # Get Warehouse Dictionary
+                        warehouseDict = self.__getWarehouseDict(warehouseId)
+                        parentWarehouseDict = None
 
-                # Check Building Name
-                isAddressValid(tableName, BUILDINGS_NAME, buildingName)
+                        # Check if there's a Main Warehouse at the Region ID where It's Located
+                        region = self.__regionsTable.find(location[DICT_REGION_ID])
 
-                if tableName == WAREHOUSES_TABLE_NAME:
-                    # Ask for the Other Warehouse Fields and Insert the Warehouse to Its Table
-                    warehouseId = self.__warehousesTable.add(location, buildingName)
+                        if region.warehouseId == None:
+                            self.__warehouseConnsTable.insertRegionMainWarehouse(
+                                self.__ORSGeocoder,
+                                location[DICT_COUNTRY_ID],
+                                location[DICT_REGION_ID],
+                                warehouseDict,
+                            )
+                            parentWarehouseDict = warehouseDict
 
-                    # Get Warehouse Dictionary
-                    warehouseDict = self.__getWarehouseDict(warehouseId)
-                    parentWarehouseDict = None
+                            # Set as Main Region Warehouse
+                            self.__regionsTable.modify(
+                                location[DICT_REGION_ID],
+                                REGIONS_FK_WAREHOUSE,
+                                warehouseId,
+                            )
 
-                    # Check if there's a Main Warehouse at the Region ID where It's Located
-                    region = self.__regionsTable.find(location[DICT_REGION_ID])
+                        else:
+                            parentWarehouseDict = self.__getWarehouseDict(
+                                region.warehouseId
+                            )
 
-                    if region.warehouseId == None:
-                        self.__warehouseConnsTable.insertRegionMainWarehouse(
-                            self.__ORSGeocoder,
-                            location[DICT_COUNTRY_ID],
-                            location[DICT_REGION_ID],
-                            warehouseDict,
+                        # Check if there's a Main Warehouse at the City ID where It's Located
+                        city = self.__citiesTable.find(location[DICT_CITY_ID])
+
+                        if city.warehouseId == None:
+                            self.__warehouseConnsTable.insertCityMainWarehouse(
+                                self.__ORSGeocoder,
+                                location[DICT_REGION_ID],
+                                location[DICT_CITY_ID],
+                                parentWarehouseDict,
+                                warehouseDict,
+                            )
+                            parentWarehouseDict = warehouseDict
+
+                            # Set as Main City Warehouse
+                            self.__citiesTable.modify(
+                                location[DICT_CITY_ID], CITIES_FK_WAREHOUSE, warehouseId
+                            )
+
+                        else:
+                            parentWarehouseDict = self.__getWarehouseDict(
+                                city.warehouseId
+                            )
+
+                            # Insert City Warehouse Connection
+                            self.__warehouseConnsTable.insertCityWarehouse(
+                                self.__ORSGeocoder, parentWarehouseDict, warehouseDict
+                            )
+
+                    elif tableName == BRANCHES_TABLE_NAME:
+                        # Get Warehouse at the Given City
+                        warehouseId = self.getWarehouseId(location[DICT_CITY_ID])
+
+                        # Get Route Distance
+                        routeDistance = self.__getRouteDistance(warehouseId, location)
+
+                        # Ask for the Other Branch Fields and Insert the Branch to Its Table
+                        self.__branchesTable.add(
+                            location,
+                            buildingName,
+                            warehouseId,
+                            routeDistance,
                         )
-                        parentWarehouseDict = warehouseDict
-
-                        # Set as Main Region Warehouse
-                        self.__regionsTable.modify(
-                            location[DICT_REGION_ID], REGIONS_FK_WAREHOUSE, warehouseId
-                        )
-
-                    else:
-                        parentWarehouseDict = self.__getWarehouseDict(
-                            region.warehouseId
-                        )
-
-                    # Check if there's a Main Warehouse at the City ID where It's Located
-                    city = self.__citiesTable.find(location[DICT_CITY_ID])
-
-                    if city.warehouseId == None:
-                        self.__warehouseConnsTable.insertCityMainWarehouse(
-                            self.__ORSGeocoder,
-                            location[DICT_REGION_ID],
-                            location[DICT_CITY_ID],
-                            parentWarehouseDict,
-                            warehouseDict,
-                        )
-                        parentWarehouseDict = warehouseDict
-
-                        # Set as Main City Warehouse
-                        self.__citiesTable.modify(
-                            location[DICT_CITY_ID], CITIES_FK_WAREHOUSE, warehouseId
-                        )
-
-                    else:
-                        parentWarehouseDict = self.__getWarehouseDict(city.warehouseId)
-
-                        # Insert City Warehouse Connection
-                        self.__warehouseConnsTable.insertCityWarehouse(
-                            self.__ORSGeocoder, parentWarehouseDict, warehouseDict
-                        )
-
-                elif tableName == BRANCHES_TABLE_NAME:
-                    # Get Warehouse at the Given City
-                    warehouseId = self.getWarehouseId(location[DICT_CITY_ID])
-
-                    # Get Route Distance
-                    routeDistance = self.__getRouteDistance(warehouseId, location)
-
-                    # Ask for the Other Branch Fields and Insert the Branch to Its Table
-                    self.__branchesTable.add(
-                        location,
-                        buildingName,
-                        warehouseId,
-                        routeDistance,
-                    )
 
             # Ask to Add More
             if not Confirm.ask(ADD_MORE_MSG):
@@ -1383,89 +1401,91 @@ class LocationsEventHandler:
         :raises MainWarehouseError: Raised if the Warehouse that's being Removed is Referenced as the Main One at Any Location Table
         """
 
-        if tableName == COUNTRIES_TABLE_NAME:
-            # Select Country ID to Remove
-            countryId = self.getCountryId()
+        # Execute in a Transaction Context
+        with self.__conn.transaction():
+            if tableName == COUNTRIES_TABLE_NAME:
+                # Select Country ID to Remove
+                countryId = self.getCountryId()
 
-            # Print Fetched Results
-            if not self.__countriesTable.get(COUNTRIES_ID, countryId):
-                return
+                # Print Fetched Results
+                if not self.__countriesTable.get(COUNTRIES_ID, countryId):
+                    return
 
-            # Ask for Confirmation
-            if not Confirm.ask(RM_CONFIRM_MSG):
-                return
+                # Ask for Confirmation
+                if not Confirm.ask(RM_CONFIRM_MSG):
+                    return
 
-            self.__countriesTable.remove(countryId)
+                self.__countriesTable.remove(countryId)
 
-        elif tableName == REGIONS_TABLE_NAME:
-            # Select Region ID to Remove
-            regionId = self.getRegionId()
+            elif tableName == REGIONS_TABLE_NAME:
+                # Select Region ID to Remove
+                regionId = self.getRegionId()
 
-            # Print Fetched Results
-            if not self.__regionsTable.get(REGIONS_ID, regionId):
-                return
+                # Print Fetched Results
+                if not self.__regionsTable.get(REGIONS_ID, regionId):
+                    return
 
-            # Ask for Confirmation
-            if not Confirm.ask(RM_CONFIRM_MSG):
-                return
+                # Ask for Confirmation
+                if not Confirm.ask(RM_CONFIRM_MSG):
+                    return
 
-            self.__regionsTable.remove(regionId)
+                self.__regionsTable.remove(regionId)
 
-        elif tableName == CITIES_TABLE_NAME:
-            # Select City ID to Remove
-            cityId = self.getCityId
+            elif tableName == CITIES_TABLE_NAME:
+                # Select City ID to Remove
+                cityId = self.getCityId
 
-            # Print Fetched Results
-            if not self.__citiesTable.get(CITIES_ID, cityId):
-                return
+                # Print Fetched Results
+                if not self.__citiesTable.get(CITIES_ID, cityId):
+                    return
 
-            # Ask for Confirmation
-            if not Confirm.ask(RM_CONFIRM_MSG):
-                return
+                # Ask for Confirmation
+                if not Confirm.ask(RM_CONFIRM_MSG):
+                    return
 
-            self.__citiesTable.remove(cityId)
+                self.__citiesTable.remove(cityId)
 
-        elif tableName == WAREHOUSES_TABLE_NAME:
-            # Select Warehouse ID to Remove
-            cityId = self.getCityId()
-            warehouseId = self.getWarehouseId(cityId)
+            elif tableName == WAREHOUSES_TABLE_NAME:
+                # Select Warehouse ID to Remove
+                cityId = self.getCityId()
+                warehouseId = self.getWarehouseId(cityId)
 
-            # Print Fetched Results
-            if not self.__warehousesTable.get(WAREHOUSES_ID, warehouseId):
-                return
+                # Print Fetched Results
+                if not self.__warehousesTable.get(WAREHOUSES_ID, warehouseId):
+                    return
 
-            # Ask for Confirmation
-            if not Confirm.ask(RM_CONFIRM_MSG):
-                return
+                # Ask for Confirmation
+                if not Confirm.ask(RM_CONFIRM_MSG):
+                    return
 
-            # Check if it's the Main Warehouse at Any Location
-            location = self.__warehouseConnsTable.isMainWarehouse(warehouseId)
+                # Check if it's the Main Warehouse at Any Location
+                location = self.__warehouseConnsTable.isMainWarehouse(warehouseId)
 
-            if location != None:
-                locationTableName, locationId = location
-                raise MainWarehouseError(locationTableName, locationId)
+                if location != None:
+                    locationTableName, locationId = location
+                    raise MainWarehouseError(locationTableName, locationId)
 
-            else:
-                # Remove City Warehouse Connections
-                self.__warehouseConnsTable.removeCityWarehouse(warehouseId)
+                else:
+                    # Remove City Warehouse Connections
+                    self.__warehouseConnsTable.removeCityWarehouse(warehouseId)
 
-                # Remove Warehouse
-                self.__warehousesTable.remove(warehouseId)
+                    # Remove Warehouse
+                    self.__warehousesTable.remove(warehouseId)
 
-        elif tableName == BRANCHES_TABLE_NAME:
-            # Select Branch ID to Remove
-            cityId = self.getCityId()
-            branchId = self.getWarehouseId(cityId)
+            elif tableName == BRANCHES_TABLE_NAME:
+                # Select Branch ID to Remove
+                cityId = self.getCityId()
+                branchId = self.getWarehouseId(cityId)
 
-            # Print Fetched Results
-            if not self.__branchesTable.get(BRANCHES_ID, branchId):
-                return
+                # Print Fetched Results
+                if not self.__branchesTable.get(BRANCHES_ID, branchId):
+                    return
 
-            # Ask for Confirmation
-            if not Confirm.ask(RM_CONFIRM_MSG):
-                return
+                # Ask for Confirmation
+                if not Confirm.ask(RM_CONFIRM_MSG):
+                    return
 
-            self.__branchesTable.remove(branchId)
+                self.__branchesTable.remove(branchId)
 
         # Press ENTER to Continue
         Prompt.ask(PRESS_ENTER)
@@ -1515,6 +1535,10 @@ class LocationsEventHandler:
             # Check if the Given Graph is Initialized
             if rushWGraph == None:
                 rushWGraph = RushWGraph(self.__c, True)
+
+            # Update the Graph
+            else:
+                rushWGraph.update()
 
             warehouseIds = None
             locationId = None

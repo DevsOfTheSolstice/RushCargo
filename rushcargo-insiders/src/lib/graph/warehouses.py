@@ -20,9 +20,16 @@ class RushWGraph:
 
     # Graph
     __DiGraph = None
+    __busy = None
     __draw = None
     __allWarehouses = None
     __nodesToCheck = None
+
+    # Remote Database
+    __regionsMainNodes = None
+    __citiesMainNodes = None
+    __citiesNodes = None
+    __nodesEdges = None
 
     # Graph Layouts
     __circular = None
@@ -48,8 +55,17 @@ class RushWGraph:
         self.__DiGraph = nx.DiGraph()
         self.__draw = draw
 
+        # Set the Graph as Busy
+        self.__busy = True
+
         # Save Database Connection Information
         self.__c = remoteCursor
+
+        # Get Nodes and Nodes Edges from the Remote Database
+        self.__getRegionsMainNodes()
+        self.__getCitiesMainNodes()
+        self.__getCitiesNodes()
+        self.__getNodesEdges()
 
         # Set Nodes
         self.__setRegionsMainNodes(draw)
@@ -57,7 +73,20 @@ class RushWGraph:
         self.__setCitiesNodes(draw)
 
         # Set Nodes Edges
-        self.__setConnectionsNodeEdges(draw)
+        self.__setNodesEdges(draw)
+
+        # Set the Graph as Available
+        self.__busy = False
+
+    def isBusy(self) -> bool:
+        """
+        Method to Check if the Graph is Either Busy or Available
+
+        :return:Specifies whether or not the Graph is Busy. ``True``, for Busy. ``False```, for Available
+        :rtype: bool
+        """
+
+        return self.__busy
 
     def __getWarehousesDict(
         self, warehousesList: list[tuple[str, str, str, str, int]]
@@ -138,11 +167,46 @@ class RushWGraph:
 
         return nx.get_edge_attributes(graph, key).values()
 
+    def __allNodesQuery(self):
+        """
+        Method that Retuns a Query to Get All the Warehouse Nodes from its Remote View
+
+        :return: SQL Query Get All the Warehouses from its Remote View
+        :rtype: Composed
+        """
+
+        return sql.SQL(
+            "SELECT {warehouseIdField} FROM {connectionsSchemeName}.{warehousesViewName}"
+        ).format(
+            warehouseIdField=sql.Identifier(WAREHOUSES_ID),
+            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
+            warehousesViewName=sql.Identifier(WAREHOUSES_VIEW_NAME),
+        )
+
+    def __getAllNodes(self):
+        """
+        Method to Get All the Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All the Warehouses from its Remote View
+        allNodesQuery = self.__allNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__items = self.__c.execute(allNodesQuery).fetchall()
+            self.__allWarehouses = dict.fromkeys(item[0] for item in self.__items)
+
+        except Exception as err:
+            print(err)
+
     def __regionsMainNodesQuery(self):
         """
         Method that Retuns a Query to Get All the Regions Main Warehouse Nodes from its Remote View
 
-        :return: SQL Query Get All the Region Main Warehouses from its Remote View
+        :return: SQL Query Get All the Regions Main Warehouses from its Remote View
         :rtype: Composed
         """
 
@@ -160,21 +224,23 @@ class RushWGraph:
             ),
         )
 
-    def __allNodesQuery(self):
+    def __getRegionsMainNodes(self):
         """
-        Method that Retuns a Query to Get All the Warehouse Nodes from its Remote View
+        Method to Get All the Regions Main Warehouse Nodes from its Remote View
 
-        :return: SQL Query Get All the Warehouses from its Remote View
-        :rtype: Composed
+        :return: Nothing
+        :rtype: NoneType
         """
 
-        return sql.SQL(
-            "SELECT {warehouseIdField} FROM {connectionsSchemeName}.{warehousesViewName}"
-        ).format(
-            warehouseIdField=sql.Identifier(WAREHOUSES_ID),
-            connectionsSchemeName=sql.Identifier(CONNECTIONS_SCHEME_NAME),
-            warehousesViewName=sql.Identifier(WAREHOUSES_VIEW_NAME),
-        )
+        # Query to Get All Regions Main Warehouses from its Remote View
+        regionsMainNodesQuery = self.__regionsMainNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__regionsMainNodes = self.__c.execute(regionsMainNodesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
 
     def __citiesMainNodesQuery(self):
         """
@@ -202,6 +268,24 @@ class RushWGraph:
             regionsMain=sql.Identifier(REGIONS_MAIN),
         )
 
+    def __getCitiesMainNodes(self):
+        """
+        Method to Get All the Cities Main Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All Cities Main Warehouses from its Remote View
+        citiesMainNodesQuery = self.__citiesMainNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__citiesMainNodes = self.__c.execute(citiesMainNodesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
+
     def __citiesNodesQuery(self):
         """
         Method that Retuns a Query to Get All the Cities Warehouse Nodes (doesn't Include the Cities Main Warehouse Nodes) from its Remote View
@@ -228,11 +312,29 @@ class RushWGraph:
             regionsMain=sql.Identifier(REGIONS_MAIN),
         )
 
-    def __connectionsNodeEdgesQuery(self):
+    def __getCitiesNodes(self):
+        """
+        Method to Get All the Cities Warehouse Nodes from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All Cities Warehouses from its Remote View
+        citiesNodesQuery = self.__citiesNodesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__citiesNodes = self.__c.execute(citiesNodesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
+
+    def __nodesEdgesQuery(self):
         """
         Method that Retuns a Query to Get All the Region Main, Cities Main and Cities Warehouse Nodes Edges from its Remote View
 
-        :return: SQL Query Get All the City Warehouses from its Remote View
+        :return: SQL Query Get All the Warehouses Nodes Edges from its Remote View
         :rtype: Composed
         """
 
@@ -247,6 +349,24 @@ class RushWGraph:
             warehouseRouteDistance=sql.Identifier(WAREHOUSES_CONN_ROUTE_DISTANCE),
             warehouseConnType=sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
         )
+
+    def __getNodesEdges(self):
+        """
+        Method to Get All the Region Main, Cities Main and Cities Warehouse Nodes Edges from its Remote View
+
+        :return: Nothing
+        :rtype: NoneType
+        """
+
+        # Query to Get All the Warehouses Nodes Edges from its Remote View
+        nodesEdgesQuery = self.__nodesEdgesQuery()
+
+        # Execute Query and Fetch Items (Nodes)
+        try:
+            self.__nodesEdges = self.__c.execute(nodesEdgesQuery).fetchall()
+
+        except Exception as err:
+            print(err)
 
     def __storeGraph(
         self, baseFileName: str, layout: str, level: str, locationId: int
@@ -287,19 +407,8 @@ class RushWGraph:
         :rtype: None
         """
 
-        # Query to Get All Region Main Warehouses from its Remote View
-        regionsMainQuery = self.__regionsMainNodesQuery()
-
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(regionsMainQuery).fetchall()
-
-        except Exception as err:
-            print(err)
-
         # Get Warehouses Dictionary from Fetched Items
-        warehousesDict = self.__getWarehousesDict(self.__items)
-        print(self.__DiGraph.nodes)
+        warehousesDict = self.__getWarehousesDict(self.__regionsMainNodes)
 
         if update and bool(self.__nodesToCheck):
             nodesChecked = []
@@ -326,8 +435,6 @@ class RushWGraph:
             # Remove Nodes from the Warehouse Nodes to Check Dictionary
             for key in nodesChecked:
                 self.__nodesToCheck.pop(key)
-
-        print(len(warehousesDict))
 
         # Check if the Warehouses Dictionary is Empty
         if not bool(warehousesDict):
@@ -371,18 +478,8 @@ class RushWGraph:
         :rtype: None
         """
 
-        # Query to Get All Cities Main Warehouses from its Remote View
-        citiesMainQuery = self.__citiesMainNodesQuery()
-
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(citiesMainQuery).fetchall()
-
-        except Exception as err:
-            print(err)
-
         # Get Warehouses Dictionary from Fetched Items
-        warehousesDict = self.__getWarehousesDict(self.__items)
+        warehousesDict = self.__getWarehousesDict(self.__citiesMainNodes)
 
         if update and bool(self.__nodesToCheck):
             nodesChecked = []
@@ -409,8 +506,6 @@ class RushWGraph:
             # Remove Node from the Warehouse Nodes to Check Dictionary
             for key in nodesChecked:
                 self.__nodesToCheck.pop(key)
-
-        print(self.__DiGraph.nodes)
 
         # Check if the Warehouses Dictionary is Empty
         if not bool(warehousesDict):
@@ -443,8 +538,6 @@ class RushWGraph:
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
-        print(self.__DiGraph.nodes)
-
     def __setCitiesNodes(self, draw: bool = False) -> None:
         """
         Method that Add All the Cities Warehouse Nodes (doesn't Include the Cities Main Warehouse Nodes) to the NetworkX Graph
@@ -454,24 +547,12 @@ class RushWGraph:
         :rtype: None
         """
 
-        # Query to Get All Cities Warehouses from its Remote View
-        citiesQuery = self.__citiesNodesQuery()
-
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(citiesQuery).fetchall()
-
-        except Exception as err:
-            print(err)
-
         # Get Warehouses Dictionary from Fetched Items
-        warehousesDict = self.__getWarehousesDict(self.__items)
+        warehousesDict = self.__getWarehousesDict(self.__citiesNodes)
 
         # Check if the Warehouses Dictionary is Empty
         if not bool(warehousesDict):
             return
-
-        print(self.__DiGraph.nodes)
 
         # Add City Warehouse Nodes
         for key, value in warehousesDict.items():
@@ -500,11 +581,7 @@ class RushWGraph:
                     edgecolors=GRAPH_WAREHOUSE_NODE_EDGE_COLOR,
                 )
 
-        print(self.__DiGraph.nodes)
-
-    def __setConnectionsNodeEdges(
-        self, draw: bool = False, update: bool = False
-    ) -> None:
+    def __setNodesEdges(self, draw: bool = False, update: bool = False) -> None:
         """
         Method that Add All the Region Main, Cities Main and Cities Warehouse Nodes Edges to the NetworkX Graph
 
@@ -514,18 +591,8 @@ class RushWGraph:
         :rtype: None
         """
 
-        # Query to Get All Warehouses Connections from its Remote View
-        connsQuery = self.__connectionsNodeEdgesQuery()
-
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(connsQuery).fetchall()
-
-        except Exception as err:
-            print(err)
-
         # Get Warehouses Dictionary with its Connections from Fetched Items
-        warehousesConnsDict = self.__getWarehouseConnsDicts(self.__items)
+        warehousesConnsDict = self.__getWarehouseConnsDicts(self.__nodesEdges)
 
         if update:
             # Get Dictionary with the Current Warehouse Nodes Edges
@@ -611,22 +678,15 @@ class RushWGraph:
         :rtype: NoneType
         """
 
-        # Query to Get All the Warehouses from its Remote View
-        allQuery = self.__allNodesQuery()
-
-        # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(allQuery).fetchall()
-            self.__allWarehouses = dict.fromkeys(item[0] for item in self.__items)
-
-        except Exception as err:
-            print(err)
+        # Query to Get All the Required Warehouses Nodes and Nodes Edges from its Remote View
+        self.__getAllNodes()
+        self.__getRegionsMainNodes()
+        self.__getCitiesMainNodes()
+        self.__getCitiesNodes()
+        self.__getNodesEdges()
 
         # Get Current Warehouse Nodes to Check
         self.__nodesToCheck = dict(self.__DiGraph.nodes(data=GRAPH_WAREHOUSE_NODE_TYPE))
-
-        print(dict(self.__DiGraph.nodes))
-        print(self.__allWarehouses)
 
         # Remove Nodes that are not inside the Warehouse Dictionary
         for key, _ in self.__nodesToCheck.items():
@@ -634,7 +694,8 @@ class RushWGraph:
             if key not in self.__allWarehouses:
                 self.__DiGraph.remove_node(key)
 
-        print(self.__DiGraph.nodes)
+        # Set the Graph as Busy
+        self.__busy = True
 
         # Set Nodes
         self.__setRegionsMainNodes(self.__draw, True)
@@ -642,11 +703,10 @@ class RushWGraph:
         self.__setCitiesNodes(self.__draw)
 
         # Set Nodes Edges
-        self.__setConnectionsNodeEdges(self.__draw, True)
+        self.__setNodesEdges(self.__draw, True)
 
-        print(1)
-        print(self.__DiGraph.nodes)
-        input("adjfdajf")
+        # Set the Graph as Available
+        self.__busy = False
 
     def draw(
         self, layout: str, level: str, locationId: int, warehouseIds: list[int]
@@ -667,43 +727,34 @@ class RushWGraph:
 
         # Circular Layout
         if layout == LAYOUT_CIRCULAR:
-            # Check if the Nodes Positions for the Circular Layout have been Calculated
-            if self.__circular == None:
-                self.__circular = nx.circular_layout(self.__DiGraph)
-
+            # Calculate Nodes Positions for the Circular Layout
+            self.__circular = nx.circular_layout(self.__DiGraph)
             pos = self.__circular
 
         # Kamada Kawai Layout
         elif layout == LAYOUT_KAMADA:
-            # Check if the Nodes Positions for the Kamada Kawaii Layout have been Calculated
-            if self.__kamada == None:
-                self.__kamada = nx.kamada_kawai_layout(self.__DiGraph)
-
+            # Calculate Nodes Positions for the Kamada Layout
+            self.__kamada = nx.kamada_kawai_layout(self.__DiGraph)
             pos = self.__kamada
 
         # Shell Layout
         elif layout == LAYOUT_SHELL:
-            # Check if the Nodes Positions for the Shell Layout have been Calculated
-            if self.__shell == None:
-                self.__shell = nx.shell_layout(self.__DiGraph)
-
+            # Calculate Nodes Positions for the Shell Layout
+            self.__shell = nx.shell_layout(self.__DiGraph)
             pos = self.__shell
 
         # Spring Layout
         elif layout == LAYOUT_SPRING:
-            # Check if the Nodes Positions for the Spring Layout have been Calculated
-            if self.__spring == None:
-                self.__spring = nx.spring_layout(
-                    self.__DiGraph,
-                    k=SPRING_DISTANCE,
-                    iterations=SPRING_ITERATIONS,
-                    weight="weightAttraction",
-                )
-
+            # Calculate Nodes Positions for the Spring Layout
+            self.__spring = nx.spring_layout(
+                self.__DiGraph,
+                k=SPRING_DISTANCE,
+                iterations=SPRING_ITERATIONS,
+                weight="weightAttraction",
+            )
             pos = self.__spring
 
         # Get Nodes Degree
-        print(self.__DiGraph.nodes(data=True))
         nodesDegree = self.__DiGraph.degree()
 
         # Remove Isolated Nodes from Warehouses IDs

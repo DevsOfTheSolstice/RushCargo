@@ -12,10 +12,7 @@ use std::{
 use crate::{
     event::{Event, InputBlacklist, SENDER_ERR},
     model::{
-        app::App,
-        common::{SubScreen, Div, InputMode, Popup, Screen, User},
-        app_list::ListType,
-        app_table::TableType,
+        app::App, app_list::ListType, app_table::TableType, common::{Div, InputMode, Popup, Screen, SubScreen, User}, db_obj::ShippingGuideType
     },
 };
 
@@ -149,12 +146,14 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             sender.send(Event::SwitchAction)
                         }
                         KeyCode::Enter => {
-                            if let Some(_) = app_lock.get_client_ref().send_to_locker {
-                                sender.send(Event::PlaceOrderLockerLocker)
-                            } else if let Some(_) = app_lock.get_client_ref().send_to_branch {
-                                sender.send(Event::PlaceOrderLockerBranch)
-                            } else {
-                                sender.send(Event::PlaceOrderLockerDelivery)
+                            let add_package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+
+                            match add_package.shipping.as_ref().unwrap().shipping_type {
+                                ShippingGuideType::InpersonBranch =>
+                                    sender.send(Event::PlaceOrderInpersonBranch),
+                                ShippingGuideType::InpersonLocker =>
+                                    sender.send(Event::PlaceOrderInpersonLocker),
+                                _ => todo!()
                             }
                         }
                         _ =>

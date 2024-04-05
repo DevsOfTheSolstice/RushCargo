@@ -226,8 +226,8 @@ CREATE TABLE Companies.Legal_Client_Affiliations (
 CREATE TABLE Shippings.Lockers (
     locker_id BIGSERIAL PRIMARY KEY,
     client VARCHAR(255) NOT NULL,
-    country BIGINT,
-    warehouse BIGINT,
+    country INT,
+    warehouse INT,
     FOREIGN KEY (client) REFERENCES Users.Clients(username),
     FOREIGN KEY (country) REFERENCES locations.Countries(country_id),
     FOREIGN KEY (warehouse) REFERENCES locations.Warehouses(warehouse_id)

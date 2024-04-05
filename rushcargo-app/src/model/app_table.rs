@@ -27,6 +27,34 @@ impl std::default::Default for TableData {
     }
 }
 
+const GUIDES_QUERY: &'static str =
+"
+    SELECT guides.*,
+    sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
+    receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
+    sender_branch.branch_id AS sender_branch_id, sender_branch.route_distance AS sender_branch_route_distance, sender_branch.warehouse_id AS sender_branch_warehouse_id,
+    sender_building.building_id AS sender_building_id, sender_building.building_name AS sender_building_name, sender_building.address_description AS sender_building_address_description,
+    sender_building.gps_latitude AS sender_building_gps_latitude, sender_building.gps_longitude AS sender_building_gps_longitude,
+    sender_building.email AS sender_building_email, sender_building.phone AS sender_building_phone, sender_building.city_id AS sender_building_city_id,
+    receiver_branch.branch_id AS receiver_branch_id, receiver_branch.route_distance AS receiver_branch_route_distance, receiver_branch.warehouse_id AS receiver_branch_warehouse_id,
+    receiver_building.building_id AS receiver_building_id, receiver_building.building_name AS receiver_building_name, receiver_building.address_description AS receiver_building_address_description,
+    receiver_building.gps_latitude AS receiver_building_gps_latitude, receiver_building.gps_longitude AS receiver_building_gps_longitude,
+    receiver_building.email AS receiver_building_email, receiver_building.phone AS receiver_building_phone, receiver_building.city_id AS receiver_building_city_id,
+    COUNT(packages.tracking_number) AS package_count
+    FROM shippings.shipping_guides AS guides
+    LEFT JOIN shippings.packages AS packages ON guides.shipping_number=packages.shipping_number
+    INNER JOIN users.natural_clients AS sender ON guides.client_from=sender.username
+    INNER JOIN users.natural_clients AS receiver ON guides.client_to=receiver.username
+    INNER JOIN locations.branches AS sender_branch ON sender.affiliated_branch=sender_branch.branch_id
+    INNER JOIN locations.buildings AS sender_building ON sender_branch.branch_id=sender_building.building_id
+    INNER JOIN locations.branches AS receiver_branch ON receiver.affiliated_branch=receiver_branch.branch_id
+    INNER JOIN locations.buildings AS receiver_building ON receiver_branch.branch_id=receiver_building.building_id
+    WHERE shipping_date IS NULL AND shipping_hour IS NULL
+    GROUP BY guides.shipping_number, sender.username, receiver.username, sender_building.building_id, sender_branch_id, receiver_building.building_id, receiver_branch_id
+    ORDER BY package_count DESC
+    LIMIT 7
+";
+
 impl App {
     pub async fn next_table_item(&mut self, table_type: TableType, pool: &PgPool) {
         match table_type {
@@ -295,42 +323,23 @@ impl App {
         Ok(())
     }
     pub async fn get_guides_next(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
+        let base_query = match self.active_screen {
+            Screen::PkgAdmin(SubScreen::PkgAdminGuides) =>
+                GUIDES_QUERY.to_string() + "OFFSET $1",
+            _ =>
+                panic!()
+        };
+
         let query: Query<'_, Postgres, _> = match table_type {
             TableType::Guides => {
                 match self.active_screen {
                     Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
-                        let base_query =
-                            "
-                                SELECT guides.*,
-                                sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
-                                receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
-                                sender_branch.branch_id AS sender_branch_id, sender_branch.route_distance AS sender_branch_route_distance, sender_branch.warehouse_id AS sender_branch_warehouse_id,
-                                sender_building.building_id AS sender_building_id, sender_building.building_name AS sender_building_name, sender_building.address_description AS sender_building_address_description,
-                                sender_building.gps_latitude AS sender_building_gps_latitude, sender_building.gps_longitude AS sender_building_gps_longitude,
-                                sender_building.email AS sender_building_email, sender_building.phone AS sender_building_phone, sender_building.city_id AS sender_building_city_id,
-                                receiver_branch.branch_id AS receiver_branch_id, receiver_branch.route_distance AS receiver_branch_route_distance, receiver_branch.warehouse_id AS receiver_branch_warehouse_id,
-                                receiver_building.building_id AS receiver_building_id, receiver_building.building_name AS receiver_building_name, receiver_building.address_description AS receiver_building_address_description,
-                                receiver_building.gps_latitude AS receiver_building_gps_latitude, receiver_building.gps_longitude AS receiver_building_gps_longitude,
-                                receiver_building.email AS receiver_building_email, receiver_building.phone AS receiver_building_phone, receiver_building.city_id AS receiver_building_city_id,
-                                COUNT(packages.tracking_number) AS package_count
-                                FROM shippings.shipping_guides AS guides
-                                LEFT JOIN shippings.packages AS packages ON guides.shipping_number=packages.shipping_number
-                                INNER JOIN users.natural_clients AS sender ON guides.client_from=sender.username
-                                INNER JOIN users.natural_clients AS receiver ON guides.client_to=receiver.username
-                                INNER JOIN locations.branches AS sender_branch ON sender.affiliated_branch=sender_branch.branch_id
-                                INNER JOIN locations.buildings AS sender_building ON sender_branch.branch_id=sender_building.building_id
-                                INNER JOIN locations.branches AS receiver_branch ON receiver.affiliated_branch=receiver_branch.branch_id
-                                INNER JOIN locations.buildings AS receiver_building ON receiver_branch.branch_id=receiver_building.building_id
-                                WHERE shipping_date IS NULL AND shipping_hour IS NULL
-                                GROUP BY guides.shipping_number, sender.username, receiver.username, sender_building.building_id, sender_branch_id, receiver_building.building_id, receiver_branch_id
-                                ORDER BY package_count DESC
-                                LIMIT 7
-                                OFFSET $1
-                            ";
                         
                         let query: Query<'_, Postgres, _> =
-                            sqlx::query(base_query)
+                            sqlx::query(base_query.as_str())
                             .bind(self.get_pkgadmin_guides_ref().viewing_guides_idx);
+
+                        let _ = base_query.clone();
 
                         query
                     }
@@ -365,29 +374,19 @@ impl App {
         Ok(())
     }
     pub async fn get_guides_prev(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
+        let base_query = match self.active_screen {
+            Screen::PkgAdmin(SubScreen::PkgAdminGuides) =>
+                GUIDES_QUERY.to_string() + "OFFSET $1 - 7 * 2",
+            _ =>
+                panic!()
+        };
+
         let query: Query<'_, Postgres, _> = match table_type {
             TableType::Guides => {
                 match self.active_screen {
                     Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
-                        let base_query =
-                            "
-                                SELECT guides.*,
-                                sender.username AS sender_username, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name,
-                                receiver.username AS receiver_username, receiver.first_name AS receiver_first_name, receiver.last_name AS receiver_last_name,
-                                COUNT(packages.tracking_number) AS package_count
-                                LEFT JOIN shippings.packages AS packages ON guide.shipping_number=packages.shipping_number
-                                FROM shippings.shipping_guide AS guides
-                                INNER JOIN users.natural_clients AS sender ON guides.client_from=sender.username
-                                INNER JOIN users.natural_clients AS receiver ON guides.client_to=receiver.username
-                                WHERE shipping_date IS NULL AND shipping_hour IS NULL
-                                GROUP BY guides.shipping_number, sender.username, receiver.username
-                                ORDER BY package_count DESC
-                                LIMIT 7
-                                OFFSET $1 - 7 * 2
-                            ";
-
                         let query: Query<'_, Postgres, _> =
-                            sqlx::query(base_query)
+                            sqlx::query(&base_query)
                             .bind(self.get_pkgadmin_guides_ref().viewing_guides_idx);
 
                         query

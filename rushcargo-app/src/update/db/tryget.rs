@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Row, FromRow, PgPool, postgres::PgRow};
+use sqlx::{pool, postgres::PgRow, FromRow, PgPool, Row};
 use anyhow::{Result, anyhow};
 use time::{Date, OffsetDateTime, Time};
 use crate::{
@@ -10,14 +10,34 @@ use crate::{
     model::{
         app::App,
         client::{self, Client},
-        common::{Bank, GetDBErr, InputMode, PaymentData, Popup, Screen, SubScreen, TimeoutType, User},
-        db_obj::{Branch, Locker}, pkgadmin,
+        common::{Bank, GetDBErr, InputMode, PaymentData, Popup, Screen, ShippingData, SubScreen, TimeoutType, User},
+        db_obj::{Branch, Locker, ShippingGuideType}, pkgadmin,
     },
 };
+
+const PRICE_DIST_MULT: f64 = 0.00001;
+const PRICE_WEIGHT_MULT: f64 = 0.0005;
+const LOCKER_WEIGHT_MAX: i64 = 500000;
+const LOCKER_PKG_NUM_MAX: i64 = 5;
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
         Event::TryGetUserLocker(username, locker_id) => {
+            async fn get_locker_row(pool: &PgPool, locker_id: i64) -> Result<PgRow> {
+                Ok(
+                    sqlx::query("
+                        SELECT lockers.*, countries.*, warehouses.*,
+                        COUNT(packages.tracking_number) AS package_count FROM shippings.lockers AS lockers
+                        LEFT JOIN shippings.packages AS packages ON lockers.locker_id=packages.locker_id
+                        INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
+                        INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
+                        WHERE lockers.locker_id=$1
+                        GROUP BY lockers.locker_id, countries.country_id, warehouses.warehouse_id
+                        ORDER BY package_count DESC
+                    ").bind(locker_id).fetch_one(pool).await?
+                )
+            }
+
             if username.is_empty() || locker_id.is_empty() { return Ok(()); }
 
             let locker_id = locker_id.parse::<i64>().expect("could not parse locker_id in TryGetUserLocker event");
@@ -41,7 +61,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 .bind(locker_id)
                                 .fetch_one(pool)
                                 .await?
-                                .get::<i64, _>("package_count") >= 5
+                                .get::<i64, _>("package_count") >= LOCKER_PKG_NUM_MAX
                             {
                                 client_data.get_db_err = Some(GetDBErr::LockerTooManyPackages);
                                 return Ok(())
@@ -68,27 +88,13 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 .map(|package| package.weight)
                                 .sum::<Decimal>();
 
-                            if locker_packages_weight + selected_packages_weight >= Decimal::new(500000, 0)
+                            if locker_packages_weight + selected_packages_weight >= Decimal::new(LOCKER_WEIGHT_MAX, 0)
                             {
-                                client_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(500000, 0) - locker_packages_weight));
+                                client_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(LOCKER_WEIGHT_MAX, 0) - locker_packages_weight));
                                 return Ok(());
                             }
 
-                            let locker_row =
-                                sqlx::query(
-                                "
-                                    SELECT lockers.*, countries.*, warehouses.*,
-                                    COUNT(packages.tracking_number) AS package_count FROM shippings.lockers AS lockers
-                                    LEFT JOIN shippings.packages AS packages ON lockers.locker_id=packages.locker_id
-                                    INNER JOIN locations.countries AS countries ON lockers.country=countries.country_id
-                                    INNER JOIN locations.warehouses AS warehouses ON lockers.warehouse=warehouses.warehouse_id
-                                    WHERE lockers.locker_id=$1
-                                    GROUP BY lockers.locker_id, countries.country_id, warehouses.warehouse_id
-                                    ORDER BY package_count DESC
-                                ")
-                                .bind(locker_id)
-                                .fetch_one(pool)
-                                .await?;
+                            let locker_row = get_locker_row(pool, locker_id).await?;
 
                             client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
 
@@ -96,7 +102,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                             client_data.send_to_client = Some(
                                 Client {
-                                    username: username,
+                                    username,
                                     affiliated_branch: Branch::from_row(&client_row)?,
                                     first_name: String::from(""),
                                     last_name: String::from(""),
@@ -105,39 +111,70 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         
                             app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
-                        Some(User::PkgAdmin(pkgadmin_data)) => {
-                            let package = pkgadmin_data.add_package.as_ref().unwrap();
+                        Some(User::PkgAdmin(_)) => {
+                            {
+                                let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
 
-                            if sqlx::query("SELECT COUNT(*) AS package_count FROM shippings.packages WHERE locker_id=$1")
-                                .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
-                                .fetch_one(pool)
-                                .await?
-                                .get::<i64, _>("package_count") >= 5
-                            {
-                                pkgadmin_data.get_db_err = Some(GetDBErr::LockerTooManyPackages);
-                                return Ok(())
+                                if sqlx::query("SELECT COUNT(*) AS package_count FROM shippings.packages WHERE locker_id=$1")
+                                    .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
+                                    .fetch_one(pool)
+                                    .await?
+                                    .get::<i64, _>("package_count") >= LOCKER_PKG_NUM_MAX
+                                {
+                                    app_lock.get_pkgadmin_mut().get_db_err = Some(GetDBErr::LockerTooManyPackages);
+                                    return Ok(())
+                                }
+                                
+                                let package_weight_decimal = Decimal::from_str_exact(package.weight.value()).expect("could not parse package weight");
+                                if sqlx::query(
+                                        "
+                                            SELECT SUM(package_weight) as weight_sum FROM shippings.packages AS packages
+                                            INNER JOIN shippings.package_descriptions AS descriptions
+                                            ON packages.tracking_number=descriptions.tracking_number
+                                            WHERE locker_id=$1
+                                        "
+                                    )
+                                    .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
+                                    .fetch_one(pool)
+                                    .await?
+                                    .try_get::<Decimal, _>("weight_sum")
+                                    .unwrap_or(Decimal::new(0, 0))
+                                    >
+                                    package_weight_decimal
+                                {
+                                    app_lock.get_pkgadmin_mut().get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(LOCKER_WEIGHT_MAX, 0) - package_weight_decimal));
+                                    return Ok(());
+                                }
+                                
+                                let locker_row = get_locker_row(pool, locker_id).await?;
+                                package.shipping = Some(
+                                    ShippingData {
+                                        locker: Some(Locker::from_row(&locker_row)?),
+                                        branch: None,
+                                        delivery: false,
+                                        shipping_type: ShippingGuideType::InpersonLocker,
+                                    }
+                                );
                             }
-                            
-                            let package_weight_decimal = Decimal::from_str_exact(package.weight.value()).expect("could not parse package weight");
-                            if sqlx::query(
-                                    "
-                                        SELECT SUM(package_weight) as weight_sum FROM shippings.packages AS packages
-                                        INNER JOIN shippings.package_descriptions AS descriptions
-                                        ON packages.tracking_number=descriptions.tracking_number
-                                        WHERE locker_id=$1
-                                    "
+
+                            app_lock.get_shortest_branch_locker(pool).await?;
+
+                            let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                            package.payment = {
+                                let amount_calc =
+                                    package.route_distance.unwrap() as f64 * PRICE_DIST_MULT +
+                                    package.weight.value().parse::<f64>().expect("could not parse weight as f64") * PRICE_WEIGHT_MULT;
+                                Some(
+                                    PaymentData {
+                                        amount:
+                                            Decimal::from_f64(amount_calc)
+                                            .expect("could not get payment amount from amount_calc")
+                                            .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointNearestEven),
+                                        transaction_id: None,
+                                        payment_type: None
+                                    }
                                 )
-                                .bind(package.locker.value().parse::<i32>().expect("could not parse locker value"))
-                                .fetch_one(pool)
-                                .await?
-                                .try_get::<Decimal, _>("weight_sum")
-                                .unwrap_or(Decimal::new(0, 0))
-                                >
-                                package_weight_decimal
-                            {
-                                pkgadmin_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(500000, 0) - package_weight_decimal));
-                                return Ok(());
-                            }
+                            };
 
                             app_lock.enter_popup(Some(Popup::SelectPayment), pool).await;
                         }
@@ -152,6 +189,22 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             Ok(())
         }
         Event::TryGetUserBranch(username, branch_id) => {
+            async fn get_branch_row(pool: &PgPool, branch_id: i32) -> Result<PgRow> {
+                Ok(
+                    sqlx::query(
+                    "
+                        SELECT * FROM locations.branches AS branches
+                        INNER JOIN locations.warehouses AS warehouses ON branches.warehouse_id=warehouses.warehouse_id
+                        INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
+                        WHERE branch_id=$1
+                    "
+                    )
+                    .bind(branch_id)
+                    .fetch_one(pool)
+                    .await?
+                )
+            }
+
             if username.is_empty() || branch_id.is_empty() { return Ok(()); }
 
             let branch_id = branch_id.parse::<i32>().expect("could not parse locker_id in TryGetUserLocker event");
@@ -166,20 +219,9 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     let mut app_lock = app.lock().unwrap();
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
-                            let branch_res =
-                                sqlx::query(
-                                    "
-                                        SELECT * FROM locations.branches AS branches
-                                        INNER JOIN locations.warehouses AS warehouses ON branches.warehouse_id=warehouses.warehouse_id
-                                        INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
-                                        WHERE branch_id=$-1
-                                    "
-                                )
-                                .bind(branch_id)
-                                .fetch_one(pool)
-                                .await?;
+                            let branch_row = get_branch_row(pool, branch_id).await?;
 
-                            client_data.send_to_branch = Some(Branch::from_row(&branch_res)?);
+                            client_data.send_to_branch = Some(Branch::from_row(&branch_row)?);
                             
                             let client_row = get_full_client(username.clone(), pool).await?;
 
@@ -195,14 +237,26 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         Some(User::PkgAdmin(_)) => {
+                            {
+                                let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                                let branch_row = get_branch_row(pool, branch_id).await?;
+                                package.shipping = Some(
+                                    ShippingData {
+                                        locker: None,
+                                        branch: Some(Branch::from_row(&branch_row)?),
+                                        delivery: false,
+                                        shipping_type: ShippingGuideType::InpersonLocker,
+                                    }
+                                )
+                            }
+
                             app_lock.get_shortest_branch_branch(pool).await?;
 
-                            let pkgadmin_data = app_lock.get_pkgadmin_mut();
-                            let package = pkgadmin_data.add_package.as_mut().unwrap();
+                            let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
                             package.payment = {
                                 let amount_calc =
-                                    package.route_distance.unwrap() as f64 * 0.00003 +
-                                    package.weight.value().parse::<f64>().expect("could not parse weight as f64") * 0.0005;
+                                    package.route_distance.unwrap() as f64 * PRICE_DIST_MULT +
+                                    package.weight.value().parse::<f64>().expect("could not parse weight as f64") * PRICE_WEIGHT_MULT;
                                 Some(
                                     PaymentData {
                                         amount:
@@ -333,7 +387,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
 pub async fn get_full_client(username: String, pool: &PgPool) -> Result<PgRow> {
     Ok(
-            sqlx::query(
+        sqlx::query(
             "
             SELECT * FROM users.natural_clients AS clients
             INNER JOIN locations.branches AS branches ON clients.affiliated_branch=branches.branch_id

@@ -2,9 +2,7 @@ use std::time::{Duration, Instant};
 use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
-    client::ClientData,
-    pkgadmin::PkgAdminData,
-    db_obj::{Package, ShippingGuide, Locker, Payment},
+    client::ClientData, db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType}, pkgadmin::PkgAdminData
 };
 
 #[derive(Debug, Clone)]
@@ -172,6 +170,14 @@ pub struct PaymentData {
     pub amount: Decimal,
     pub transaction_id: Option<String>,
     pub payment_type: Option<PaymentType>,
+}
+
+#[derive(Debug)]
+pub struct ShippingData {
+    pub locker: Option<Locker>,
+    pub branch: Option<Branch>,
+    pub delivery: bool,
+    pub shipping_type: ShippingGuideType,
 }
 
 #[derive(Debug, Clone)]

@@ -105,6 +105,19 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     let admin_type: &str = res.try_get("user_type")?;
                     match admin_type {
                         "PkgAdmin" => {
+                            let pkgadmin_row =
+                                sqlx::query(
+                                    "
+                                        SELECT * FROM users.root_users AS roots
+                                        INNER JOIN locations.branches AS branches ON roots.branch_id=branches.branch_id
+                                        INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
+                                        WHERE roots.username=$1
+                                    "
+                                )
+                                .bind(username)
+                                .fetch_one(pool)
+                                .await?;
+
                             let client = reqwest::Client::new();
                             if !client.get(
                                 GRAPH_URL.lock().unwrap().clone()
@@ -112,11 +125,11 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             .send()
                             .await.is_ok()
                             {
-                                app.lock().unwrap().temp_row = Some(res);
+                                app.lock().unwrap().temp_row = Some(pkgadmin_row);
                                 app.lock().unwrap().enter_popup(Some(Popup::ServerUnavailable), pool).await;
                                 return Ok(());
                             }
-                            app.lock().unwrap().temp_row = Some(res);
+                            app.lock().unwrap().temp_row = Some(pkgadmin_row);
                             login_as(UserType::PkgAdmin, app, pool).await?;
                         }
                         _ => panic!("unknown admin type: {}", admin_type),
@@ -146,7 +159,7 @@ pub async fn login_as(user: UserType, app: &mut Arc<Mutex<App>>, pool: &PgPool) 
                 PkgAdminData {
                     info: PkgAdmin {
                         username: row.try_get("username")?,
-                        branch_id: row.try_get("branch_id")?,
+                        branch: Branch::from_row(row)?,
                         first_name: row.try_get("first_name")?,
                         last_name: row.try_get("last_name")?,
                     },

@@ -71,6 +71,9 @@ pub enum Event {
     PlaceOrderLockerLocker,
     PlaceOrderLockerBranch,
     PlaceOrderLockerDelivery,
+
+    PlaceOrderInpersonBranch,
+    PlaceOrderInpersonLocker
 }
 
 #[derive(Debug)]

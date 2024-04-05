@@ -1,8 +1,8 @@
 use std::ops::Add;
 
 use super::{
-    common::{GetDBErr, PackageData, PaymentData, ShippingGuideData},
-    db_obj::ShippingGuide,
+    common::{GetDBErr, PackageData, PaymentData, ShippingGuideData, ShippingData},
+    db_obj::{ShippingGuide, ShippingGuideType, Branch},
     graph_reqs::WarehouseNode,
 };
 use tui_input::Input;
@@ -10,7 +10,7 @@ use tui_input::Input;
 #[derive(Debug)]
 pub struct PkgAdmin {
     pub username: String,
-    pub branch_id: i32,
+    pub branch: Branch,
     pub first_name: String,
     pub last_name: String,
 }
@@ -36,9 +36,9 @@ pub struct AddPkgData {
     pub locker: Input,
     pub branch: Input,
     pub payment: Option<PaymentData>,
+    pub shipping: Option<ShippingData>,
     pub route: Option<Vec<WarehouseNode>>,
     pub route_distance: Option<i64>,
-    pub shipping_guide: Option<ShippingGuide>,
 }
 
 impl std::default::Default for AddPkgData {
@@ -54,9 +54,9 @@ impl std::default::Default for AddPkgData {
             locker: Input::default(),
             branch: Input::default(),
             payment: None,
+            shipping: None,
             route: None,
             route_distance: None,
-            shipping_guide: None,
         }
     }
 }

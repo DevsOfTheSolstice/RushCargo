@@ -1,8 +1,14 @@
+import time
+import threading
 from lib.graph.warehouses import RushWGraph, rushWGraph
 from lib.model.database import initdb
 from flask import Flask, request, jsonify
 
 app = Flask("RushCargo")
+
+# Time to Wait between Graphs Updates
+UPDATE_TIME = 60
+WAIT_BUSY_TIME = 0.05
 
 
 # GET Method for Route Calculations
@@ -24,6 +30,10 @@ def graph_calc(building_type: str):
 
         # Check if the Nodes can be Found
         try:
+            # Wait Until the Graph is Available
+            while rushWGraph.isBusy():
+                time.sleep(WAIT_BUSY_TIME)
+
             # Check if there's a Path between the Warehouses
             if rushWGraph.hasPath(warehouseFromId, warehouseToId):
                 # Get Shortest Route
@@ -50,6 +60,22 @@ def graph_calc(building_type: str):
         )
 
 
+# Function to Update the Graphs
+def updateGraphs(t0: int) -> None:
+    while True:
+        t1 = t0
+
+        # Countdown
+        while t1 > 0:
+            time.sleep(1)
+            t1 -= 1
+
+        # Update Graphs
+        app.logger.info("Rush Cargo Warehouses Graph is being Updated")
+        rushWGraph.update()
+        app.logger.info("Rush Cargo Warehouses Graph has been Updated")
+
+
 if __name__ == "__main__":
     # Initialize Database
     db, _, _ = initdb()
@@ -59,6 +85,12 @@ if __name__ == "__main__":
 
     # Initialize RushWGraph Class
     rushWGraph = RushWGraph(c, False)
+
+    # Call the Update Function with Multithreading
+    threadUpdate = threading.Thread(
+        target=updateGraphs, args=(UPDATE_TIME,), daemon=True, name="update-rushwgraph"
+    )
+    threadUpdate.start()
 
     # Initialize Flask Server
     app.run(debug=True, port=5000, use_reloader=False)

@@ -376,14 +376,15 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
 
             let width = (info_chunks[1].width.checked_sub(2).unwrap_or(3).max(3) - 3) as usize;
             
-            let (username_text, locker_text, branch_text) =
-                ("Username: ", "Locker ID: ", "Branch ID: ");
+            let (recipient_text, sender_text, locker_text, branch_text) =
+                ("Recipient: ", "Sender: ", "Locker ID: ", "Branch ID: ");
 
-            let (username_scroll, locker_scroll, branch_scroll) = {
+            let (recipient_scroll, sender_scroll, locker_scroll, branch_scroll) = {
                 let app_lock = app.lock().unwrap();
                 let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
                 (
-                    package.client.visual_scroll(width - username_text.len()),
+                    package.recipient.visual_scroll(width - recipient_text.len()),
+                    package.sender.visual_scroll(width - sender_text.len()),
                     package.locker.visual_scroll(width - locker_text.len()),
                     package.branch.visual_scroll(width - branch_text.len())
                 )
@@ -431,17 +432,21 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                         let (offset_x, offset_y) =
                             match field {
                                 0 =>
-                                    ((package.client.visual_cursor().max(username_scroll) - username_scroll) as u16
-                                    + username_text.len() as u16,
+                                    ((package.recipient.visual_cursor().max(recipient_scroll) - recipient_scroll) as u16
+                                    + recipient_text.len() as u16,
                                     1 + field as u16),
                                 1 =>
+                                    ((package.sender.visual_cursor().max(sender_scroll) - sender_scroll) as u16
+                                    + sender_text.len() as u16,
+                                    1 + field as u16),
+                                2 =>
                                     ((package.locker.visual_cursor().max(locker_scroll) - locker_scroll) as u16
                                     + locker_text.len() as u16,
-                                    2 + field as u16),
-                                2 =>
+                                    1 + field as u16),
+                                3 =>
                                     ((package.branch.visual_cursor().max(branch_scroll) - branch_scroll) as u16
                                     + branch_text.len() as u16,
-                                    2 + field as u16),
+                                    1 + field as u16),
                                 _ =>
                                     panic!("unexpected value in InputMode::Editing()")
                             };
@@ -543,7 +548,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             f.render_widget(height_title, package_info_chunks[6]);
             f.render_widget(height, package_info_chunks[6].offset(Offset { x: height_text.len() as i32, y: 0 }));
             
-            let recipient_info_chunks = Layout::default()
+            let shipping_info_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Length(1),
@@ -555,39 +560,52 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 ])
                 .split(info_chunks[1].inner(&Margin::new(2, 1)));
             
-            let recipient_info_block =
+            let shipping_info_block =
                 Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .style(rstyle_normal);
 
-            let recipient_info_title = Paragraph::new(
+            let shipping_info_title = Paragraph::new(
                 "Recipient Info"
             )
             .style(rstyle_title).centered();
             
-            let width = recipient_info_chunks[0].width as usize;
+            let width = shipping_info_chunks[0].width as usize;
 
-            let (username_scroll, locker_scroll, branch_scroll) = {
+            let (recipient_scroll, sender_scroll, locker_scroll, branch_scroll) = {
                 let app_lock = app.lock().unwrap();
                 let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
                 (
-                    package.client.visual_scroll(width - username_text.len()),
+                    package.recipient.visual_scroll(width - recipient_text.len()),
+                    package.sender.visual_scroll(width - sender_text.len()),
                     package.locker.visual_scroll(width - locker_text.len()),
                     package.branch.visual_scroll(width - branch_text.len()),
                 )
             };
 
-            let username_title = Line::styled(username_text, rstyle_highlight);
-            let username = {
+            let recipient_title = Line::styled(recipient_text, rstyle_highlight);
+            let recipient = {
                 let app_lock = app.lock().unwrap();
                 let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
                 Paragraph::new(
                     Line::styled(
-                        package.client.value().to_string(), rstyle_normal
+                        package.recipient.value().to_string(), rstyle_normal
                     )
                 )
-                .scroll((0, username_scroll as u16))
+                .scroll((0, recipient_scroll as u16))
+            };
+
+            let sender_title = Line::styled(sender_text, rstyle_highlight);
+            let sender = {
+                let app_lock = app.lock().unwrap();
+                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                Paragraph::new(
+                    Line::styled(
+                        package.sender.value().to_string(), rstyle_normal
+                    )
+                )
+                .scroll((0, sender_scroll as u16))
             };
 
             let locker_title = Line::styled(locker_text, rstyle_highlight); 
@@ -614,14 +632,16 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .scroll((0, branch_scroll as u16))
             };
             
-            f.render_widget(recipient_info_block.clone(), info_chunks[1]);
-            f.render_widget(recipient_info_title, recipient_info_chunks[0]);
-            f.render_widget(username_title, recipient_info_chunks[2]);
-            f.render_widget(username, recipient_info_chunks[2].offset(Offset { x: username_text.len() as i32, y: 0 }));
-            f.render_widget(locker_title, recipient_info_chunks[4]);
-            f.render_widget(locker, recipient_info_chunks[4].offset(Offset { x: locker_text.len() as i32, y: 0 }));
-            f.render_widget(branch_title, recipient_info_chunks[5]);
-            f.render_widget(branch, recipient_info_chunks[5].offset(Offset { x: branch_text.len() as i32, y: 0 }));
+            f.render_widget(shipping_info_block, info_chunks[1]);
+            f.render_widget(shipping_info_title, shipping_info_chunks[0]);
+            f.render_widget(recipient_title, shipping_info_chunks[2]);
+            f.render_widget(recipient, shipping_info_chunks[2].offset(Offset { x: recipient_text.len() as i32, y: 0 }));
+            f.render_widget(sender_title, shipping_info_chunks[3]);
+            f.render_widget(sender, shipping_info_chunks[3].offset(Offset { x: sender_text.len() as i32, y: 0 }));
+            f.render_widget(locker_title, shipping_info_chunks[4]);
+            f.render_widget(locker, shipping_info_chunks[4].offset(Offset { x: locker_text.len() as i32, y: 0 }));
+            f.render_widget(branch_title, shipping_info_chunks[5]);
+            f.render_widget(branch, shipping_info_chunks[5].offset(Offset { x: branch_text.len() as i32, y: 0 }));
 
             let active_popup = app.lock().unwrap().active_popup.clone();
             match active_popup {

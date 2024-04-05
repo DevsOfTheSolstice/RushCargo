@@ -96,19 +96,20 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                             let locker_row = get_locker_row(pool, locker_id).await?;
 
-                            client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
+                            //client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
+                            let client_row = get_full_client_row(username.clone(), pool).await?;
 
-                            let client_row = get_full_client(username.clone(), pool).await?;
-
-                            client_data.send_to_client = Some(
-                                Client {
-                                    username,
-                                    affiliated_branch: Branch::from_row(&client_row)?,
-                                    first_name: String::from(""),
-                                    last_name: String::from(""),
+                            client_data.shipping = Some(
+                                ShippingData {
+                                    locker: Some(Locker::from_row(&locker_row)?),
+                                    branch: None,
+                                    delivery: false,
+                                    shipping_type: ShippingGuideType::LockerLocker,
+                                    client_from: client_data.info.clone(),
+                                    client_to: Client::from_row(&client_row)?,
                                 }
                             );
-                        
+
                             app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         Some(User::PkgAdmin(_)) => {
@@ -147,17 +148,26 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                 }
                                 
                                 let locker_row = get_locker_row(pool, locker_id).await?;
-                                package.shipping = Some(
-                                    ShippingData {
-                                        locker: Some(Locker::from_row(&locker_row)?),
-                                        branch: None,
-                                        delivery: false,
-                                        shipping_type: ShippingGuideType::InpersonLocker,
-                                    }
-                                );
+                                let client_to_row = get_full_client_row(username, pool).await?;
+                                let client_from_row = get_full_client_row(package.sender.value().to_string(), pool).await;
+
+                                if let Ok(client_from_row) = client_from_row {
+                                    package.shipping = Some(
+                                        ShippingData {
+                                            locker: Some(Locker::from_row(&locker_row)?),
+                                            branch: None,
+                                            delivery: false,
+                                            shipping_type: ShippingGuideType::InpersonLocker,
+                                            client_from: Client::from_row(&client_from_row)?,
+                                            client_to: Client::from_row(&client_to_row)?,
+                                        }
+                                    );
+                                } else {
+                                    return Ok(());
+                                }
                             }
 
-                            app_lock.get_shortest_branch_locker(pool).await?;
+                            app_lock.get_shortest_warehouse_path(pool).await?;
 
                             let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
                             package.payment = {
@@ -220,37 +230,46 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
                             let branch_row = get_branch_row(pool, branch_id).await?;
+                            let client_row = get_full_client_row(username.clone(), pool).await?;
 
-                            client_data.send_to_branch = Some(Branch::from_row(&branch_row)?);
-                            
-                            let client_row = get_full_client(username.clone(), pool).await?;
-
-                            client_data.send_to_client = Some(
-                                Client {
-                                    username,
-                                    affiliated_branch: Branch::from_row(&client_row)?,
-                                    first_name: String::from(""),
-                                    last_name: String::from(""),
+                            client_data.shipping = Some(
+                                ShippingData {
+                                    locker: None,
+                                    branch: Some(Branch::from_row(&branch_row)?),
+                                    delivery: false,
+                                    shipping_type: ShippingGuideType::LockerBranch,
+                                    client_from: client_data.info.clone(),
+                                    client_to: Client::from_row(&client_row)?,
                                 }
                             );
-                            
+
                             app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         Some(User::PkgAdmin(_)) => {
                             {
-                                let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
                                 let branch_row = get_branch_row(pool, branch_id).await?;
-                                package.shipping = Some(
-                                    ShippingData {
-                                        locker: None,
-                                        branch: Some(Branch::from_row(&branch_row)?),
-                                        delivery: false,
-                                        shipping_type: ShippingGuideType::InpersonLocker,
-                                    }
-                                )
+                                let client_to_row = get_full_client_row(username, pool).await?;
+                                
+                                let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
+                                let client_from_row = get_full_client_row(package.sender.value().to_string(), pool).await;
+
+                                if let Ok(client_from_row) = client_from_row {
+                                    package.shipping = Some(
+                                        ShippingData {
+                                            locker: None,
+                                            branch: Some(Branch::from_row(&branch_row)?),
+                                            delivery: false,
+                                            shipping_type: ShippingGuideType::InpersonBranch,
+                                            client_from: Client::from_row(&client_from_row)?,
+                                            client_to: Client::from_row(&client_to_row)?,
+                                        }
+                                    )
+                                } else {
+                                    return Ok(());
+                                }
                             }
 
-                            app_lock.get_shortest_branch_branch(pool).await?;
+                            app_lock.get_shortest_warehouse_path(pool).await?;
 
                             let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
                             package.payment = {
@@ -355,18 +374,29 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 && motorcyclist.get::<Decimal, _>("length_capacity") >= packages_length
                 {
                     let mut app_lock = app.lock().unwrap();
-                    let client_row = get_full_client(username.clone(), pool).await?;
+                    let client_row = get_full_client_row(username.clone(), pool).await?;
+                    let client_to = Client::from_row(&client_row)?;
 
                     match &mut app_lock.user {
                         Some(User::Client(client_data)) => {
-                            client_data.send_to_client = Some(
+                            client_data.shipping = Some(
+                                ShippingData {
+                                    locker: None,
+                                    branch: Some(client_to.affiliated_branch.clone()),
+                                    delivery: true,
+                                    shipping_type: ShippingGuideType::LockerDelivery,
+                                    client_from: client_data.info.clone(),
+                                    client_to,
+                                }
+                            );
+                            /*client_data.send_to_client = Some(
                                 Client {
                                     username,
                                     affiliated_branch: Branch::from_row(&client_row)?,
                                     first_name: String::from(""),
                                     last_name: String::from(""),
                                 }
-                            );
+                            );*/
                             app_lock.enter_popup(Some(Popup::OnlinePayment), pool).await;
                         }
                         _ => unimplemented!("Event::TryGetUserDelivery for user {:?}", app_lock.user)
@@ -385,7 +415,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
     }
 }
 
-pub async fn get_full_client(username: String, pool: &PgPool) -> Result<PgRow> {
+pub async fn get_full_client_row(username: String, pool: &PgPool) -> Result<PgRow> {
     Ok(
         sqlx::query(
             "

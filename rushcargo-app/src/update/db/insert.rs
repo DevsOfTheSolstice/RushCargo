@@ -58,6 +58,8 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
         match &app_lock.user {
             Some(User::Client(client_data)) => {
+                todo!();
+                /* 
                 let (locker_receiver, branch_receiver) =
                     match event {
                         Event::PlaceOrderLockerLocker => (Some(client_data.send_to_locker.as_ref().unwrap().get_id()), None),
@@ -75,11 +77,11 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 )
                 .bind(next_shipping_id)
                 .bind(client_data.info.username.clone())
-                .bind(client_data.send_to_client.as_ref().unwrap().username.clone())
+                //.bind(client_data.send_to_client.as_ref().unwrap().username.clone())
                 .bind(client_data.active_locker.as_ref().unwrap().get_id())
                 .bind(locker_receiver)
                 .bind(branch_receiver)
-                .bind(client_data.send_with_delivery)
+                //.bind(client_data.send_with_delivery)
                 .execute(pool)
                 .await?;
 
@@ -130,7 +132,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 package_data.selected_packages = None;
 
-                app_lock.enter_popup(Some(Popup::OrderSuccessful), pool).await;
+                app_lock.enter_popup(Some(Popup::OrderSuccessful), pool).await;*/
             }
             _ => unimplemented!("db::insert::place_order for user {:?}", app_lock.user)
         }

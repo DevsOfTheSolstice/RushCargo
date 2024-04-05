@@ -32,7 +32,8 @@ pub struct AddPkgData {
     pub length: Input,
     pub width: Input,
     pub height: Input,
-    pub client: Input,
+    pub recipient: Input,
+    pub sender: Input,
     pub locker: Input,
     pub branch: Input,
     pub payment: Option<PaymentData>,
@@ -50,7 +51,8 @@ impl std::default::Default for AddPkgData {
             length: Input::default(),
             width: Input::default(),
             height: Input::default(),
-            client: Input::default(),
+            recipient: Input::default(),
+            sender: Input::default(),
             locker: Input::default(),
             branch: Input::default(),
             payment: None,
@@ -69,7 +71,8 @@ impl AddPkgData {
         self.length.value().is_empty() ||
         self.width.value().is_empty() ||
         self.height.value().is_empty() ||
-        self.client.value().is_empty() ||
+        self.recipient.value().is_empty() ||
+        self.sender.value().is_empty() ||
         (self.locker.value().is_empty() &&
         self.branch.value().is_empty())
     }

@@ -185,7 +185,7 @@ impl App {
         match self.active_popup {
             Some(Popup::ClientOrderLocker) => {
                 self.input_mode = InputMode::Editing(0);
-                self.get_client_mut().send_with_delivery = false;
+                //self.get_client_mut().send_with_delivery = false;
             }
             Some(Popup::OnlinePayment) => {
                 self.action_sel = Some(0);
@@ -193,11 +193,11 @@ impl App {
             }
             Some(Popup::ClientOrderBranch) => {
                 self.input_mode = InputMode::Editing(0);
-                self.get_client_mut().send_with_delivery = false;
+                //self.get_client_mut().send_with_delivery = false;
             }
             Some(Popup::ClientOrderDelivery) => {
                 self.input_mode = InputMode::Editing(0);
-                self.get_client_mut().send_with_delivery = true;
+                //self.get_client_mut().send_with_delivery = true;
             }
             _ => {}
         }
@@ -227,9 +227,7 @@ impl App {
                 self.action_sel = None;
                 if let Some(User::Client(_)) = self.user {
                     let client = self.get_client_mut();
-                    client.send_to_client = None;
-                    client.send_to_branch = None;
-                    client.send_to_client = None;
+                    client.shipping = None;
                     client.send_payment = None;
                 }
             }

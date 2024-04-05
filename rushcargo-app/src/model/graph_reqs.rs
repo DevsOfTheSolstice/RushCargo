@@ -61,9 +61,32 @@ impl App {
             _ => unimplemented!()
         };
 
+        let (route, distance) =
+        match &mut self.user {
+            Some(User::PkgAdmin(pkgadmin_data)) => {
+                let add_package = pkgadmin_data.add_package.as_mut().unwrap();
+                (
+                    &mut add_package.route,
+                    &mut add_package.route_distance,
+                )
+            }
+            _ => unimplemented!()
+        };
+
+        let response = get_server_response(warehouse_from, warehouse_to).await?;
+
+        if response.status().is_success() {
+            let data = response.json::<GraphResponse>().await?;
+            *route = Some(Vec::new());
+            if let Some(route) = route {
+                route.extend(data.nodes);
+            }
+            *distance = Some(data.distance + add_dist_from + add_dist_to);
+        }
+
         Ok(())
     }
-    pub async fn get_shortest_branch_branch(&mut self, pool: &PgPool) -> Result<()> {
+    /*pub async fn get_shortest_branch_branch(&mut self, pool: &PgPool) -> Result<()> {
         let (branch_to, branch_from, route, distance) =
         if let Some(User::PkgAdmin(pkgadmin_data)) = &mut self.user {
             match self.active_screen {
@@ -221,7 +244,7 @@ impl App {
         
 
         Ok(())
-    }
+    }*/
 }
 
 async fn get_server_response(warehouse_from: i32, warehouse_to: i32) -> Result<reqwest::Response> {

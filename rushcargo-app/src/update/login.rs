@@ -54,7 +54,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                     0 => {
                                         let first_name = res.try_get("first_name")?;
                                         let last_name = res.try_get("last_name")?;
-                                        let client_row = super::db::tryget::get_full_client(username.clone(), pool).await?;
+                                        let client_row = super::db::tryget::get_full_client_row(username.clone(), pool).await?;
 
                                         Some(User::Client(
                                             ClientData {
@@ -69,15 +69,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                                 viewing_lockers_idx: 0,
                                                 active_locker: None,
                                                 packages: None,
-                                                send_to_locker: None,
                                                 get_db_err: None,
-                                                send_to_client: None,
-                                                send_to_branch: None,
                                                 send_route: None,
                                                 send_route_distance: None,
+                                                shipping: None,
                                                 getuser_fail_count: 0,
                                                 send_payment: None,
-                                                send_with_delivery: false,
                                             }
                                         ))
                                     }

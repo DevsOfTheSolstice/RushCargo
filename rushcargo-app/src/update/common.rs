@@ -69,7 +69,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 let limit =
                     match app_lock.active_screen {
                         Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => 5,
-                        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => 2,
+                        Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Right)) => 3,
                         _ => unimplemented!("{:?} for {:?}", event, app_lock.active_screen)
                 };
                 app_lock.input_mode = InputMode::Editing(
@@ -263,9 +263,10 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         None => {
                             let add_package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();
                             match field {
-                                0 => &mut add_package.client,
-                                1 => &mut add_package.locker,
-                                2 => &mut add_package.branch,
+                                0 => &mut add_package.recipient,
+                                1 => &mut add_package.sender,
+                                2 => &mut add_package.locker,
+                                3 => &mut add_package.branch,
                                 _ => unimplemented!("input field {} for screen {:?}, popup {:?}", field, app_lock.active_screen, app_lock.active_popup)
                             }
                         }

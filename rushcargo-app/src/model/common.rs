@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
-    client::ClientData, db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType}, pkgadmin::PkgAdminData
+    client::{Client, ClientData}, db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType}, pkgadmin::PkgAdminData
 };
 
 #[derive(Debug, Clone)]
@@ -177,6 +177,8 @@ pub struct ShippingData {
     pub locker: Option<Locker>,
     pub branch: Option<Branch>,
     pub delivery: bool,
+    pub client_from: Client,
+    pub client_to: Client,
     pub shipping_type: ShippingGuideType,
 }
 

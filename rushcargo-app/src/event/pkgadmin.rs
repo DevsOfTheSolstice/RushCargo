@@ -106,15 +106,15 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             } else if !locker_empty && !branch_empty {
                                 sender.send(Event::EnterPopup(Some(Popup::FieldExcess)))
                             } else if !locker_empty {
-                                sender.send(Event::TryGetUserLocker(add_package.client.value().to_string(), add_package.locker.value().to_string()))
+                                sender.send(Event::TryGetUserLocker(add_package.recipient.value().to_string(), add_package.locker.value().to_string()))
                             } else {
-                                sender.send(Event::TryGetUserBranch(add_package.client.value().to_string(), add_package.branch.value().to_string()))
+                                sender.send(Event::TryGetUserBranch(add_package.recipient.value().to_string(), add_package.branch.value().to_string()))
                             }
                         }
                         _ => {
                             match app_lock.input_mode {
-                                InputMode::Editing(0) => sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric)),
-                                InputMode::Editing(1) | InputMode::Editing(2) =>
+                                InputMode::Editing(0) | InputMode::Editing(1) => sender.send(Event::KeyInput(key_event, InputBlacklist::Alphanumeric)),
+                                InputMode::Editing(2) | InputMode::Editing(3) =>
                                     sender.send(Event::KeyInput(key_event, InputBlacklist::Numeric)),
                                 _ => Ok(())
                             }

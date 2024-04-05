@@ -1,10 +1,8 @@
-use sqlx::{PgPool, FromRow};
+use sqlx::{PgPool, Row, FromRow, postgres::PgRow};
 use rust_decimal::Decimal;
 use anyhow::{Result, anyhow};
 use super::{
-    common::{PackageData, PaymentData, GetDBErr},
-    graph_reqs::WarehouseNode,
-    db_obj::{Branch, Country, Locker, Warehouse},
+    common::{GetDBErr, PackageData, PaymentData, ShippingData}, db_obj::{Branch, Country, Locker, Warehouse}, graph_reqs::WarehouseNode
 };
 
 #[derive(Debug, Clone)]
@@ -15,6 +13,17 @@ pub struct Client {
     pub affiliated_branch: Branch,
 }
 
+impl<'r> FromRow<'r, PgRow> for Client {
+    fn from_row(row: &'r PgRow) -> Result<Self, sqlx::Error> {
+        Ok(Client {
+            username: row.try_get("username")?,
+            first_name: row.try_get("first_name")?,
+            last_name: row.try_get("last_name")?,
+            affiliated_branch: Branch::from_row(row)?,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct ClientData {
     pub info: Client,
@@ -23,14 +32,11 @@ pub struct ClientData {
     pub active_locker: Option<Locker>,
     pub packages: Option<PackageData>,
     pub get_db_err: Option<GetDBErr>,
-    pub send_to_locker: Option<Locker>,
-    pub send_to_client: Option<Client>,
-    pub send_to_branch: Option<Branch>,
     pub send_route: Option<Vec<WarehouseNode>>,
     pub send_route_distance: Option<i64>,
+    pub shipping: Option<ShippingData>,
     pub getuser_fail_count: u8,
     pub send_payment: Option<PaymentData>,
-    pub send_with_delivery: bool,
 }
 
 impl ClientData {

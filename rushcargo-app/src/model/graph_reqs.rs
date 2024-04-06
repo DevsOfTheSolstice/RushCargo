@@ -56,7 +56,28 @@ impl App {
                 }
             }
             Some(User::Client(client_data)) => {
-                todo!()
+                let shipping = client_data.shipping.as_ref().unwrap();
+                match shipping.shipping_type {
+                    ShippingGuideType::LockerBranch => {
+                        let branch = shipping.branch.as_ref().unwrap();
+                        (
+                            branch.warehouse.get_id(),
+                            client_data.active_locker.as_ref().unwrap().warehouse.get_id(),
+                            0,
+                            branch.route_distance,
+                        )
+                    }
+                    ShippingGuideType::LockerLocker => {
+                        let locker = shipping.locker.as_ref().unwrap();
+                        (
+                            locker.warehouse.get_id(),
+                            client_data.active_locker.as_ref().unwrap().warehouse.get_id(),
+                            0,
+                            0,
+                        )
+                    }
+                    _ => unimplemented!()
+                }
             }
             _ => unimplemented!()
         };
@@ -68,6 +89,12 @@ impl App {
                 (
                     &mut add_package.route,
                     &mut add_package.route_distance,
+                )
+            }
+            Some(User::Client(client_data)) => {
+                (
+                    &mut client_data.send_route,
+                    &mut client_data.send_route_distance,
                 )
             }
             _ => unimplemented!()

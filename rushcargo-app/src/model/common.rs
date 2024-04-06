@@ -158,14 +158,14 @@ impl std::fmt::Display for Bank {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PaymentType {
     Online(Bank),
     Card,
     Cash
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PaymentData {
     pub amount: Decimal,
     pub transaction_id: Option<String>,

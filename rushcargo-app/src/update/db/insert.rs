@@ -11,13 +11,13 @@ use crate::{
         app::App,
         client::Client,
         common::{Bank, GetDBErr, InputMode, PaymentData, PaymentType, Popup, Screen, SubScreen, User},
-        db_obj::{Branch, Locker},
+        db_obj::{Branch, Locker, ShippingGuideType},
     },
 };
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
-        Event::PlaceOrderLockerLocker | Event::PlaceOrderLockerBranch | Event::PlaceOrderLockerDelivery
+        Event::PlaceOrderReq
         => {
             place_order(app, pool, &event).await?;
             Ok(())
@@ -27,9 +27,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 }
 
 async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) -> Result<()> {
-    let mut app_lock = app.lock().unwrap();
-
-    if let Some(bank) = app_lock.list.state.0.selected() {
+    let selection = app.lock().unwrap().list.state.0.selected(); 
+    if let Some(bank) = selection {
         let bank = match bank {
             0 => Bank::PayPal,
             1 => Bank::AmazonPay,
@@ -37,13 +36,44 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
             _ => panic!("bank is not in db::insert::place_order")
         };
 
-        let payment_data =
-            PaymentData {
-                amount: Decimal::new(99, 0),
-                transaction_id: Some(app_lock.input.0.to_string()),
-                payment_type: Some(PaymentType::Online(bank.clone())),
+        let mut app_lock = app.lock().unwrap();
+
+        let transaction_id = Some(app_lock.input.0.to_string());
+
+        let payment_type = {
+            Some(
+                match app_lock.user {
+                Some(User::Client(_)) =>
+                    PaymentType::Online(bank.clone()),
+                Some(User::PkgAdmin(_)) =>
+                    match app_lock.active_popup {
+                        Some(Popup::OnlinePayment) => PaymentType::Online(bank.clone()),
+                        Some(Popup::CardPayment) => PaymentType::Card,
+                        Some(Popup::CashPayment) => PaymentType::Cash,
+                        _ => panic!()
+                    }
+                _ => unimplemented!()
+                }
+            )
+        };
+
+        let payment_amount = {
+            let payment = {
+                match &app_lock.user {
+                    Some(User::Client(_)) =>
+                        app_lock.get_client_mut().send_payment.as_mut().unwrap(),
+                    Some(User::PkgAdmin(_)) =>
+                        app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap().payment.as_mut().unwrap(),
+                    _ => unimplemented!()
+                }
             };
-        
+
+            payment.transaction_id = transaction_id.clone();
+            payment.payment_type = payment_type;
+
+            payment.amount
+        };
+
         let next_shipping_id =
             sqlx::query("SELECT MAX(shipping_number) FROM shippings.shipping_guides")
                 .fetch_one(pool)
@@ -58,16 +88,23 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
         match &app_lock.user {
             Some(User::Client(client_data)) => {
-                todo!();
-                /* 
-                let (locker_receiver, branch_receiver) =
-                    match event {
-                        Event::PlaceOrderLockerLocker => (Some(client_data.send_to_locker.as_ref().unwrap().get_id()), None),
-                        Event::PlaceOrderLockerBranch => (None, Some(client_data.send_to_branch.as_ref().unwrap().get_id())),
-                        Event::PlaceOrderLockerDelivery => (None, None),
-                        _ => panic!()
-                    };
-
+                let shipping_data = client_data.shipping.as_ref().unwrap();
+                let (locker_from, locker_to, branch_to, delivery_included) =
+                    (
+                        client_data.active_locker.as_ref().unwrap().get_id(),
+                        if let Some(locker) = &shipping_data.locker {
+                            Some(locker.get_id())
+                        } else {
+                            None
+                        },
+                        if let Some(branch) = &shipping_data.branch {
+                            Some(branch.get_id())
+                        } else {
+                            None
+                        },
+                        shipping_data.delivery,
+                    );
+                
                 sqlx::query(
                     "
                         INSERT INTO shippings.shipping_guides
@@ -76,12 +113,12 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                     "
                 )
                 .bind(next_shipping_id)
-                .bind(client_data.info.username.clone())
-                //.bind(client_data.send_to_client.as_ref().unwrap().username.clone())
-                .bind(client_data.active_locker.as_ref().unwrap().get_id())
-                .bind(locker_receiver)
-                .bind(branch_receiver)
-                //.bind(client_data.send_with_delivery)
+                .bind(shipping_data.client_from.username.clone())
+                .bind(shipping_data.client_to.username.clone())
+                .bind(locker_from)
+                .bind(locker_to)
+                .bind(branch_to)
+                .bind(delivery_included)
                 .execute(pool)
                 .await?;
 
@@ -96,11 +133,11 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
                 )
                 .bind(next_payment_id)
                 .bind(client_data.info.username.clone())
-                .bind(payment_data.transaction_id)
+                .bind(transaction_id)
                 .bind(bank.to_string())
                 .bind(datetime.date())
                 .bind(datetime.time())
-                .bind(payment_data.amount)
+                .bind(payment_amount)
                 .execute(pool)
                 .await?;
 
@@ -132,7 +169,7 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
 
                 package_data.selected_packages = None;
 
-                app_lock.enter_popup(Some(Popup::OrderSuccessful), pool).await;*/
+                app_lock.enter_popup(Some(Popup::OrderSuccessful), pool).await;
             }
             _ => unimplemented!("db::insert::place_order for user {:?}", app_lock.user)
         }

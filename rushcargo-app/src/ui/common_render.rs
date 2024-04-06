@@ -56,7 +56,7 @@ pub fn online_payment(app: &mut Arc<Mutex<App>>, chunks: &Rc<[Rect]>, f: &mut Fr
     let pay_amount =
         match &app_lock.user {
             Some(User::Client(client_data)) => {
-                Decimal::new(100, 0)
+                client_data.send_payment.as_ref().unwrap().amount
             }
             Some(User::PkgAdmin(pkgadmin_data)) => {
                 pkgadmin_data.add_package.as_ref().unwrap().payment.as_ref().unwrap().amount

@@ -567,7 +567,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 .style(rstyle_normal);
 
             let shipping_info_title = Paragraph::new(
-                "Recipient Info"
+                "Shipping Info"
             )
             .style(rstyle_title).centered();
             

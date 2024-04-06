@@ -128,15 +128,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             sender.send(Event::SwitchAction)
                         }
                         KeyCode::Enter => {
-                            /*match app_lock.get_client_ref().shipping.as_ref().unwrap().shipping_type {
-                                sender.send(Event::PlaceOrderLockerLocker)
-                            } else if let Some(_) = app_lock.get_client_ref().send_to_branch {
-                                sender.send(Event::PlaceOrderLockerBranch)
-                            } else {
-                                sender.send(Event::PlaceOrderLockerDelivery)
-                            }*/
-                            todo!();
-                            Ok(())
+                            sender.send(Event::PlaceOrderReq)
                         }
                         _ =>
                             match app_lock.action_sel {

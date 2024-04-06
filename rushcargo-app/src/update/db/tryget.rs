@@ -10,7 +10,7 @@ use crate::{
     model::{
         app::App,
         client::{self, Client},
-        common::{Bank, GetDBErr, InputMode, PaymentData, Popup, Screen, ShippingData, SubScreen, TimeoutType, User},
+        common::{Bank, GetDBErr, InputMode, PaymentData, PaymentType, Popup, Screen, ShippingData, SubScreen, TimeoutType, User},
         db_obj::{Branch, Locker, ShippingGuideType}, pkgadmin,
     },
 };
@@ -51,62 +51,88 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 if username == res.get::<String, _>("client") {
                     let mut app_lock = app.lock().unwrap();
                     match &mut app_lock.user {
-                        Some(User::Client(client_data)) => {
-                            if locker_id == client_data.active_locker.as_mut().unwrap().get_id() {
-                                client_data.get_db_err = Some(GetDBErr::LockerSameAsActive);
-                                return Ok(())
-                            }
-
-                            if sqlx::query("SELECT COUNT(*) AS package_count FROM shippings.packages WHERE locker_id=$1")
-                                .bind(locker_id)
-                                .fetch_one(pool)
-                                .await?
-                                .get::<i64, _>("package_count") >= LOCKER_PKG_NUM_MAX
+                        Some(User::Client(_)) => {
                             {
-                                client_data.get_db_err = Some(GetDBErr::LockerTooManyPackages);
-                                return Ok(())
-                            }
+                                let client_data = app_lock.get_client_mut();
 
-                            let locker_packages_weight =
-                                sqlx::query(
-                            "
-                                    SELECT SUM(package_weight) as weight_sum FROM shippings.packages
-                                    INNER JOIN shippings.package_descriptions AS descriptions
-                                    ON packages.tracking_number=descriptions.tracking_number
-                                    WHERE locker_id=$1
+                                if locker_id == client_data.active_locker.as_mut().unwrap().get_id() {
+                                    client_data.get_db_err = Some(GetDBErr::LockerSameAsActive);
+                                    return Ok(())
+                                }
+
+                                if sqlx::query("SELECT COUNT(*) AS package_count FROM shippings.packages WHERE locker_id=$1")
+                                    .bind(locker_id)
+                                    .fetch_one(pool)
+                                    .await?
+                                    .get::<i64, _>("package_count") >= LOCKER_PKG_NUM_MAX
+                                {
+                                    client_data.get_db_err = Some(GetDBErr::LockerTooManyPackages);
+                                    return Ok(())
+                                }
+
+                                let locker_packages_weight =
+                                    sqlx::query(
                                 "
-                                )
-                                .bind(locker_id)
-                                .fetch_one(pool)
-                                .await?
-                                .try_get::<Decimal, _>("weight_sum")
-                                .unwrap_or(Decimal::new(0, 0));
-                            
-                            let selected_packages_weight =
-                                client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
-                                .iter()
-                                .map(|package| package.weight)
-                                .sum::<Decimal>();
+                                        SELECT SUM(package_weight) as weight_sum FROM shippings.packages
+                                        INNER JOIN shippings.package_descriptions AS descriptions
+                                        ON packages.tracking_number=descriptions.tracking_number
+                                        WHERE locker_id=$1
+                                    "
+                                    )
+                                    .bind(locker_id)
+                                    .fetch_one(pool)
+                                    .await?
+                                    .try_get::<Decimal, _>("weight_sum")
+                                    .unwrap_or(Decimal::new(0, 0));
+                                
+                                let selected_packages_weight =
+                                    client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
+                                    .iter()
+                                    .map(|package| package.weight)
+                                    .sum::<Decimal>();
 
-                            if locker_packages_weight + selected_packages_weight >= Decimal::new(LOCKER_WEIGHT_MAX, 0)
-                            {
-                                client_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(LOCKER_WEIGHT_MAX, 0) - locker_packages_weight));
-                                return Ok(());
+                                if locker_packages_weight + selected_packages_weight >= Decimal::new(LOCKER_WEIGHT_MAX, 0)
+                                {
+                                    client_data.get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(LOCKER_WEIGHT_MAX, 0) - locker_packages_weight));
+                                    return Ok(());
+                                }
+
+                                let locker_row = get_locker_row(pool, locker_id).await?;
+                                let client_row = get_full_client_row(username.clone(), pool).await?;
+
+                                client_data.shipping = Some(
+                                    ShippingData {
+                                        locker: Some(Locker::from_row(&locker_row)?),
+                                        branch: None,
+                                        delivery: false,
+                                        shipping_type: ShippingGuideType::LockerLocker,
+                                        client_from: client_data.info.clone(),
+                                        client_to: Client::from_row(&client_row)?,
+                                    }
+                                );
                             }
+                            app_lock.get_shortest_warehouse_path(pool).await?;
 
-                            let locker_row = get_locker_row(pool, locker_id).await?;
+                            let client_data = app_lock.get_client_mut();
 
-                            //client_data.send_to_locker = Some(Locker::from_row(&locker_row).expect("could not build locker from row"));
-                            let client_row = get_full_client_row(username.clone(), pool).await?;
+                            let selected_packages_weight =
+                                    client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
+                                    .iter()
+                                    .map(|package| package.weight)
+                                    .sum::<Decimal>();
 
-                            client_data.shipping = Some(
-                                ShippingData {
-                                    locker: Some(Locker::from_row(&locker_row)?),
-                                    branch: None,
-                                    delivery: false,
-                                    shipping_type: ShippingGuideType::LockerLocker,
-                                    client_from: client_data.info.clone(),
-                                    client_to: Client::from_row(&client_row)?,
+                            let amount_calc =
+                                client_data.send_route_distance.unwrap() as f64 * PRICE_DIST_MULT +
+                                f64::try_from(selected_packages_weight)? * PRICE_WEIGHT_MULT;
+
+                            client_data.send_payment = Some(
+                                PaymentData {
+                                    amount:
+                                        Decimal::from_f64(amount_calc)
+                                        .expect("could not get payment amount from amount_calc")
+                                        .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointNearestEven),
+                                    transaction_id: None,
+                                    payment_type: None,
                                 }
                             );
 
@@ -228,18 +254,44 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 if branch_id == res.get::<i32, _>("affiliated_branch") {
                     let mut app_lock = app.lock().unwrap();
                     match &mut app_lock.user {
-                        Some(User::Client(client_data)) => {
-                            let branch_row = get_branch_row(pool, branch_id).await?;
-                            let client_row = get_full_client_row(username.clone(), pool).await?;
+                        Some(User::Client(_)) => {
+                            {
+                                let branch_row = get_branch_row(pool, branch_id).await?;
+                                let client_row = get_full_client_row(username.clone(), pool).await?;
 
-                            client_data.shipping = Some(
-                                ShippingData {
-                                    locker: None,
-                                    branch: Some(Branch::from_row(&branch_row)?),
-                                    delivery: false,
-                                    shipping_type: ShippingGuideType::LockerBranch,
-                                    client_from: client_data.info.clone(),
-                                    client_to: Client::from_row(&client_row)?,
+                                let client_data = app_lock.get_client_mut();
+                                client_data.shipping = Some(
+                                    ShippingData {
+                                        locker: None,
+                                        branch: Some(Branch::from_row(&branch_row)?),
+                                        delivery: false,
+                                        shipping_type: ShippingGuideType::LockerBranch,
+                                        client_from: client_data.info.clone(),
+                                        client_to: Client::from_row(&client_row)?,
+                                    }
+                                );
+                            }
+                            
+                            app_lock.get_shortest_warehouse_path(pool).await?;
+                            
+                            let client_data = app_lock.get_client_mut();
+                            let packages_weight =
+                                client_data.packages.as_ref().unwrap().selected_packages.as_ref().unwrap()
+                                .iter()
+                                .map(|package| package.weight)
+                                .sum::<Decimal>();
+
+                            let amount_calc =
+                                client_data.send_route_distance.unwrap() as f64 * PRICE_DIST_MULT +
+                                f64::try_from(packages_weight)? * PRICE_WEIGHT_MULT;
+
+                            client_data.send_payment = Some(
+                                PaymentData {
+                                    amount: Decimal::from_f64(amount_calc)
+                                            .expect("could not get payment amount from amount_calc")
+                                            .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointNearestEven),
+                                    transaction_id: None,
+                                    payment_type: None,
                                 }
                             );
 

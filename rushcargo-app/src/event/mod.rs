@@ -68,9 +68,7 @@ pub enum Event {
     TryGetUserLocker(String, String),
     TryGetUserBranch(String, String),
     TryGetUserDelivery(String),
-    PlaceOrderLockerLocker,
-    PlaceOrderLockerBranch,
-    PlaceOrderLockerDelivery,
+    PlaceOrderReq,
 
     PlaceOrderInpersonBranch,
     PlaceOrderInpersonLocker

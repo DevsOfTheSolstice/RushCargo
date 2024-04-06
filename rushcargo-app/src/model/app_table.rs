@@ -325,7 +325,7 @@ impl App {
     pub async fn get_guides_next(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
         let base_query = match self.active_screen {
             Screen::PkgAdmin(SubScreen::PkgAdminGuides) =>
-                GUIDES_QUERY.to_string() + "OFFSET $1",
+                GUIDES_QUERY.to_string() + " OFFSET $1",
             _ =>
                 panic!()
         };
@@ -352,7 +352,7 @@ impl App {
         let rows =
             query
             .fetch_all(pool)
-            .await?;
+            .await.expect("get_guides_next() err");
 
         if rows.is_empty() { return Err(anyhow!("")) }
 
@@ -376,7 +376,7 @@ impl App {
     pub async fn get_guides_prev(&mut self, table_type: TableType, pool: &PgPool) -> Result<()> {
         let base_query = match self.active_screen {
             Screen::PkgAdmin(SubScreen::PkgAdminGuides) =>
-                GUIDES_QUERY.to_string() + "OFFSET $1 - 7 * 2",
+                GUIDES_QUERY.to_string() + " OFFSET $1 - 7 * 2",
             _ =>
                 panic!()
         };
@@ -400,7 +400,7 @@ impl App {
         let rows =
             query
             .fetch_all(pool)
-            .await?;
+            .await.expect("get_guides_prev() err");
 
         if rows.is_empty() { return Err(anyhow!("")) }
 

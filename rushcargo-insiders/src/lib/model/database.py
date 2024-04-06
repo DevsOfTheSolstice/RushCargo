@@ -1,8 +1,13 @@
-from psycopg import connect
-from rich.console import Console
-from pathlib import Path
+import asyncio
 import os
+from pathlib import Path
+import time
+
 from dotenv import load_dotenv
+
+from psycopg_pool import AsyncConnectionPool
+
+from rich.console import Console
 
 from .constants import (
     THEME,
@@ -17,10 +22,12 @@ from .constants import (
 # Set Custom Theme
 console = Console(theme=THEME)
 
+asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-class Database:
+
+class AsyncPool:
     """
-    Class that Handles the Remote Database Connection
+    Class that Handles the Remote Database Asynchronous Connection Pool
     """
 
     # Private Fields
@@ -29,8 +36,7 @@ class Database:
     __user = None
     __password = None
     __port = None
-    __conn = None
-    __c = None
+    __apool = None
 
     # Constructor
     def __init__(
@@ -42,7 +48,7 @@ class Database:
         port: int = 5432,
     ):
         """
-        Remote Database Connection Class Constructor
+        Remote Database Asynchronous Connection Pool Class Constructor
 
         :param str dbname: Remote Database Name
         :param str user: Remote Database Role Name
@@ -58,59 +64,64 @@ class Database:
         self.__password = password
         self.__port = port
 
-        # Connect to the Remote Database
         try:
-            self.__conn = connect(
-                autocommit=True,
+            # Get and Open Asynchronous Connection Pool
+            self.__apool = AsyncConnectionPool(
                 conninfo=f"host={self.__host} dbname={self.__dbname} user={self.__user} password={self.__password} port={self.__port} sslmode={'require'}",
+                open=False,
             )
-            self.__c = self.getCursor()
 
         except Exception as err:
             return err
 
-    def __del__(self):
+    async def openPool(self):
         """
-        Remote Database Connection Class Destructor
-        """
-
-        # Commit Command
-        self.__conn.commit()
-
-        # Close Connection
-        if self.__c != None:
-            self.__c.close()
-
-        if self.__conn != None:
-            self.__conn.close()
-
-    # Get Database Connection
-    def getConnection(self):
-        """
-        Method to Get Remote Database Connection
-
-        :return: Remote Database Connection
-        :rtype: Connection[TupleRow]
+        Method to Open the Asynchronous Connection Pool
         """
 
-        return self.__conn
+        await asyncio.gather(self.__apool.open())
 
-    # Get Database Cursor
-    def getCursor(self):
+    async def closePool(self):
         """
-        Method to Get Remote Database Connection Cursor
-
-        :return: Remote Database Connection Cursor
-        :rtype: Cursor[TupleRow]
+        Method to Close the Asynchronous Connection Pool
         """
 
-        return self.__conn.cursor()
+        await asyncio.gather(self.__apool.close())
+
+    def connection(self):
+        """
+        Method to Get a Pool Connection Context Manager
+
+        :return: Asynchronous Pool Connection Context Manager
+        """
+
+        return self.__apool.connection()
+
+    async def getConnection(self):
+        """
+        Asynchronous Method to Get a Pool Connection
+
+        :return: Asynchronous Pool Connection
+        """
+
+        conn = await asyncio.gather(self.__apool.getconn())
+
+        return conn
+
+    async def putConnection(self, conn):
+        """
+        Asynchronous Method to Put a Pool Connection
+
+        :param conn: Asynchronous Pool Connection
+        """
+
+        await asyncio.gather(self.__apool.putconn(conn))
 
 
-# Initialize Database Connection
-def initdb() -> tuple[Database, str, str]:
+# Initialize Asynchronous Connection Pool
+def initAsyncPool() -> tuple[AsyncPool, str, str]:
     """
-    Function that Initialize Remote Database Connection and Returns Some Environment Variables
+    Function that Initialize Remote Database Asynchronous Connection Pool and Returns Some Environment Variables
 
     :return: Tuple of Database Object, and the ``ENV_USER`` and ``ENV_ORS_API_KEY`` Environment Varibles
     :rtype: tuple
@@ -140,7 +151,7 @@ def initdb() -> tuple[Database, str, str]:
     except Exception as err:
         console.print(err, style="warning")
 
-    # Initialize Database Object
-    db = Database(dbname, user, password, host, port)
+    # Initialize Remote Database Asynchronous Connection Pool Object
+    apool = AsyncPool(dbname, user, password, host, port)
 
-    return db, user, ORSApiKey
+    return apool, user, ORSApiKey

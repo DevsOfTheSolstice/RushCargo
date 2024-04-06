@@ -1,25 +1,7 @@
-import os
 from email_validator import validate_email, EmailNotValidError
 
 from .constants import *
 from .exceptions import FieldValueError, PlaceError, GoToMenu
-
-
-def clear() -> None:
-    """
-    Function to Clear the Terminal
-
-    :return: Nothing
-    :rtype: NoneType
-    """
-
-    # For Windows
-    if os.name == "nt":
-        os.system("cls")
-
-    # For Posix
-    else:
-        os.system("clear")
 
 
 def stringValidator(

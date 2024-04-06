@@ -1,7 +1,8 @@
 import argparse
-import textwrap
+import asyncio
 import os
 import sys
+import textwrap
 
 from lib.controller.events import EventHandler
 from lib.controller.events import END_MSG
@@ -11,9 +12,10 @@ from lib.graph.constants import DATA_DIR
 from lib.io.constants import *
 from lib.io.arguments import getEventHandlerArguments
 
-from lib.model.database import initdb, console
+from lib.model.database import initAsyncPool, console
 
 from lib.terminal.constants import TITLE_MSG, PROG_MSG
+from lib.terminal.clear import clear
 
 
 # Initialize argParse Parser and Get Parser Arguments
@@ -68,7 +70,6 @@ def getParserArguments() -> dict:
     # Get Arguments
     args = parser.parse_args()
 
-    # Arguments Dictionary
     argsDict = {}
 
     # Get the Main Command
@@ -94,12 +95,12 @@ def getParserArguments() -> dict:
 
 
 if __name__ == "__main__":
-    # Change Directory to 'rushcargo-graps/data'
+    # Change Directory to 'rushcargo-insiders/data'
     try:
         os.chdir(DATA_DIR)
 
     except FileNotFoundError:
-        # Create 'rushcargo-graps/data' Directory
+        # Create 'rushcargo-insiders/data' Directory
         cwd = os.getcwd()
         path = os.path.join(cwd, DATA_DIR)
         os.mkdir(path)
@@ -109,7 +110,7 @@ if __name__ == "__main__":
 
     except Exception as err:
         print(err)
-        os.exit(0)
+        os._exit(0)
 
     try:
         # Arguments Dictionary
@@ -120,20 +121,23 @@ if __name__ == "__main__":
             argsDict = getParserArguments()
 
         else:
+            # Clear Terminal
+            clear()
+
             argsDict = getEventHandlerArguments()
 
             # Check Arguments
             if argsDict == None:
-                os.exit(0)
+                os._exit(0)
 
-        # Initialize Database Connection
-        db, user, ORSApiKey = initdb()
+        # Initialize Remote Database Asynchronous Connection Pool
+        apool, user, ORSApiKey = initAsyncPool()
 
         # Initialize Event Handler
-        e = EventHandler(db, user, ORSApiKey)
+        e = EventHandler(apool, user, ORSApiKey)
 
         # Call Main Event Handler
-        e.handler(argsDict)
+        asyncio.run(e.handler(argsDict))
 
     # End Program
     except KeyboardInterrupt:

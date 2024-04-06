@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from unidecode import unidecode
 import networkx as nx
 import matplotlib.pyplot as plt

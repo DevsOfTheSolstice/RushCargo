@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 mod check_files;
+mod args;
 mod model;
 mod update;
 mod event;
@@ -16,15 +17,7 @@ use event::EventHandler;
 use tui::Tui;
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(short, long)]
-    db: String,
-    #[arg(short, long)]
-    graphserver: String,
-}
+use crate::args::AppArgs;
 
 const HELP_TEXT: HelpText = HelpText::default();
 
@@ -40,7 +33,7 @@ lazy_static! {
             path
         });
     static ref GRAPH_URL: Mutex<String> = Mutex::new({
-        let args = Args::parse();
+        let args = AppArgs::parse();
         args.graphserver
     });
 }
@@ -58,7 +51,7 @@ async fn main() -> Result<()> {
     crate::check_files::check_files();
 
     let pool = {
-        let args = Args::parse();
+        let args = AppArgs::parse();
         sqlx::postgres::PgPool::connect(&args.db).await?
     };
 

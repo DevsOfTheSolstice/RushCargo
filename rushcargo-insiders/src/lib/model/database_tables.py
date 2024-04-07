@@ -163,7 +163,7 @@ class BaseTable:
 
         :param str tableName: Table Name to Initialize
         :param str tablePKName: Table Primary Key Field Name
-        :param str schemeName: Scheme Name where the Table is Located. Default is ```None``
+        :param str schemeName: Scheme Name where the Table is Located. Default is ``None``
         """
 
         # Store Scheme (if It inside One), Table and Primary Key Column Names
@@ -292,7 +292,7 @@ class BaseTable:
         """
         Asynchronous Method to Modify a Row Field Value with a Given Unique Identifier
 
-        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :param str field: Field to be Modified
         :param value: Value to be Assigned
@@ -314,10 +314,10 @@ class BaseTable:
         """
         Asynchronous Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair
 
-        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str field: Field to be Compared
         :param value: Value to be Compared
-        :param str orderBy: Table Field that will be Used to Sort it. Default is ```None``
+        :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Nothing
         :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -337,13 +337,13 @@ class BaseTable:
         """
         Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs
 
-        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Nothing
         :rtype: NoneType
-        :raises LenError: Raised if ```fields`` and ``values`` have Different Lists Length
+        :raises LenError: Raised if ``fields`` and ``values`` have Different Lists Length
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
@@ -377,7 +377,7 @@ class BaseTable:
         """
         Asynchronoues Method to Print the Table Rows Sorted in Asceding/Descending Order for a Given Field
 
-        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Table Field to Sort
         :param bool desc: Specifies wheter to Sort the Rows in Ascending or Descending Order
         :return: Nothing
@@ -398,7 +398,7 @@ class BaseTable:
         """
         Method to Remove a Row with a Given Unique Identifier
 
-        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :return:Nothing
         :rtype: NoneType
@@ -815,7 +815,7 @@ class SpecializationTable:
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
         :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
         :rtype: bool
-        :raises LenError: Raised if ```fields`` and ``values`` have Different Lists Length
+        :raises LenError: Raised if ``fields`` and ``values`` have Different Lists Length
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 

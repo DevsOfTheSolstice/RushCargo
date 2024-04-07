@@ -104,18 +104,19 @@ class AsyncPool:
         :return: Asynchronous Pool Connection
         """
 
-        conn = await asyncio.gather(self.__apool.getconn())
+        aconnTask = asyncio.create_task(self.__apool.getconn())
+        await asyncio.gather(aconnTask)
 
-        return conn
+        return aconnTask.result()
 
-    async def putConnection(self, conn):
+    async def putConnection(self, aconn):
         """
         Asynchronous Method to Put a Pool Connection
 
-        :param conn: Asynchronous Pool Connection
+        :param aconn: Asynchronous Pool Connection
         """
 
-        await asyncio.gather(self.__apool.putconn(conn))
+        await asyncio.gather(self.__apool.putconn(aconn))
 
 
 # Initialize Asynchronous Connection Pool

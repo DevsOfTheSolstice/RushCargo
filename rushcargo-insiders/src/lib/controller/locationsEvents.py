@@ -4,7 +4,6 @@ from .constants import *
 from .exceptions import (
     RowNotFound,
     EmptyTable,
-    InvalidLocation,
     WarehouseNotFound,
     MainWarehouseError,
 )
@@ -32,7 +31,6 @@ from ..io.validator import *
 
 from ..local_database.database import NominatimDatabase, NominatimTables
 
-from ..model.database import AsyncPool
 from ..model.database_tables import cancelTasks
 from ..model.database_building import *
 from ..model.database_connections import *
@@ -95,9 +93,9 @@ class LocationsEventHandler:
         self.__countriesTable = CountriesTable()
         self.__regionsTable = RegionsTable()
         self.__citiesTable = CitiesTable()
+        self.__warehouseConnsTable = WarehouseConnectionsTable()
         """
         self.__warehousesTable = WarehousesTable()
-        self.__warehouseConnsTable = WarehouseConnectionsTable()
         self.__branchesTable = BranchesTable()
         """
 
@@ -1180,7 +1178,7 @@ class LocationsEventHandler:
                     # Drop Old Warehouse Connections with all the Main Region Warehouses at the Same Country and all thMain Region Warehouses at the Given Region
                     tg.create_task(
                         self.__warehouseConnsTable.removeRegionMainWarehouse(
-                            aconn, regionId, currWarehouseId
+                            aconn.acursor(), regionId, currWarehouseId
                         )
                     )
 
@@ -1199,7 +1197,11 @@ class LocationsEventHandler:
                 # Add Warehouse Connections for the Current Warehouse with All the Main Region Warehouses at theGiven Country and all the Main Region Warehouses at the Given Region
                 await asyncio.gather(
                     self.__warehouseConnsTable.insertRegionMainWarehouse(
-                        aconn, self.__ORSGeocoder, countryId, regionId, warehouseDict
+                        aconn.acursor(),
+                        self.__ORSGeocoder,
+                        countryId,
+                        regionId,
+                        warehouseDict,
                     )
                 )
 
@@ -1278,7 +1280,7 @@ class LocationsEventHandler:
                     # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at theSame Region, and all the City Warehouses at the Given City
                     tg.create_task(
                         self.__warehouseConnsTable.removeCityMainWarehouse(
-                            aconn, regionId, cityId, currWarehouseId
+                            aconn.acursor(), regionId, cityId, currWarehouseId
                         )
                     )
 
@@ -1315,6 +1317,7 @@ class LocationsEventHandler:
                 # Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the MainCity Warehouses at the Given Region and all the City Warehouses at the Given City
                 await asyncio.gather(
                     self.__warehouseConnsTable.insertCityMainWarehouse(
+                        aconn.acursor(),
                         self.__ORSGeocoder,
                         regionId,
                         cityId,
@@ -1563,7 +1566,7 @@ class LocationsEventHandler:
                         if region.warehouseId == None:
                             tg.create_task(
                                 self.__warehouseConnsTable.insertRegionMainWarehouse(
-                                    aconn,
+                                    aconn.acursor(),
                                     self.__ORSGeocoder,
                                     location[DICT_COUNTRY_ID],
                                     location[DICT_REGION_ID],
@@ -1599,7 +1602,7 @@ class LocationsEventHandler:
                         if city.warehouseId == None:
                             tg.create_task(
                                 self.__warehouseConnsTable.insertCityMainWarehouse(
-                                    aconn,
+                                    aconn.acursor(),
                                     self.__ORSGeocoder,
                                     location[DICT_REGION_ID],
                                     location[DICT_CITY_ID],
@@ -1629,7 +1632,7 @@ class LocationsEventHandler:
                             # Insert City Warehouse Connection
                             await asyncio.gather(
                                 self.__warehouseConnsTable.insertCityWarehouse(
-                                    aconn,
+                                    aconn.acursor(),
                                     self.__ORSGeocoder,
                                     parentWarehouseDict,
                                     warehouseDict,
@@ -1771,7 +1774,7 @@ class LocationsEventHandler:
 
             # Check if it's the Main Warehouse at Any Location
             isMainTask = asyncio.create_task(
-                self.__warehouseConnsTable.isMainWarehouse(aconn, warehouseId)
+                self.__warehouseConnsTable.isMainWarehouse(aconn.acursor(), warehouseId)
             )
             await asyncio.gather(isMainTask)
             location = isMainTask.result()
@@ -1783,7 +1786,9 @@ class LocationsEventHandler:
             else:
                 # Remove City Warehouse Connections
                 await asyncio.gather(
-                    self.__warehouseConnsTable.removeCityWarehouse(aconn, warehouseId)
+                    self.__warehouseConnsTable.removeCityWarehouse(
+                        aconn.acursor(), warehouseId
+                    )
                 )
 
                 # Remove Warehouse
@@ -1843,14 +1848,16 @@ class LocationsEventHandler:
         elif action == DB_RM:
             await asyncio.gather(self._rmHandler(aconn, tableName))
 
-    def graphHandler(self, graphType: str, level: str) -> None:
+    async def graphHandler(self, aconn, graphType: str, level: str) -> None:
         """
-        Graph Handler of ``countries``, ``regions`` and ``cities`` Graph Level Subcommands
+        Asynchronous Graph Handler of ``countries``, ``regions`` and ``cities`` Graph Level Subcommands
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str graphType: Graph Type Command
         :param str level: Graph Level Command (``countries``, ``regions`` and ``cities``)
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Command Execution
         """
 
         global rushWGraph
@@ -1862,43 +1869,77 @@ class LocationsEventHandler:
         if graphType == WAREHOUSES_TABLE_NAME:
             # Check if the Given Graph is Initialized
             if rushWGraph == None:
-                rushWGraph = RushWGraph(self.__c, True)
+                initTask = asyncio.create_task(RushWGraph.create(aconn, True))
+                await asyncio.gather(initTask)
+                rushWGraph = initTask.result()
 
             # Update the Graph
             else:
-                rushWGraph.update()
+                await asyncio.gather(rushWGraph.update(aconn))
 
             warehouseIds = None
             locationId = None
 
             if level == COUNTRIES_TABLE_NAME:
                 # Select Country ID
-                locationId = countryId = self.getCountryId()
+                getTask = asyncio.create_task(self.getCountryId(aconn))
+                await asyncio.gather(getTask)
+                locationId = countryId = getTask.result()
 
                 # Get the Region Main Warehouse IDs at the Given Country
-                warehouseIds = self.__warehouseConnsTable.getRegionMainWarehouseIds(
-                    countryId
+                warehouseTask = asyncio.create_task(
+                    self.__warehouseConnsTable.getRegionMainWarehouseIds(
+                        aconn.acursor(), countryId
+                    )
                 )
+                await asyncio.gather(warehouseTask)
+                warehouseIds = warehouseTask.result()
 
             elif level == REGIONS_TABLE_NAME:
                 # Select Region ID
-                locationId = regionId = self.getRegionId()
+                getTask = asyncio.create_task(self.getRegionId(aconn))
+                await asyncio.gather(getTask)
+                locationId = regionId = getTask.result()
 
                 # Get the City Main Warehouse IDs at the Given Region
-                warehouseIds = self.__warehouseConnsTable.getCityMainWarehouseIds(
-                    regionId
+                warehouseTask = asyncio.create_task(
+                    self.__warehouseConnsTable.getCityMainWarehouseIds(
+                        aconn.acursor(), regionId
+                    )
+                )
+                # Get the Region Main Warehouse ID
+                findTask = asyncio.create_task(
+                    self.__regionsTable.find(aconn, regionId)
                 )
 
-                # Add Region Main Warehouse ID
-                region = self.__regionsTable.find(regionId)
+                tasks = [warehouseTask, findTask]
+                try:
+                    await asyncio.gather(*tasks)
+
+                except Exception as err:
+                    cancelTasks(tasks)
+                    raise err
+
+                warehouseIds = warehouseTask.result()
+                region = findTask.result()
+
+                # Add the Region Main Warehouse ID
                 warehouseIds.append(region.warehouseId)
 
             elif level == CITIES_TABLE_NAME:
                 # Select City ID
-                locationId = cityId = self.getCityId()
+                getTask = asyncio.create_task(self.getCityId(aconn))
+                await asyncio.gather(getTask)
+                locationId = cityId = getTask.result()
 
                 # Get the Warehouse IDs at the Given City
-                warehouseIds = self.__warehouseConnsTable.getCityWarehouseIds(cityId)
+                warehouseTask = asyncio.create_task(
+                    self.__warehouseConnsTable.getCityWarehouseIds(
+                        aconn.cursor(), cityId
+                    )
+                )
+                await asyncio.gather(warehouseTask)
+                warehouseIds = warehouseTask.result()
 
             # Draw the Graph with the Given Warehouse IDs and Layout. Store it Locally
             rushWGraph.draw(layout, level, locationId, warehouseIds)

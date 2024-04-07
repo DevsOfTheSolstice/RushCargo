@@ -195,6 +195,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         rejected: false,
                     };
 
+                insert_branch_transfer_order(order, pool).await?;
+
                 *prev_order_number = Some(*next_order_number);
                 *next_order_number += 1;
 
@@ -249,7 +251,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 match active_screen {
                     Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
                         let next_shipping_num = get_next_shipping_number(pool).await?;
-                        insert_shipping_guide(next_shipping_num, app, pool).await?;
+                        insert_shipping_guide(next_shipping_num, true, app, pool).await?;
 
                         let next_payment_id = get_next_payment_id(pool).await?;
                         insert_payment(next_payment_id, app, pool).await?;
@@ -355,7 +357,7 @@ async fn place_order_req(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event
         UserType::Client => {
             let next_shipping_num = get_next_shipping_number(pool).await?;
 
-            insert_shipping_guide(next_shipping_num, app, pool).await?;
+            insert_shipping_guide(next_shipping_num, false, app, pool).await?;
             
             let next_payment_id = get_next_payment_id(pool).await?;
 
@@ -388,7 +390,7 @@ async fn place_order_req(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event
     Ok(())
 }
 
-async fn insert_shipping_guide(shipping_num: i64, app: &Arc<Mutex<App>>, pool: &PgPool) -> Result<()> {
+async fn insert_shipping_guide(shipping_num: i64, set_date: bool, app: &Arc<Mutex<App>>, pool: &PgPool) -> Result<()> {
     let app_lock = app.lock().unwrap();
 
     let (client_from, client_to, locker_from, locker_to, branch_from, branch_to, delivery_included) =
@@ -441,11 +443,26 @@ async fn insert_shipping_guide(shipping_num: i64, app: &Arc<Mutex<App>>, pool: &
         _ => unimplemented!()
     };
 
+    let (shipping_date, shipping_hour) =
+        if set_date {
+            let datetime = OffsetDateTime::now_utc();
+            (
+                Some(datetime.date()),
+                Some(datetime.time()),
+            )
+        } else {
+            (None, None)
+        };
+
     sqlx::query(
         "
             INSERT INTO shippings.shipping_guides
-            (shipping_number, client_from, client_to, locker_from, locker_to, branch_from, branch_to, delivery_included)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (
+                shipping_number, client_from, client_to,
+                locker_from, locker_to, branch_from, branch_to,
+                delivery_included, shipping_date, shipping_hour, shipping_type
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Ground')
         "
     )
     .bind(shipping_num)
@@ -456,6 +473,8 @@ async fn insert_shipping_guide(shipping_num: i64, app: &Arc<Mutex<App>>, pool: &
     .bind(branch_from)
     .bind(branch_to)
     .bind(delivery_included)
+    .bind(shipping_date)
+    .bind(shipping_hour)
     .execute(pool)
     .await?;
 

@@ -83,8 +83,10 @@ class EventHandler:
                     # Check if it's a Graph-related Command
                     elif argsDict[CMD_TYPE] == GRAPH:
                         # Call Location Graph Event Handler
-                        self.__locationsEventHandler.graphHandler(
-                            aconn, argsDict[GRAPH_TYPE], argsDict[GRAPH_LEVEL]
+                        await asyncio.gather(
+                            self.__locationsEventHandler.graphHandler(
+                                aconn, argsDict[GRAPH_TYPE], argsDict[GRAPH_LEVEL]
+                            )
                         )
 
                     # Clear Terminal

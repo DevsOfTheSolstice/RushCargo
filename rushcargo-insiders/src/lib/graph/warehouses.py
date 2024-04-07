@@ -1,11 +1,16 @@
+import asyncio
 from unidecode import unidecode
+
 import networkx as nx
 import matplotlib.pyplot as plt
 from psycopg import sql
 
 from .constants import *
 
+
 from ..model.constants import *
+from ..model.database import initAsyncPool
+from ..model.database_tables import cancelTasks
 
 # Rush Cargo Warehouse Graph
 rushWGraph = None
@@ -38,14 +43,12 @@ class RushWGraph:
     __spring = None
 
     # Database Connection
-    __c = None
     __items = None
 
-    def __init__(self, remoteCursor, draw: bool = False):
+    def __init__(self, draw: bool = False):
         """
         Rush Cargo Warehouse Connection Graph Class Constructor
 
-        :param Cursor remoteCursor: Remote Database Connection Cursor
         :param bool draw: Specifies whether to Draw or not the NetworkX Graph
         """
 
@@ -53,17 +56,24 @@ class RushWGraph:
         self.__DiGraph = nx.DiGraph()
         self.__draw = draw
 
-        # Set the Graph as Busy
-        self.__busy = True
+    @classmethod
+    async def create(cls, aconn, draw: bool = False):
+        """
+        Rush Cargo Warehouse Connection Graph Class Asynchronous Factory Method
 
-        # Save Database Connection Information
-        self.__c = remoteCursor
+        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param bool draw: Specifies whether to Draw or not the NetworkX Graph
+        """
+
+        self = RushWGraph(draw)
 
         # Get Nodes and Nodes Edges from the Remote Database
-        self.__getRegionsMainNodes()
-        self.__getCitiesMainNodes()
-        self.__getCitiesNodes()
-        self.__getNodesEdges()
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(self.__getRegionsMainNodes(aconn.cursor()))
+            tg.create_task(self.__getCitiesMainNodes(aconn.cursor()))
+            tg.create_task(self.__getCitiesNodes(aconn.cursor()))
+            tg.create_task(self.__getNodesEdges(aconn.cursor()))
 
         # Set Nodes
         self.__setRegionsMainNodes(draw)
@@ -76,11 +86,34 @@ class RushWGraph:
         # Set the Graph as Available
         self.__busy = False
 
+        # Return the Instance
+        return self
+
+    @classmethod
+    async def createFromApp(cls, apool, draw: bool = False):
+        """
+        Rush Cargo Warehouse Connection Graph Class Asynchronous Factory Method. Called from ``app.py``
+
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
+        :param bool draw: Specifies whether to Draw or not the NetworkX Graph
+        """
+
+        # Open Remote Database Connection Pool
+        await asyncio.gather(apool.openPool())
+
+        async with apool.connection() as aconn:
+            createTask = asyncio.create_task(cls.create(aconn, draw))
+            await asyncio.gather(createTask)
+            self = createTask.result()
+
+        # Return the Instance
+        return self
+
     def isBusy(self) -> bool:
         """
         Method to Check if the Graph is Either Busy or Available
 
-        :return:Specifies whether or not the Graph is Busy. ``True``, for Busy. ``False```, for Available
+        :return:Specifies whether or not the Graph is Busy. ``True``, for Busy. ``False``, for Available
         :rtype: bool
         """
 
@@ -181,24 +214,25 @@ class RushWGraph:
             warehousesViewName=sql.Identifier(WAREHOUSES_VIEW_NAME),
         )
 
-    def __getAllNodes(self):
+    async def __getAllNodes(self, acursor):
         """
-        Method to Get All the Warehouse Nodes from its Remote View
+        Asynchronous Method to Get All the Warehouse Nodes from its Remote View
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Query to Get All the Warehouses from its Remote View
         allNodesQuery = self.__allNodesQuery()
 
         # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__items = self.__c.execute(allNodesQuery).fetchall()
-            self.__allWarehouses = dict.fromkeys(item[0] for item in self.__items)
-
-        except Exception as err:
-            print(err)
+        await asyncio.gather(acursor.execute(allNodesQuery))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self.__items = fetchTask.result()
+        self.__allWarehouses = dict.fromkeys(item[0] for item in self.__items)
 
     def __regionsMainNodesQuery(self):
         """
@@ -222,23 +256,24 @@ class RushWGraph:
             ),
         )
 
-    def __getRegionsMainNodes(self):
+    async def __getRegionsMainNodes(self, acursor):
         """
-        Method to Get All the Regions Main Warehouse Nodes from its Remote View
+        Asynchronous Method to Get All the Regions Main Warehouse Nodes from its Remote View
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Query to Get All Regions Main Warehouses from its Remote View
         regionsMainNodesQuery = self.__regionsMainNodesQuery()
 
         # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__regionsMainNodes = self.__c.execute(regionsMainNodesQuery).fetchall()
-
-        except Exception as err:
-            print(err)
+        await asyncio.gather(acursor.execute(regionsMainNodesQuery))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self.__regionsMainNodes = fetchTask.result()
 
     def __citiesMainNodesQuery(self):
         """
@@ -266,23 +301,24 @@ class RushWGraph:
             regionsMain=sql.Identifier(REGIONS_MAIN),
         )
 
-    def __getCitiesMainNodes(self):
+    async def __getCitiesMainNodes(self, acursor):
         """
-        Method to Get All the Cities Main Warehouse Nodes from its Remote View
+        Asynchronous Method to Get All the Cities Main Warehouse Nodes from its Remote View
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Query to Get All Cities Main Warehouses from its Remote View
         citiesMainNodesQuery = self.__citiesMainNodesQuery()
 
         # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__citiesMainNodes = self.__c.execute(citiesMainNodesQuery).fetchall()
-
-        except Exception as err:
-            print(err)
+        await asyncio.gather(acursor.execute(citiesMainNodesQuery))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self.__citiesMainNodes = fetchTask.result()
 
     def __citiesNodesQuery(self):
         """
@@ -310,23 +346,24 @@ class RushWGraph:
             regionsMain=sql.Identifier(REGIONS_MAIN),
         )
 
-    def __getCitiesNodes(self):
+    async def __getCitiesNodes(self, acursor):
         """
         Method to Get All the Cities Warehouse Nodes from its Remote View
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Query to Get All Cities Warehouses from its Remote View
         citiesNodesQuery = self.__citiesNodesQuery()
 
         # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__citiesNodes = self.__c.execute(citiesNodesQuery).fetchall()
-
-        except Exception as err:
-            print(err)
+        await asyncio.gather(acursor.execute(citiesNodesQuery))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self.__citiesNodes = fetchTask.result()
 
     def __nodesEdgesQuery(self):
         """
@@ -348,23 +385,24 @@ class RushWGraph:
             warehouseConnType=sql.Identifier(WAREHOUSES_CONN_CONN_TYPE),
         )
 
-    def __getNodesEdges(self):
+    async def __getNodesEdges(self, acursor):
         """
         Method to Get All the Region Main, Cities Main and Cities Warehouse Nodes Edges from its Remote View
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Query to Get All the Warehouses Nodes Edges from its Remote View
         nodesEdgesQuery = self.__nodesEdgesQuery()
 
         # Execute Query and Fetch Items (Nodes)
-        try:
-            self.__nodesEdges = self.__c.execute(nodesEdgesQuery).fetchall()
-
-        except Exception as err:
-            print(err)
+        await asyncio.gather(acursor.execute(nodesEdgesQuery))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self.__nodesEdges = fetchTask.result()
 
     def __storeGraph(
         self, baseFileName: str, layout: str, level: str, locationId: int
@@ -667,20 +705,22 @@ class RushWGraph:
                         connType=connType,
                     )
 
-    def update(self) -> None:
+    async def update(self, aconn) -> None:
         """
-        Method to Update the Graph Nodes and Edges
+        Asynchronous Method to Update the Graph Nodes and Edges
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :return: Nothing
         :rtype: NoneType
         """
 
-        # Query to Get All the Required Warehouses Nodes and Nodes Edges from its Remote View
-        self.__getAllNodes()
-        self.__getRegionsMainNodes()
-        self.__getCitiesMainNodes()
-        self.__getCitiesNodes()
-        self.__getNodesEdges()
+        # Get All the Required Warehouses Nodes and Nodes Edges from the Remote Database
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(self.__getAllNodes(aconn.cursor()))
+            tg.create_task(self.__getRegionsMainNodes(aconn.cursor()))
+            tg.create_task(self.__getCitiesMainNodes(aconn.cursor()))
+            tg.create_task(self.__getCitiesNodes(aconn.cursor()))
+            tg.create_task(self.__getNodesEdges(aconn.cursor()))
 
         # Get Current Warehouse Nodes to Check
         self.__nodesToCheck = dict(self.__DiGraph.nodes(data=GRAPH_WAREHOUSE_NODE_TYPE))

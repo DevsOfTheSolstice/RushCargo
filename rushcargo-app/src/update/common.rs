@@ -9,8 +9,7 @@ use crate::{
     event::{Event, InputBlacklist},
     model::{
         app::App,
-        client::Client,
-        common::{UserType, InputMode, PaymentData, Popup, Screen, SubScreen, Div, User},
+        common::{Bank, PaymentType, UserType, InputMode, PaymentData, Popup, Screen, SubScreen, Div, User},
     },
 };
 
@@ -338,6 +337,53 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
             input_obj.handle_event(&CrosstermEvent::Key(key_event));
             
+            Ok(())
+        }
+        Event::UpdatePaymentInfo => {
+            let selection = app.lock().unwrap().list.state.0.selected(); 
+            let bank =
+                match selection.unwrap_or_else(|| panic!("executed UpdatePaymentInfo on selection value: {:?}", selection)) {
+                    0 => Bank::PayPal,
+                    1 => Bank::AmazonPay,
+                    2 => Bank::BOFA,
+                    _ => panic!("bank is not in UpdatePaymentInfo")
+                };
+            
+            let transaction_id = Some(app.lock().unwrap().input.0.to_string());
+
+            let payment_type = {
+                let app_lock = app.lock().unwrap();
+                Some(
+                    match app_lock.user {
+                    Some(User::Client(_)) =>
+                        PaymentType::Online(bank.clone()),
+                    Some(User::PkgAdmin(_)) =>
+                        match app_lock.active_popup {
+                            Some(Popup::OnlinePayment) => PaymentType::Online(bank.clone()),
+                            Some(Popup::CardPayment) => PaymentType::Card,
+                            Some(Popup::CashPayment) => PaymentType::Cash,
+                            _ => panic!()
+                        }
+                    _ => unimplemented!()
+                    }
+                )
+            };
+
+            {
+                let mut app_lock = app.lock().unwrap();
+                let payment = {
+                    match &app_lock.user {
+                        Some(User::Client(_)) =>
+                            app_lock.get_client_mut().send_payment.as_mut().unwrap(),
+                        Some(User::PkgAdmin(_)) =>
+                            app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap().payment.as_mut().unwrap(),
+                        _ => unimplemented!()
+                    }
+                };
+
+                payment.transaction_id = transaction_id.clone();
+                payment.payment_type = payment_type;
+            };
             Ok(())
         }
         _ => panic!("An event of type {:?} was passed to the common update function", event)

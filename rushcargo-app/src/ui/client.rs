@@ -20,6 +20,8 @@ use crate::{
     HELP_TEXT
 };
 
+use super::common_render::order_successful;
+
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -380,22 +382,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                     online_payment(app, &chunks, f)?;
                 }
                 Some(Popup::OrderSuccessful) => {
-                    let help = Paragraph::new(HELP_TEXT.common.yay).block(help_block);
-                    f.render_widget(help, chunks[2]);
-
-                    let popup_area = centered_rect(&chunks[1], 28, 4)?;
-
-                    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
-
-                    let order_successful = Paragraph::new(Text::from(vec![
-                        Line::raw("Order placed"),
-                        Line::raw("successfully!")
-                    ]))
-                    .centered()
-                    .block(popup_block);
-
-                    f.render_widget(Clear, popup_area);
-                    f.render_widget(order_successful, popup_area);
+                    order_successful(app, &chunks, f)?;
                 }
                 Some(Popup::ClientOrderBranch) => {
                     let help = Paragraph::new(HELP_TEXT.client.order_recipient).block(help_block);

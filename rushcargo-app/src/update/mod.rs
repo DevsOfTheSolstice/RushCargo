@@ -17,7 +17,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
         Event::SwitchInput | Event::NextInput | Event::PrevInput | 
         Event::SwitchAction | Event::SelectAction | Event::EnterScreen(_) |
-        Event::EnterPopup(_) | Event::SwitchDiv | Event::ToggleDisplayMsg
+        Event::EnterPopup(_) | Event::SwitchDiv | Event::ToggleDisplayMsg |
+        Event::UpdatePaymentInfo
         => common::update(app, pool, event).await,
 
         Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)
@@ -32,7 +33,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _) | Event::TryGetUserDelivery(_)
         => db::tryget::update(app, pool, event).await,
 
-        Event::PlaceOrderReq
+        Event::PlaceOrderReq | Event::PlaceOrder
         => db::insert::update(app, pool, event).await,
 
         Event::Resize

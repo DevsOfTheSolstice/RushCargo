@@ -120,7 +120,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             }
                         }
                     }
-                Some(Popup::FieldExcess) =>
+                Some(Popup::FieldExcess) | Some(Popup::OrderSuccessful) =>
                     match key_event.code {
                         _ => sender.send(Event::EnterPopup(None)),
                     },
@@ -146,14 +146,11 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             sender.send(Event::SwitchAction)
                         }
                         KeyCode::Enter => {
-                            let add_package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
-
-                            match add_package.shipping.as_ref().unwrap().shipping_type {
-                                ShippingGuideType::InpersonBranch =>
-                                    sender.send(Event::PlaceOrderInpersonBranch),
-                                ShippingGuideType::InpersonLocker =>
-                                    sender.send(Event::PlaceOrderInpersonLocker),
-                                _ => todo!()
+                            if app_lock.input.0.value().is_empty() || app_lock.action_sel.is_none() {
+                                Ok(())
+                            } else {
+                                sender.send(Event::UpdatePaymentInfo).expect(SENDER_ERR);
+                                sender.send(Event::PlaceOrder)
                             }
                         }
                         _ =>

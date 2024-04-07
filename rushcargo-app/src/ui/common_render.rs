@@ -126,3 +126,24 @@ pub fn online_payment(app: &mut Arc<Mutex<App>>, chunks: &Rc<[Rect]>, f: &mut Fr
     }
     Ok(())
 }
+
+pub fn order_successful(app: &mut Arc<Mutex<App>>, chunks: &Rc<[Rect]>, f: &mut Frame) -> Result<()> {
+    let help_block = Block::default().borders(Borders::TOP);
+    let help = Paragraph::new(HELP_TEXT.common.yay).block(help_block);
+    f.render_widget(help, chunks[2]);
+
+    let popup_area = centered_rect(&chunks[1], 28, 4)?;
+
+    let popup_block = Block::default().borders(Borders::ALL).border_type(BorderType::Thick);
+
+    let order_successful = Paragraph::new(Text::from(vec![
+        Line::raw("Order placed"),
+        Line::raw("successfully!")
+    ]))
+    .centered()
+    .block(popup_block);
+
+    f.render_widget(Clear, popup_area);
+    f.render_widget(order_successful, popup_area);
+    Ok(())
+}

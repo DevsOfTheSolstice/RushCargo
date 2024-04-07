@@ -12,7 +12,10 @@ use std::str::FromStr;
 use time::{PrimitiveDateTime, Time, Date};
 use rust_decimal::Decimal;
 use anyhow::{Result, Error, anyhow};
-use super::client::Client;
+use super::{
+    client::Client,
+    common::PaymentType,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Package {
@@ -190,37 +193,6 @@ impl ShippingGuide {
     }
 }
 
-#[derive(Debug)]
-pub enum PayType {
-    Cash,
-    Card,
-    Online,
-}
-
-impl FromStr for PayType {
-    type Err = std::fmt::Error;
-
-    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
-        match s {
-            "Cash" => Ok(PayType::Cash),
-            "Card" => Ok(PayType::Card),
-            "Online" => Ok(PayType::Online),
-            _ => Err(std::fmt::Error),
-        }
-    }
-}
-
-impl std::fmt::Display for PayType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-            match self {
-                Self::Cash => "Cash",
-                Self::Card => "Card",
-                Self::Online => "Online",
-            }
-        )
-    }
-}
 
 #[derive(Debug)]
 pub struct Payment {
@@ -228,7 +200,7 @@ pub struct Payment {
     pub client: String,
     pub transaction_id: String,
     pub platform: String,
-    pub pay_type: PayType,
+    pub pay_type: PaymentType,
     pub pay_date: Date,
     pub pay_hour: Time,
     pub amount: Decimal,
@@ -241,7 +213,7 @@ impl<'r> FromRow<'r, PgRow> for Payment {
             client: row.try_get("client")?,
             transaction_id: row.try_get("reference")?,
             platform: row.try_get("platform")?,
-            pay_type: PayType::from_str(row.try_get::<&str, _>("pay_type")?).expect("could not parse PayType from str"),
+            pay_type: PaymentType::from_str(row.try_get::<&str, _>("pay_type")?).expect("could not parse PayType from str"),
             pay_date: row.try_get("pay_date")?,
             pay_hour: row.try_get("pay_hour")?,
             amount: row.try_get("amount")?,
@@ -364,4 +336,14 @@ impl Locker {
     pub fn get_id(&self) -> i64 {
         self.id
     }
+}
+
+pub struct BranchTransferOrderSmall {
+    pub order_number: i64,
+    pub trucker: String,
+    pub shipping_number: i64,
+    pub warehouse: Warehouse,
+    pub branch: i64,
+    pub withdrawal: bool,
+    pub rejected: bool,
 }

@@ -11,8 +11,7 @@ use std::sync::{Arc, Mutex};
 use crate::{
     model::{
         help_text,
-        common::{InputMode, Popup, Screen, SubScreen, Div, TimeoutType, User, GetDBErr},
-        db_obj::PayType,
+        common::{PaymentType, InputMode, Popup, Screen, SubScreen, Div, TimeoutType, User, GetDBErr},
         app::App,
         client::Client,
     },
@@ -22,6 +21,8 @@ use crate::{
     },
     HELP_TEXT
 };
+
+use super::common_render::order_successful;
 
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     let chunks = Layout::default()
@@ -233,14 +234,14 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                 let app_lock = app.lock().unwrap();
                 let payment = app_lock.get_pkgadmin_guides_ref().active_guide_payment.as_ref().unwrap();
                 Paragraph::new(Text::from(vec![
-                    match payment.pay_type {
-                        PayType::Online => {
+                    match &payment.pay_type {
+                        PaymentType::Online(bank) => {
                             Line::from(vec![
-                                Span::styled(" ".to_string() + &payment.platform + ": ", Style::default().fg(Color::Cyan)),
+                                Span::styled(" ".to_string() + &bank.to_string() + ": ", Style::default().fg(Color::Cyan)),
                                 Span::raw(payment.transaction_id.clone())
                             ])
                         }
-                        PayType::Card | PayType::Cash => {
+                        PaymentType::Card | PaymentType::Cash => {
                             Line::from(Span::styled(" ".to_string() + &payment.pay_type.to_string(), Style::default().fg(Color::Cyan)))
                         }
                     },
@@ -654,6 +655,9 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
                         .block(help_block);
 
                     f.render_widget(help, chunks[2]);
+                }
+                Some(Popup::OrderSuccessful) => {
+                    order_successful(app, &chunks, f)?;
                 }
                 Some(Popup::FieldExcess) => {
                     let help = Paragraph::new(

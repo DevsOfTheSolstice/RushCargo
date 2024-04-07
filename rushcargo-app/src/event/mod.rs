@@ -70,8 +70,8 @@ pub enum Event {
     TryGetUserDelivery(String),
     PlaceOrderReq,
 
-    PlaceOrderInpersonBranch,
-    PlaceOrderInpersonLocker
+    UpdatePaymentInfo,
+    PlaceOrder
 }
 
 #[derive(Debug)]

@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    str::FromStr,
+    time::{Duration, Instant},
+};
 use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
@@ -165,6 +168,37 @@ pub enum PaymentType {
     Cash
 }
 
+impl FromStr for PaymentType {
+    type Err = std::fmt::Error;
+
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        match s {
+            "Cash" => Ok(PaymentType::Cash),
+            "Card" => Ok(PaymentType::Card),
+            "Online: PayPal" => Ok(PaymentType::Online(Bank::PayPal)),
+            "Online: AmazonPay" => Ok(PaymentType::Online(Bank::AmazonPay)),
+            "Online: BOFA" => Ok(PaymentType::Online(Bank::BOFA)),
+            _ => Err(std::fmt::Error),
+        }
+    }
+}
+
+impl std::fmt::Display for PaymentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",
+            match self {
+                Self::Cash => "Cash",
+                Self::Card => "Card",
+                Self::Online(bank) =>
+                    match bank {
+                        Bank::PayPal => "Online: PayPal",
+                        Bank::AmazonPay => "Online: AmazonPay",
+                        Bank::BOFA => "Online: BOFA"
+                    }
+            }
+        )
+    }
+}
 #[derive(Debug, Clone)]
 pub struct PaymentData {
     pub amount: Decimal,

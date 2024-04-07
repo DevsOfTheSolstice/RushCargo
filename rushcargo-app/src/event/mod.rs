@@ -71,6 +71,7 @@ pub enum Event {
     PlaceOrderReq,
 
     UpdatePaymentInfo,
+    RejectOrderReq,
     PlaceOrder
 }
 

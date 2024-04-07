@@ -21,7 +21,7 @@ use super::{
 pub struct Package {
     pub tracking_num: i64,
     pub admin_verification: String,
-    pub building_id: i32,
+    pub building_id: Option<i32>,
     pub shipping_num: Option<i64>,
     pub locker_id: Option<i64>,
     pub register_date: Date,
@@ -193,13 +193,11 @@ impl ShippingGuide {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Payment {
     id: i64,
     pub client: String,
     pub transaction_id: String,
-    pub platform: String,
     pub pay_type: PaymentType,
     pub pay_date: Date,
     pub pay_hour: Time,
@@ -212,7 +210,6 @@ impl<'r> FromRow<'r, PgRow> for Payment {
             id: row.try_get("id")?,
             client: row.try_get("client")?,
             transaction_id: row.try_get("reference")?,
-            platform: row.try_get("platform")?,
             pay_type: PaymentType::from_str(row.try_get::<&str, _>("pay_type")?).expect("could not parse PayType from str"),
             pay_date: row.try_get("pay_date")?,
             pay_hour: row.try_get("pay_hour")?,
@@ -283,6 +280,12 @@ pub struct Warehouse {
 }
 
 impl Warehouse {
+    pub fn from_id(id: i32) -> Self {
+        Warehouse {
+            id
+        }
+    }
+
     pub fn get_id(&self) -> i32 {
         self.id
     }
@@ -343,7 +346,7 @@ pub struct BranchTransferOrderSmall {
     pub trucker: String,
     pub shipping_number: i64,
     pub warehouse: Warehouse,
-    pub branch: i64,
+    pub branch: i32,
     pub withdrawal: bool,
     pub rejected: bool,
 }

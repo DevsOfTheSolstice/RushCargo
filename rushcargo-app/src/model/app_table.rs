@@ -400,7 +400,7 @@ impl App {
         let rows =
             query
             .fetch_all(pool)
-            .await.expect("get_guides_prev() err");
+            .await?;
 
         if rows.is_empty() { return Err(anyhow!("")) }
 

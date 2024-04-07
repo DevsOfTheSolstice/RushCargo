@@ -180,6 +180,12 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 KeyCode::Up | KeyCode::Char('k') => {
                     sender.send(Event::PrevTableItem(TableType::GuidePackages))
                 }
+                KeyCode::Char('a') => {
+                    sender.send(Event::PlaceOrder)
+                }
+                KeyCode::Char('r') => {
+                    sender.send(Event::RejectOrderReq)
+                }
                 _ => Ok(())
             }
         }

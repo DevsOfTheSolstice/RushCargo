@@ -32,8 +32,8 @@ impl HelpText {
             },
             pkgadmin: PkgAdminHelpText {
                 main: "(Tab) select action | (Esc) back",
-                guides: "(Enter) view info | (a) Place guide order | (b) Reject guide | (Esc) back",
-                guide_info: "(⬆) move up | (⬇) move down | (Esc) back",
+                guides: "(Enter) view info | (⬆) move up | (⬇) move down | (Esc) back",
+                guide_info: "(a) accept order | (r) reject order | (⬆) move up | (⬇) move down | (Esc) back",
                 add_package_left: "(Enter) edit shipping | (Tab) switch unit type | (⬆) move up | (⬇) move down",
                 add_package_right: "(Enter) next | (Esc) edit package info | (⬆) move up | (⬇) move down",
                 select_payment: "(Tab) switch payment type | (Enter) select payment type"

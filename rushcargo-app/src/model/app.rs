@@ -23,6 +23,7 @@ pub struct App {
     pub action_sel: Option<u8>,
     pub failed_logins: u8,
     pub temp_row: Option<PgRow>,
+    pub temp_val: Option<i64>,
     pub timeout: HashMap<TimeoutType, Timer>,
     pub settings: SettingsData,
     pub title: Option<Box<TitleData>>,
@@ -50,6 +51,7 @@ impl App {
             action_sel: None,
             failed_logins: 0,
             temp_row: None,
+            temp_val: None,
             timeout: HashMap::new(),
             settings: settings.unwrap(),
             title: None,
@@ -71,6 +73,7 @@ impl App {
     pub async fn enter_screen(&mut self, screen: Screen, pool: &PgPool) {
         self.should_clear_screen = true;
         self.cleanup_screen();
+        self.prev_screen = Some(self.active_screen.clone());
         self.active_screen = screen.clone();
         
         match self.active_screen {
@@ -103,19 +106,32 @@ impl App {
                 self.failed_logins = 0;
             }
             Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
-                self.get_pkgadmin_mut().shipping_guides = Some(
-                    ShippingGuideData {
-                        viewing_guides: Vec::new(),
-                        viewing_guides_idx: 0,
-                        active_guide: None,
-                        active_guide_payment: None,
-                    }
-                );
-                self.get_guides_next(TableType::Guides, pool)
-                    .await
-                    .unwrap_or_else(|_| self.get_pkgadmin_mut().shipping_guides = Some(ShippingGuideData::default()));
+                if let Some(Screen::PkgAdmin(SubScreen::PkgAdminMain)) = self.prev_screen {
+                    self.get_pkgadmin_mut().shipping_guides = Some(
+                        ShippingGuideData {
+                            viewing_guides: Vec::new(),
+                            viewing_guides_idx: 0,
+                            active_guide: None,
+                            active_guide_payment: None,
+                        }
+                    );
+                    self.get_guides_next(TableType::Guides, pool)
+                        .await
+                        .unwrap_or_else(|_| self.get_pkgadmin_mut().shipping_guides = Some(ShippingGuideData::default()));
+                }
+                else if let Some(Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo)) = self.prev_screen {
+                    self.table.state.select(if let Some(val) = self.temp_val { Some(val as usize) } else { None });
+                    self.temp_val = None;
+                }
             }
             Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                self.temp_val =
+                    if let Some(val) = self.table.state.selected() {
+                        Some(val as i64)
+                    } else {
+                        None
+                    };
+                self.table.state.select(None);
                 self.get_pkgadmin_mut().packages = Some(PackageData::default());
                 self.get_packages_next(TableType::GuidePackages, pool)
                     .await
@@ -135,8 +151,6 @@ impl App {
     }
 
     fn cleanup_screen(&mut self) {
-        self.prev_screen = Some(self.active_screen.clone());
-
         match self.active_screen {
             Screen::Title => {
                 self.title = None;
@@ -167,9 +181,6 @@ impl App {
             }
             Screen::PkgAdmin(SubScreen::PkgAdminMain) => {
                 self.action_sel = None;
-            }
-            Screen::PkgAdmin(SubScreen::PkgAdminGuides) => {
-                self.table.state.select(None);
             }
             Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(Div::Left)) => {
                 self.input_mode = InputMode::Normal;

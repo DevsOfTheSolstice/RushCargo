@@ -128,6 +128,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                             sender.send(Event::SwitchAction)
                         }
                         KeyCode::Enter => {
+                            sender.send(Event::UpdatePaymentInfo).expect(SENDER_ERR);
                             sender.send(Event::PlaceOrderReq)
                         }
                         _ =>

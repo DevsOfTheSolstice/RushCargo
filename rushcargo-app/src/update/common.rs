@@ -341,6 +341,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         }
         Event::UpdatePaymentInfo => {
             let selection = app.lock().unwrap().list.state.0.selected(); 
+
             let bank =
                 match selection.unwrap_or_else(|| panic!("executed UpdatePaymentInfo on selection value: {:?}", selection)) {
                     0 => Bank::PayPal,

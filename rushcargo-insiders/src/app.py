@@ -1,8 +1,12 @@
+import asyncio
 import time
 import threading
-from lib.graph.warehouses import RushWGraph, rushWGraph
-from lib.model.database import initdb
+
 from flask import Flask, request, jsonify
+
+from lib.graph.warehouses import RushWGraph, rushWGraph
+
+from lib.model.database import initAsyncPool
 
 app = Flask("RushCargo")
 
@@ -11,9 +15,14 @@ UPDATE_TIME = 60
 WAIT_BUSY_TIME = 0.05
 
 
-# GET Method for Route Calculations
 @app.route("/graph-calc/<building_type>")
 def graph_calc(building_type: str):
+    """
+    GET Method for Route Calculations
+
+    :param str building_type: Building Type
+    """
+
     # Check 'building_type' Parameter
     if building_type == "warehouses":
         # Get Request Arguments
@@ -60,8 +69,13 @@ def graph_calc(building_type: str):
         )
 
 
-# Function to Update the Graphs
-def updateGraphs(t0: int) -> None:
+def updateGraphs(aconn, t0: int) -> None:
+    """
+    Function to Update the Graphs
+
+    :param aconn: Asynchronous Pool Connection with the Remote Database
+    """
+
     while True:
         t1 = t0
 
@@ -72,25 +86,40 @@ def updateGraphs(t0: int) -> None:
 
         # Update Graphs
         app.logger.info("Rush Cargo Warehouses Graph is being Updated")
-        rushWGraph.update()
+        asyncio.run(rushWGraph.update(aconn.cursor()))
         app.logger.info("Rush Cargo Warehouses Graph has been Updated")
 
 
 if __name__ == "__main__":
     # Initialize Database
-    db, _, _ = initdb()
+    apool, _, _ = initAsyncPool()
 
-    # Get Database Connection Cursor
-    c = db.getCursor()
+    # Open Remote Database Connection Pool
+    asyncio.run(apool.openPool())
+
+    # Get Pool Connection
+    aconn = asyncio.run(apool.getConnection())
 
     # Initialize RushWGraph Class
-    rushWGraph = RushWGraph(c, False)
+    rushWGraph = RushWGraph(aconn.cursor(), False)
 
     # Call the Update Function with Multithreading
     threadUpdate = threading.Thread(
-        target=updateGraphs, args=(UPDATE_TIME,), daemon=True, name="update-rushwgraph"
+        target=updateGraphs,
+        args=(
+            aconn,
+            UPDATE_TIME,
+        ),
+        daemon=True,
+        name="update-rushwgraph",
     )
     threadUpdate.start()
 
     # Initialize Flask Server
     app.run(debug=True, port=5000, use_reloader=False)
+
+    # Put Pool Connection
+    asyncio.run(apool.putConnection(aconn))
+
+    # Close Remote Database Connection Pool
+    asyncio.run(apool.closePool())

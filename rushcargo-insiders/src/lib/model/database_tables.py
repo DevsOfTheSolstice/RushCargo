@@ -1,4 +1,7 @@
+import asyncio
+
 from psycopg import sql
+
 from rich.table import Table
 
 from .constants import BOX_STYLE
@@ -126,13 +129,26 @@ def getTable(tableName: str, nRows: int) -> Table:
     )
 
 
+def cancelTasks(tasks: list):
+    """
+    Cancel All Asynchronous Tasks from ``asyncio`` Library if there was an Error
+
+    :param list tasks: List of Asynchronous Task from ``asyncio`` Library
+    """
+
+    for task in tasks:
+        try:
+            task.cancel()
+        except:
+            pass
+
+
 class BaseTable:
     """
     Base Remote Table Class
     """
 
     # Database Connection
-    _c = None
     _items = None
 
     # Scheme, Table, Table PK and Scheme + Table Name
@@ -141,16 +157,13 @@ class BaseTable:
     _tablePKName = None
     _fullTableName = None  # (schemeName.tableName)
 
-    def __init__(
-        self, tableName: str, tablePKName: str, remoteCursor, schemeName: str = None
-    ):
+    def __init__(self, tableName: str, tablePKName: str, schemeName: str = None):
         """
         Base Remote Table Class Constructor
 
         :param str tableName: Table Name to Initialize
         :param str tablePKName: Table Primary Key Field Name
         :param str schemeName: Scheme Name where the Table is Located. Default is ```None``
-        :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
         # Store Scheme (if It inside One), Table and Primary Key Column Names
@@ -166,9 +179,6 @@ class BaseTable:
             self._fullTableName = sql.SQL(".").join(
                 [sql.Identifier(self._schemeName), sql.Identifier(self._tableName)]
             )
-
-        # Store Database Connection Cursor
-        self._c = remoteCursor
 
     def __getQuery(self, field: str, orderBy: str = None):
         """
@@ -278,10 +288,11 @@ class BaseTable:
             tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
         )
 
-    def _modify(self, idValue: int, field: str, value) -> None:
+    async def _modify(self, acursor, idValue: int, field: str, value) -> None:
         """
-        Method to Modify a Row Field Value with a Given Unique Identifier
+        Asynchronous Method to Modify a Row Field Value with a Given Unique Identifier
 
+        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :param str field: Field to be Modified
         :param value: Value to be Assigned
@@ -296,45 +307,42 @@ class BaseTable:
         query = self.__modifyQuery(idField, field)
 
         # Execute the Query and Print a Success Message
-        try:
-            self._c.execute(query, [value, idValue])
-            modifiedRow(field, value, idField, idValue, self._tableName)
+        await asyncio.gather(acursor.execute(query, [value, idValue]))
+        modifiedRow(field, value, idField, idValue, self._tableName)
 
-        except Exception as err:
-            raise err
-
-    def _get(self, field: str, value, orderBy: str = None) -> bool:
+    async def _get(self, acursor, field: str, value, orderBy: str = None) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair
+        Asynchronous Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair
 
+        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
         :param str field: Field to be Compared
         :param value: Value to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ```None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         query = self.__getQuery(field, orderBy)
 
         # Execute the Query and Fetch the Items
-        try:
-            self._items = self._c.execute(query, [value]).fetchall()
+        await asyncio.gather(acursor.execute(query, [value]))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self._items = fetchTask.result()
 
-        except Exception as err:
-            raise err
-
-        return len(self._items) > 0
-
-    def _getMult(self, fields: list[str], values: list, orderBy: str = None) -> bool:
+    async def _getMult(
+        self, acursor, fields: list[str], values: list, orderBy: str = None
+    ) -> None:
         """
         Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs
 
+        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
         :raises LenError: Raised if ```fields`` and ``values`` have Different Lists Length
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
@@ -345,33 +353,31 @@ class BaseTable:
         if length != len(values):
             raise LenError()
 
-        try:
-            # Check the Number of WHERE Conditions
-            if length > 2:
-                console.print("Query hasn't been Implemented", style="warning")
-                return
+        # Check the Number of WHERE Conditions
+        if length > 2:
+            console.print("Query hasn't been Implemented", style="warning")
+            return
 
-            # Get Query for Two Conditions and Execute it
-            elif length == 2:
-                twoCondQuery = self.__getAndQuery(fields[0], fields[1], orderBy)
-                self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
+        # Get Query for Two Conditions and Execute it
+        elif length == 2:
+            twoCondQuery = self.__getAndQuery(fields[0], fields[1], orderBy)
+            await asyncio.gather(acursor.execute(twoCondQuery, [values[0], values[1]]))
 
-            # Query for One Condition. Method Implemented
-            elif length == 1:
-                return self._get(fields[0], values[0], orderBy)
+        # Query for One Condition. Method Implemented
+        elif length == 1:
+            await asyncio.gather(self._get(acursor, fields[0], values[0], orderBy))
+            return
 
-            # Fetch the Items
-            self._items = self._items.fetchall()
+        # Fetch the Items
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self._items =fetchTask.result()
 
-        except Exception as err:
-            raise err
-
-        return len(self._items) > 0
-
-    def _all(self, orderBy: str, desc: bool) -> None:
+    async def _all(self, acursor, orderBy: str, desc: bool) -> None:
         """
-        Method to Print the Table Rows Sorted in Asceding/Descending Order for a Given Field
+        Asynchronoues Method to Print the Table Rows Sorted in Asceding/Descending Order for a Given Field
 
+        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Table Field to Sort
         :param bool desc: Specifies wheter to Sort the Rows in Ascending or Descending Order
         :return: Nothing
@@ -383,16 +389,16 @@ class BaseTable:
         query = self.__orderByQuery(orderBy, desc)
 
         # Execute the Query and Fetch the Items
-        try:
-            self._items = self._c.execute(query).fetchall()
+        await asyncio.gather(acursor.execute(query))
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self._items = fetchTask.result()
 
-        except Exception as err:
-            raise (err)
-
-    def _remove(self, idValue: int) -> None:
+    async def _remove(self, acursor, idValue: int) -> None:
         """
         Method to Remove a Row with a Given Unique Identifier
 
+        :param acursor: Cursor from Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :return:Nothing
         :rtype: NoneType
@@ -405,12 +411,8 @@ class BaseTable:
         query = self.__removeQuery(idField)
 
         # Execute the Query and Print a Success Message
-        try:
-            self._c.execute(query, [idValue])
-            removeRow(self._tableName, idField, idValue)
-
-        except Exception as err:
-            raise err
+        await asyncio.gather(acursor.execute(query, [idValue]))
+        removeRow(self._tableName, idField, idValue)
 
 
 class SpecializationTable:

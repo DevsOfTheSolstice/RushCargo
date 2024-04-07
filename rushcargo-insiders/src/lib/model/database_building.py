@@ -18,9 +18,10 @@ from ..controller.constants import DICT_CITY_ID
 
 from ..geocoding.constants import NOMINATIM_LATITUDE, NOMINATIM_LONGITUDE
 
-from ..io.validator import isAddressValid, isEmailValid, clear
+from ..io.validator import isAddressValid, isEmailValid
 
 from ..terminal.constants import MOD_VALUE_MSG
+from ..terminal.clear import clear
 
 
 def fullBuildingName(tableName: str, buildingName: str) -> str:

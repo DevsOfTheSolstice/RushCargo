@@ -53,7 +53,27 @@ SELECT warehouse_routes.*, branch_routes.*
         WHERE warehouse_routes.trucker = 'truckkun'
         OR branch_routes.trucker = 'truckkun'
 
---Query for reject
+--A query for the routes of the deliverys branch to branch
+SELECT
+    branch_from, branch_to
+FROM
+    shippings.shipping_guides
+WHERE
+    delivery_included = true;
+
+--Query for the routes branch to locker
+SELECT
+    branch_from, locker_to
+FROM
+    shippings.shipping_guides
+WHERE
+    delivery_included = true
+    AND shipping_number = 1; 
+
+
+
+
+--Query for reject trucker
 
 UPDATE orders.Warehouse_Transfer_Orders
     SET rejected = true
@@ -63,10 +83,20 @@ UPDATE orders.Branch_Transfer_Order
     SET rejected = true
     WHERE order_number = 0
 
---Query for completing the orders AKA add completion date and hour
+--Query for reject delivery
+
+UPDATE orders.delivery_orders
+    SET reject = true
+    WHERE order_number = 0
+
+--Query for completing the orders AKA add completion date and hour rrucker and Del
 
 UPDATE orders.automatic_orders
     SET 
     completed_date = '2024-4-8',
     completed_hour = '10:54:45'
     WHERE order_number = 0;
+
+--Query for completing the orders AKA add completion date and hour
+
+UPDATE 

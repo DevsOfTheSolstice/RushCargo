@@ -17,7 +17,7 @@ use crate::{
 
 const PRICE_DIST_MULT: f64 = 0.00001;
 const PRICE_WEIGHT_MULT: f64 = 0.0005;
-const LOCKER_WEIGHT_MAX: i64 = 500000;
+const LOCKER_WEIGHT_MAX: i64 = 200000;
 const LOCKER_PKG_NUM_MAX: i64 = 5;
 
 pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {

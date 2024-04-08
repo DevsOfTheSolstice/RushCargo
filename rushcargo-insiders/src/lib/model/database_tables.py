@@ -129,20 +129,6 @@ def getTable(tableName: str, nRows: int) -> Table:
     )
 
 
-def cancelTasks(tasks: list):
-    """
-    Cancel All Asynchronous Tasks from ``asyncio`` Library if there was an Error
-
-    :param list tasks: List of Asynchronous Task from ``asyncio`` Library
-    """
-
-    for task in tasks:
-        try:
-            task.cancel()
-        except:
-            pass
-
-
 class BaseTable:
     """
     Base Remote Table Class
@@ -151,11 +137,10 @@ class BaseTable:
     # Database Connection
     _items = None
 
-    # Scheme, Table, Table PK and Scheme + Table Name
+    # Scheme, Table and Table PK Name
     _schemeName = None
     _tableName = None
     _tablePKName = None
-    _fullTableName = None  # (schemeName.tableName)
 
     def __init__(self, tableName: str, tablePKName: str, schemeName: str = None):
         """
@@ -171,15 +156,6 @@ class BaseTable:
         self._tableName = tableName
         self._tablePKName = tablePKName
 
-        # Set Full Table Name
-        if schemeName == None:
-            self._fullTableName = sql.Identifier(self._tableName)
-
-        else:
-            self._fullTableName = sql.SQL(".").join(
-                [sql.Identifier(self._schemeName), sql.Identifier(self._tableName)]
-            )
-
     def __getQuery(self, field: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on a Given Field-Value Pair to Compare
@@ -192,15 +168,19 @@ class BaseTable:
 
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
-            return sql.SQL("SELECT * FROM {fullTableName} WHERE {field} = (%s)").format(
-                fullTableName=self._fullTableName,
+            return sql.SQL(
+                "SELECT * FROM {schemeName}.{tableName} WHERE {field} = (%s)"
+            ).format(
+                schemeName=sql.Identifier(self._schemeName),
+                tableName=sql.Identifier(self._tableName),
                 field=sql.Identifier(field),
             )
 
         return sql.SQL(
-            "SELECT * FROM {fullTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {schemeName}.{tableName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
-            fullTableName=self._fullTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             field=sql.Identifier(field),
             orderBy=sql.Identifier(orderBy),
         )
@@ -218,17 +198,19 @@ class BaseTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {fullTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+                "SELECT * FROM {schemeName}.{tableName} WHERE {field1} = (%s) AND {field2} = (%s)"
             ).format(
-                fullTableName=self._fullTableName,
+                schemeName=sql.Identifier(self._schemeName),
+                tableName=sql.Identifier(self._tableName),
                 field1=sql.Identifier(field1),
                 field2=sql.Identifier(field2),
             )
 
         return sql.SQL(
-            "SELECT * FROM {fullTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {schemeName}.{tableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
-            fullTableName=self._fullTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
             orderBy=sql.Identifier(orderBy),
@@ -246,14 +228,20 @@ class BaseTable:
 
         # Get Query to Sort the Rows in Ascending Order
         if not desc:
-            return sql.SQL("SELECT * FROM {fullTableName} ORDER BY {order}").format(
-                fullTableName=self._fullTableName,
+            return sql.SQL(
+                "SELECT * FROM {schemeName}.{tableName} ORDER BY {order}"
+            ).format(
+                schemeName=sql.Identifier(self._schemeName),
+                tableName=sql.Identifier(self._tableName),
                 order=sql.Identifier(orderBy),
             )
 
         # Get Query to Sort the Rows in Descending Order
-        return sql.SQL("SELECT * FROM {fullTableName} ORDER BY {order} DESC").format(
-            fullTableName=sql.Identifier(self._fullTableName),
+        return sql.SQL(
+            "SELECT * FROM {schemeName}.{tableName} ORDER BY {order} DESC"
+        ).format(
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             order=sql.Identifier(orderBy),
         )
 
@@ -268,9 +256,10 @@ class BaseTable:
         """
 
         return sql.SQL(
-            "UPDATE {fullTableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
+            "UPDATE {schemeName}.{tableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
         ).format(
-            fullTableName=self._fullTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             compareField=sql.Identifier(compareField),
             modField=sql.Identifier(modField),
         )
@@ -284,8 +273,12 @@ class BaseTable:
         :rtype: Composed
         """
 
-        return sql.SQL("DELETE FROM {tableName} WHERE {field} = (%s)").format(
-            tableName=sql.Identifier(self._tableName), field=sql.Identifier(field)
+        return sql.SQL(
+            "DELETE FROM {schemeName}.{tableName} WHERE {field} = (%s)"
+        ).format(
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
+            field=sql.Identifier(field),
         )
 
     async def _modify(self, acursor, idValue: int, field: str, value) -> None:
@@ -371,7 +364,7 @@ class BaseTable:
         # Fetch the Items
         fetchTask = asyncio.create_task(acursor.fetchall())
         await asyncio.gather(fetchTask)
-        self._items =fetchTask.result()
+        self._items = fetchTask.result()
 
     async def _all(self, acursor, orderBy: str, desc: bool) -> None:
         """

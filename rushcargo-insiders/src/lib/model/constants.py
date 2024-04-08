@@ -7,6 +7,9 @@ ROUTES_DEBUG_MODE = False
 # Maximum Route Distance (500km, between 5-6h by Vehicle)
 ROUTE_DISTANCE_MAX = 500000
 
+# Asynchronous Pool Variables. MUST NOT BE LESS THAN 12
+APOOL_MIN_SIZE = 12
+
 # Environment Variables
 ENV_HOST = "HOST"
 ENV_PORT = "PORT"

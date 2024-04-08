@@ -31,7 +31,7 @@ from ..io.validator import *
 
 from ..local_database.database import NominatimDatabase, NominatimTables
 
-from ..model.database_tables import cancelTasks
+from ..model.database import AsyncPool, cancelTasks
 from ..model.database_building import *
 from ..model.database_connections import *
 from ..model.database_territory import *
@@ -818,95 +818,119 @@ class LocationsEventHandler:
 
                 continue
 
-    async def _allHandler(self, aconn, tableName: str) -> None:
+    async def _allHandler(self, apool: AsyncPool, tableName: str) -> None:
         """
         Asynchronous Handler of ``all`` Location-related Subcommand
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str tableName: Location Table Name at the Remote Database
         :return: Nothing
         :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Get Connection from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnection())
+        await asyncio.gather(getTask)
+        aconn = getTask.result()
+
         # Asks if the User wants to Print it in Descending Order
         desc = Confirm.ask(ALL_DESC_MSG)
 
-        if tableName == COUNTRIES_TABLE_NAME:
-            # Ask the Sort Order
-            sortBy = Prompt.ask(
-                ALL_SORT_BY_MSG,
-                choices=[COUNTRIES_ID, COUNTRIES_NAME, COUNTRIES_PHONE_PREFIX],
-            )
+        try:
+            if tableName == COUNTRIES_TABLE_NAME:
+                # Ask the Sort Order
+                sortBy = Prompt.ask(
+                    ALL_SORT_BY_MSG,
+                    choices=[COUNTRIES_ID, COUNTRIES_NAME, COUNTRIES_PHONE_PREFIX],
+                )
 
-            # Print Table
-            await asyncio.gather(self.__countriesTable.all(aconn, sortBy, desc))
+                # Print Table
+                await asyncio.gather(self.__countriesTable.all(aconn, sortBy, desc))
 
-        elif tableName == REGIONS_TABLE_NAME:
-            # Ask the Sort Order
-            sortBy = Prompt.ask(
-                ALL_SORT_BY_MSG,
-                choices=[
-                    REGIONS_ID,
-                    REGIONS_FK_COUNTRY,
-                    REGIONS_NAME,
-                    REGIONS_FK_WAREHOUSE,
-                ],
-            )
+            elif tableName == REGIONS_TABLE_NAME:
+                # Ask the Sort Order
+                sortBy = Prompt.ask(
+                    ALL_SORT_BY_MSG,
+                    choices=[
+                        REGIONS_ID,
+                        REGIONS_FK_COUNTRY,
+                        REGIONS_NAME,
+                        REGIONS_FK_WAREHOUSE,
+                    ],
+                )
 
-            # Print Table
-            await asyncio.gather(self.__regionsTable.all(aconn, sortBy, desc))
+                # Print Table
+                await asyncio.gather(self.__regionsTable.all(aconn, sortBy, desc))
 
-        elif tableName == CITIES_TABLE_NAME:
-            # Ask the Sort Order
-            sortBy = Prompt.ask(
-                ALL_SORT_BY_MSG,
-                choices=[CITIES_ID, CITIES_FK_REGION, CITIES_NAME, CITIES_FK_WAREHOUSE],
-            )
+            elif tableName == CITIES_TABLE_NAME:
+                # Ask the Sort Order
+                sortBy = Prompt.ask(
+                    ALL_SORT_BY_MSG,
+                    choices=[
+                        CITIES_ID,
+                        CITIES_FK_REGION,
+                        CITIES_NAME,
+                        CITIES_FK_WAREHOUSE,
+                    ],
+                )
 
-            # Print Table
-            await asyncio.gather(self.__citiesTable.all(aconn, sortBy, desc))
+                # Print Table
+                await asyncio.gather(self.__citiesTable.all(aconn, sortBy, desc))
 
-        elif tableName == WAREHOUSES_TABLE_NAME:
-            # Ask the Sort Order
-            sortBy = Prompt.ask(
-                ALL_SORT_BY_MSG,
-                choices=[WAREHOUSES_ID, BUILDINGS_NAME, BUILDINGS_FK_CITY],
-            )
+            elif tableName == WAREHOUSES_TABLE_NAME:
+                # Ask the Sort Order
+                sortBy = Prompt.ask(
+                    ALL_SORT_BY_MSG,
+                    choices=[WAREHOUSES_ID, BUILDINGS_NAME, BUILDINGS_FK_CITY],
+                )
 
-            # Print Table
-            await asyncio.gather(self.__warehousesTable.all(sortBy, desc))
+                # Print Table
+                await asyncio.gather(self.__warehousesTable.all(sortBy, desc))
 
-        elif tableName == BRANCHES_TABLE_NAME:
-            # Ask the Sort Order
-            sortBy = Prompt.ask(
-                ALL_SORT_BY_MSG,
-                choices=[
-                    BRANCHES_ID,
-                    BRANCHES_FK_WAREHOUSE_CONNECTION,
-                    BRANCHES_ROUTE_DISTANCE,
-                    BUILDINGS_NAME,
-                    BUILDINGS_FK_CITY,
-                ],
-            )
+            elif tableName == BRANCHES_TABLE_NAME:
+                # Ask the Sort Order
+                sortBy = Prompt.ask(
+                    ALL_SORT_BY_MSG,
+                    choices=[
+                        BRANCHES_ID,
+                        BRANCHES_FK_WAREHOUSE_CONNECTION,
+                        BRANCHES_ROUTE_DISTANCE,
+                        BUILDINGS_NAME,
+                        BUILDINGS_FK_CITY,
+                    ],
+                )
 
-            # Print Table
-            await asyncio.gather(self.__branchesTable.all(sortBy, desc))
+                # Print Table
+                await asyncio.gather(self.__branchesTable.all(sortBy, desc))
+
+            # Put the Connection Back to the Asynchronous Pool
+            await asyncio.gather(apool.putConnection(aconn))
+
+        except Exception as err:
+            # Put the Connection Back to the Asynchronous Pool
+            await asyncio.gather(apool.putConnection(aconn))
+            raise err
 
         # Press ENTER to Continue
         Prompt.ask(PRESS_ENTER)
 
-    async def _getHandler(self, aconn, tableName: str) -> None:
+    async def _getHandler(self, apool: AsyncPool, tableName: str) -> None:
         """
         Asynchronous Handler of ``get`` Location-related Subcommand
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str tableName: Location Table Name at the Remote Database
         :return: Nothing
         :rtype: NoneType
         :raises GoToMenu: Raised when the User wants to Go Back to the Program Main Menu
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
+
+        # Get Connection from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnection())
+        await asyncio.gather(getTask)
+        aconn = getTask.result()
 
         while True:
             try:
@@ -1035,10 +1059,14 @@ class LocationsEventHandler:
                     clear()
                     continue
 
+                # Put the Connection Back to the Asynchronous Pool
+                await asyncio.gather(apool.putConnection(aconn))
                 break
 
             # Raise GoToMenu Error
             except GoToMenu as err:
+                # Put the Connection Back to the Asynchronous Pool
+                await asyncio.gather(apool.putConnection(aconn))
                 raise err
 
             # Go Back to the While-loop
@@ -1051,11 +1079,16 @@ class LocationsEventHandler:
                 # Clear Terminal
                 clear()
 
-    async def _modHandler(self, aconn, tableName: str) -> None:
+            except Exception as err:
+                # Put the Connection Back to the Asynchronous Pool
+                await asyncio.gather(apool.putConnection(aconn))
+                raise err
+
+    async def _modHandler(self, apool: AsyncPool, tableName: str) -> None:
         """
         Asynchronous Handler of ``mod`` Location-related Subcommand
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str tableName: Location Table Name at the Remote Database
         :return: Nothing
         :rtype: NoneType
@@ -1063,238 +1096,100 @@ class LocationsEventHandler:
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        if tableName == COUNTRIES_TABLE_NAME:
-            # Select Country ID to Modify
-            getTask = asyncio.create_task(self.getCountryId(aconn))
-            await asyncio.gather(getTask)
-            countryId = getTask.result()
+        # Get Three Connections from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnections(3))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
 
-            # Print Fetched Results
-            if (
-                await asyncio.gather(
-                    self.__countriesTable.get(aconn, COUNTRIES_ID, countryId)
-                )
-                == None
-            ):
-                noCoincidence()
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(MOD_FIELD_MSG, choices=[COUNTRIES_PHONE_PREFIX])
-
-            # Prompt to Ask the New Value
-            if field == COUNTRIES_PHONE_PREFIX:
-                value = str(IntPrompt.ask(MOD_VALUE_MSG))
-
-            # Modify Country
-            await asyncio.gather(
-                self.__countriesTable.modify(aconn, countryId, field, value)
-            )
-
-        elif tableName == REGIONS_TABLE_NAME:
-            # Select Region ID to Modify
-            getTask = asyncio.create_task(self.getRegionId(aconn))
-            await asyncio.gather(getTask)
-            regionId = getTask.result()
-
-            # Print Fetched Results
-            if (
-                await asyncio.gather(
-                    self.__regionsTable.get(aconn, REGIONS_ID, regionId)
-                )
-                == None
-            ):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[
-                    REGIONS_FK_AIR_FORWARDER,
-                    REGIONS_FK_OCEAN_FORWARDER,
-                    REGIONS_FK_WAREHOUSE,
-                ],
-            )
-
-            # Prompt to Ask the New Value
-            if field == REGIONS_FK_AIR_FORWARDER or field == REGIONS_FK_OCEAN_FORWARDER:
-                value = str(IntPrompt.ask(MOD_VALUE_MSG))
-
-                # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
-
-            elif field == REGIONS_FK_WAREHOUSE:
-                # Select Warehouse ID
-                getTask = asyncio.create_task(
-                    self.getRegionBuildingCityId(aconn, regionId)
-                )
+        try:
+            if tableName == COUNTRIES_TABLE_NAME:
+                # Select Country ID to Modify
+                getTask = asyncio.create_task(self.getCountryId(aconns[0]))
                 await asyncio.gather(getTask)
-                cityId = getTask.result()
+                countryId = getTask.result()
 
-                warehouseIdTask = asyncio.create_task(
-                    self.getWarehouseId(aconn, cityId)
-                )
-
-                # Get Region Object
-                regionTask = asyncio.create_task(
-                    self.__regionsTable.find(aconn, regionId)
-                )
-
-                tasks = [warehouseIdTask, regionTask]
-                try:
-                    await asyncio.gather(*tasks)
-
-                except Exception as err:
-                    cancelTasks(tasks)
-                    raise err
-
-                warehouseId = warehouseIdTask.result()
-                region = regionTask.result()
-
-                # Check if there's a Main Warehouse
-                currWarehouseId = region.warehouseId
-
-                if warehouseId == currWarehouseId:
-                    nothingToChange()
+                # Print Fetched Results
+                if (
+                    await asyncio.gather(
+                        self.__countriesTable.get(aconns[0], COUNTRIES_ID, countryId)
+                    )
+                    == None
+                ):
+                    noCoincidence()
                     return
 
-                warehouseDictTask = None
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
 
-                async with asyncio.TaskGroup() as tg:
-                    # Remove the Old Region Main Warehouse from the Region Table
-                    tg.create_task(
-                        self.__regionsTable.modify(
-                            aconn, regionId, REGIONS_FK_WAREHOUSE, None
-                        )
+                # Ask for Field to Modify
+                field = Prompt.ask(MOD_FIELD_MSG, choices=[COUNTRIES_PHONE_PREFIX])
+
+                # Prompt to Ask the New Value
+                if field == COUNTRIES_PHONE_PREFIX:
+                    value = str(IntPrompt.ask(MOD_VALUE_MSG))
+
+                # Modify Country
+                await asyncio.gather(
+                    self.__countriesTable.modify(aconns[0], countryId, field, value)
+                )
+
+            elif tableName == REGIONS_TABLE_NAME:
+                # Select Region ID to Modify
+                getTask = asyncio.create_task(self.getRegionId(aconns[0]))
+                await asyncio.gather(getTask)
+                regionId = getTask.result()
+
+                # Print Fetched Results
+                if (
+                    await asyncio.gather(
+                        self.__regionsTable.get(aconns[0], REGIONS_ID, regionId)
                     )
+                    == None
+                ):
+                    return
 
-                    # Drop Old Warehouse Connections with all the Main Region Warehouses at the Same Country and all thMain Region Warehouses at the Given Region
-                    tg.create_task(
-                        self.__warehouseConnsTable.removeRegionMainWarehouse(
-                            aconn.acursor(), regionId, currWarehouseId
-                        )
-                    )
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
 
-                    # Get Warehouse Dictionary from Warehouse ID
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[
+                        REGIONS_FK_AIR_FORWARDER,
+                        REGIONS_FK_OCEAN_FORWARDER,
+                        REGIONS_FK_WAREHOUSE,
+                    ],
+                )
+
+                # Prompt to Ask the New Value
+                if (
+                    field == REGIONS_FK_AIR_FORWARDER
+                    or field == REGIONS_FK_OCEAN_FORWARDER
+                ):
+                    value = str(IntPrompt.ask(MOD_VALUE_MSG))
+
+                    # TO DEVELOP: CHECK AND CONFIRM FORWARDERS
+
+                elif field == REGIONS_FK_WAREHOUSE:
+                    # Select Warehouse ID
                     getTask = asyncio.create_task(
-                        self.__getWarehouseDict(aconn, warehouseId)
+                        self.getRegionBuildingCityId(aconns[0], regionId)
                     )
                     await asyncio.gather(getTask)
-                    warehouseDictTask = getTask.result()
+                    cityId = getTask.result()
 
-                # Get Region Country ID
-                countryId = region.countryId
-
-                warehouseDict = warehouseDictTask.result()
-
-                # Add Warehouse Connections for the Current Warehouse with All the Main Region Warehouses at theGiven Country and all the Main Region Warehouses at the Given Region
-                await asyncio.gather(
-                    self.__warehouseConnsTable.insertRegionMainWarehouse(
-                        aconn.acursor(),
-                        self.__ORSGeocoder,
-                        countryId,
-                        regionId,
-                        warehouseDict,
-                    )
-                )
-
-                # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSE_ID]
-
-            # Modify Region
-            await asyncio.gather(
-                self.__regionsTable.modify(aconn, regionId, field, value)
-            )
-
-        elif tableName == CITIES_TABLE_NAME:
-            # Select City ID to Modify
-            getTask = asyncio.create_task(self.getCityId(aconn))
-            await asyncio.gather(getTask)
-            cityId = getTask.result()
-
-            # Print Fetched Results
-            if (
-                await asyncio.gather(self.__citiesTable.get(aconn, CITIES_ID, cityId))
-                == None
-            ):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[CITIES_FK_WAREHOUSE],
-            )
-
-            # Prompt to Ask the New Value
-            if field == CITIES_FK_WAREHOUSE:
-                # Select Warehouse ID
-                warehouseIdTask = asyncio.create_task(
-                    self.getWarehouseId(aconn, cityId)
-                )
-
-                # Get City Object
-                cityTask = asyncio.create_task(self.__citiesTable.find(cityId))
-
-                tasks = [warehouseIdTask, cityTask]
-                try:
-                    await asyncio.gather(*tasks)
-
-                except Exception as err:
-                    cancelTasks(tasks)
-                    raise err
-
-                warehouseId = warehouseIdTask.result()
-                city = cityTask.result()
-
-                # Get City Region ID
-                regionId = city.regionId
-
-                # Check if there's a Main Warehouse
-                currWarehouseId = city.warehouseId
-
-                if warehouseId == currWarehouseId:
-                    nothingToChange()
-                    return
-
-                regionTask = warehouseDictTask = None
-
-                async with asyncio.TaskGroup() as tg:
-                    # Remove the Old City Main Warehouse from the City Table
-                    tg.create_task(
-                        self.__citiesTable.modify(
-                            aconn, cityId, CITIES_FK_WAREHOUSE, None
-                        )
+                    warehouseIdTask = asyncio.create_task(
+                        self.getWarehouseId(aconns[0], cityId)
                     )
 
-                    # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at theSame Region, and all the City Warehouses at the Given City
-                    tg.create_task(
-                        self.__warehouseConnsTable.removeCityMainWarehouse(
-                            aconn.acursor(), regionId, cityId, currWarehouseId
-                        )
-                    )
-
-                    # Get Region Main Warehouse ID
+                    # Get Region Object
                     regionTask = asyncio.create_task(
-                        self.__regionsTable.find(aconn, regionId)
+                        self.__regionsTable.find(aconns[1], regionId)
                     )
 
-                    # Get Warehouse Dictionary Fields from Warehouse ID
-                    warehouseDictTask = asyncio.create_task(
-                        self.__getWarehouseDict(aconn, warehouseId)
-                    )
-
-                    tasks = [regionTask, warehouseDictTask]
+                    tasks = [warehouseIdTask, regionTask]
                     try:
                         await asyncio.gather(*tasks)
 
@@ -1302,392 +1197,619 @@ class LocationsEventHandler:
                         cancelTasks(tasks)
                         raise err
 
-                region = regionTask.result()
-                regionWarehouseId = region.warehouseId
+                    warehouseId = warehouseIdTask.result()
+                    region = regionTask.result()
 
-                # Get Region Warehouse Dictionary Fields from Region Warehouse ID
-                regionWarehouseDictTask = asyncio.create_task(
-                    self.__getWarehouseDict(regionWarehouseId)
-                )
-                await asyncio.gather(regionWarehouseDictTask)
+                    # Check if there's a Main Warehouse
+                    currWarehouseId = region.warehouseId
 
-                warehouseDict = warehouseDictTask.result()
-                regionWarehouseDict = regionWarehouseDictTask.result()
+                    if warehouseId == currWarehouseId:
+                        nothingToChange()
+                        return
 
-                # Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the MainCity Warehouses at the Given Region and all the City Warehouses at the Given City
-                await asyncio.gather(
-                    self.__warehouseConnsTable.insertCityMainWarehouse(
-                        aconn.acursor(),
-                        self.__ORSGeocoder,
-                        regionId,
-                        cityId,
-                        regionWarehouseDict,
-                        warehouseDict,
+                    warehouseDictTask = None
+
+                    async with asyncio.TaskGroup() as tg:
+                        # Remove the Old Region Main Warehouse from the Region Table
+                        tg.create_task(
+                            self.__regionsTable.modify(
+                                aconns[0], regionId, REGIONS_FK_WAREHOUSE, None
+                            )
+                        )
+
+                        # Drop Old Warehouse Connections with all the Main Region Warehouses at the Same Country and all thMain Region Warehouses at the Given Region
+                        tg.create_task(
+                            self.__warehouseConnsTable.removeRegionMainWarehouse(
+                                apool, regionId, currWarehouseId
+                            )
+                        )
+
+                        # Get Warehouse Dictionary from Warehouse ID
+                        getTask = asyncio.create_task(
+                            self.__getWarehouseDict(aconns[1], warehouseId)
+                        )
+                        await asyncio.gather(getTask)
+                        warehouseDictTask = getTask.result()
+
+                    # Get Region Country ID
+                    countryId = region.countryId
+
+                    warehouseDict = warehouseDictTask.result()
+
+                    # Add Warehouse Connections for the Current Warehouse with All the Main Region Warehouses at theGiven Country and all the Main Region Warehouses at the Given Region
+                    await asyncio.gather(
+                        self.__warehouseConnsTable.insertRegionMainWarehouse(
+                            apool,
+                            self.__ORSGeocoder,
+                            countryId,
+                            regionId,
+                            warehouseDict,
+                        )
                     )
-                )
 
-                # Assign Warehouse ID to value
-                value = warehouseDict[DICT_WAREHOUSE_ID]
+                    # Assign Warehouse ID to value
+                    value = warehouseDict[DICT_WAREHOUSE_ID]
 
-            # Modify City
-            await asyncio.gather(self.__citiesTable.modify(aconn, cityId, field, value))
-
-        elif tableName == WAREHOUSES_TABLE_NAME:
-            # Select Warehouse ID
-            getCityTask = asyncio.create_task(self.getCityId(aconn))
-            await asyncio.gather(getCityTask)
-            cityId = getCityTask.result()
-            getWarehouseTask = asyncio.create_task(self.getWarehouseId(aconn, cityId))
-            await asyncio.gather(getWarehouseTask)
-            warehouseId = getWarehouseTask.result()
-
-            # Print Fetched Results
-            if (
+                # Modify Region
                 await asyncio.gather(
-                    self.__warehousesTable.get(aconn, WAREHOUSES_ID, warehouseId)
+                    self.__regionsTable.modify(aconns[0], regionId, field, value)
                 )
-                == None
-            ):
-                return
 
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
+            elif tableName == CITIES_TABLE_NAME:
+                # Select City ID to Modify
+                getTask = asyncio.create_task(self.getCityId(aconns[0]))
+                await asyncio.gather(getTask)
+                cityId = getTask.result()
 
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[BUILDINGS_NAME, BUILDINGS_PHONE, BUILDINGS_EMAIL],
-            )
+                # Print Fetched Results
+                if (
+                    await asyncio.gather(
+                        self.__citiesTable.get(aconns[0], CITIES_ID, cityId)
+                    )
+                    == None
+                ):
+                    return
 
-            # Prompt to Ask the New Value
-            value = askBuildingValue(tableName, field)
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
 
-            # Modify Warehouse
-            await asyncio.gather(
-                self.__warehousesTable.modify(aconn, warehouseId, field, value)
-            )
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[CITIES_FK_WAREHOUSE],
+                )
 
-        elif tableName == BRANCHES_TABLE_NAME:
-            # Select Branch ID
-            getCityTask = asyncio.create_task(self.getCityId(aconn))
-            await asyncio.gather(getCityTask)
-            cityId = getCityTask.result()
-            getBranchTask = asyncio.create_task(self.getBranchId(aconn, cityId))
-            await asyncio.gather(getBranchTask)
-            branchId = getBranchTask.result()
+                # Prompt to Ask the New Value
+                if field == CITIES_FK_WAREHOUSE:
+                    # Select Warehouse ID
+                    warehouseIdTask = asyncio.create_task(
+                        self.getWarehouseId(aconns[0], cityId)
+                    )
 
-            # Print Fetched Results
-            if (
+                    # Get City Object
+                    cityTask = asyncio.create_task(
+                        self.__citiesTable.find(aconns[1], cityId)
+                    )
+
+                    tasks = [warehouseIdTask, cityTask]
+                    try:
+                        await asyncio.gather(*tasks)
+
+                    except Exception as err:
+                        cancelTasks(tasks)
+                        raise err
+
+                    warehouseId = warehouseIdTask.result()
+                    city = cityTask.result()
+
+                    # Get City Region ID
+                    regionId = city.regionId
+
+                    # Check if there's a Main Warehouse
+                    currWarehouseId = city.warehouseId
+
+                    if warehouseId == currWarehouseId:
+                        nothingToChange()
+                        return
+
+                    regionTask = warehouseDictTask = None
+
+                    async with asyncio.TaskGroup() as tg:
+                        # Remove the Old City Main Warehouse from the City Table
+                        tg.create_task(
+                            self.__citiesTable.modify(
+                                aconns[0], cityId, CITIES_FK_WAREHOUSE, None
+                            )
+                        )
+
+                        # Drop Old Warehouse Connections with the Main Region Warehouse, all the Main City Warehouses at theSame Region, and all the City Warehouses at the Given City
+                        tg.create_task(
+                            self.__warehouseConnsTable.removeCityMainWarehouse(
+                                apool, regionId, cityId, currWarehouseId
+                            )
+                        )
+
+                        # Get Region Main Warehouse ID
+                        regionTask = asyncio.create_task(
+                            self.__regionsTable.find(aconns[1], regionId)
+                        )
+
+                        # Get Warehouse Dictionary Fields from Warehouse ID
+                        warehouseDictTask = asyncio.create_task(
+                            self.__getWarehouseDict(aconns[2], warehouseId)
+                        )
+
+                        tasks = [regionTask, warehouseDictTask]
+                        try:
+                            await asyncio.gather(*tasks)
+
+                        except Exception as err:
+                            cancelTasks(tasks)
+                            raise err
+
+                    region = regionTask.result()
+                    regionWarehouseId = region.warehouseId
+
+                    # Get Region Warehouse Dictionary Fields from Region Warehouse ID
+                    regionWarehouseDictTask = asyncio.create_task(
+                        self.__getWarehouseDict(aconns[0], regionWarehouseId)
+                    )
+                    await asyncio.gather(regionWarehouseDictTask)
+
+                    warehouseDict = warehouseDictTask.result()
+                    regionWarehouseDict = regionWarehouseDictTask.result()
+
+                    # Add Warehouse Connections for the Current Warehouse with the Main Region Warehouse, all the MainCity Warehouses at the Given Region and all the City Warehouses at the Given City
+                    await asyncio.gather(
+                        self.__warehouseConnsTable.insertCityMainWarehouse(
+                            apool,
+                            self.__ORSGeocoder,
+                            regionId,
+                            cityId,
+                            regionWarehouseDict,
+                            warehouseDict,
+                        )
+                    )
+
+                    # Assign Warehouse ID to value
+                    value = warehouseDict[DICT_WAREHOUSE_ID]
+
+                # Modify City
                 await asyncio.gather(
-                    self.__branchesTable.get(aconn, BRANCHES_ID, branchId)
-                )
-                == None
-            ):
-                return
-
-            # Ask for Confirmation
-            if not Confirm.ask(MOD_CONFIRM_MSG):
-                return
-
-            # Ask for Field to Modify
-            field = Prompt.ask(
-                MOD_FIELD_MSG,
-                choices=[
-                    BRANCHES_FK_WAREHOUSE_CONNECTION,
-                    BUILDINGS_NAME,
-                    BUILDINGS_PHONE,
-                    BUILDINGS_EMAIL,
-                ],
-            )
-
-            # Prompt to Ask the New Value
-            if field != BRANCHES_FK_WAREHOUSE_CONNECTION:
-                value = askBuildingValue(tableName, field)
-
-                # Modify Branch
-                await asyncio.gather(
-                    self.__branchesTable.modify(aconn, branchId, field, value)
+                    self.__citiesTable.modify(aconns[0], cityId, field, value)
                 )
 
-            else:
-                # Get Branch Object
-                findBranchTask = asyncio.create_task(
-                    self.__branchesTable.find(aconn, branchId)
-                )
-                await asyncio.gather(findBranchTask)
-                branch = findBranchTask.result()
+            elif tableName == WAREHOUSES_TABLE_NAME:
+                # Select Warehouse ID
+                getCityTask = asyncio.create_task(self.getCityId(aconns[0]))
+                await asyncio.gather(getCityTask)
+                cityId = getCityTask.result()
 
-                # Get City ID where the Branch is Located, and the Warehouse at the Given City
-                cityId = branch.cityId
                 getWarehouseTask = asyncio.create_task(
-                    self.getWarehouseId(aconn, cityId)
+                    self.getWarehouseId(aconns[0], cityId)
                 )
                 await asyncio.gather(getWarehouseTask)
                 warehouseId = getWarehouseTask.result()
 
-                # Get Branch Coordinates
-                coords = {
-                    NOMINATIM_LATITUDE: branch.gpsLatitude,
-                    NOMINATIM_LONGITUDE: branch.gpsLongitude,
-                }
-
-                # Modify Branch
-                modWarehouseTask = asyncio.create_task(
-                    self.__branchesTable.modify(
-                        aconn, branchId, BRANCHES_FK_WAREHOUSE_CONNECTION, warehouseId
+                # Print Fetched Results
+                if (
+                    await asyncio.gather(
+                        self.__warehousesTable.get(
+                            aconns[0], WAREHOUSES_ID, warehouseId
+                        )
                     )
+                    == None
+                ):
+                    return
+
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
+
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[BUILDINGS_NAME, BUILDINGS_PHONE, BUILDINGS_EMAIL],
                 )
 
-                # Get Route Distance
-                getRouteTask = asyncio.create_task(
-                    self.__getRouteDistance(aconn, warehouseId, coords)
-                )
-                await asyncio.gather(getRouteTask)
-                routeDistance = getRouteTask.result()
+                # Prompt to Ask the New Value
+                value = askBuildingValue(tableName, field)
 
-                modRouteTask = asyncio.create_task(
-                    self.__branchesTable.modify(
-                        aconn, branchId, BRANCHES_ROUTE_DISTANCE, routeDistance
+                # Modify Warehouse
+                await asyncio.gather(
+                    self.__warehousesTable.modify(aconns[0], warehouseId, field, value)
+                )
+
+            elif tableName == BRANCHES_TABLE_NAME:
+                # Select Branch ID
+                getCityTask = asyncio.create_task(self.getCityId(aconns[0]))
+                await asyncio.gather(getCityTask)
+                cityId = getCityTask.result()
+
+                getBranchTask = asyncio.create_task(self.getBranchId(aconns[0], cityId))
+                await asyncio.gather(getBranchTask)
+                branchId = getBranchTask.result()
+
+                # Print Fetched Results
+                if (
+                    await asyncio.gather(
+                        self.__branchesTable.get(aconns[0], BRANCHES_ID, branchId)
                     )
+                    == None
+                ):
+                    return
+
+                # Ask for Confirmation
+                if not Confirm.ask(MOD_CONFIRM_MSG):
+                    return
+
+                # Ask for Field to Modify
+                field = Prompt.ask(
+                    MOD_FIELD_MSG,
+                    choices=[
+                        BRANCHES_FK_WAREHOUSE_CONNECTION,
+                        BUILDINGS_NAME,
+                        BUILDINGS_PHONE,
+                        BUILDINGS_EMAIL,
+                    ],
                 )
 
-                tasks = [modWarehouseTask, modRouteTask]
-                try:
-                    await asyncio.gather(*tasks)
+                # Prompt to Ask the New Value
+                if field != BRANCHES_FK_WAREHOUSE_CONNECTION:
+                    value = askBuildingValue(tableName, field)
 
-                except Exception as err:
-                    cancelTasks(tasks)
-                    raise err
+                    # Modify Branch
+                    await asyncio.gather(
+                        self.__branchesTable.modify(aconns[0], branchId, field, value)
+                    )
+
+                else:
+                    # Get Branch Object
+                    findBranchTask = asyncio.create_task(
+                        self.__branchesTable.find(aconns[0], branchId)
+                    )
+                    await asyncio.gather(findBranchTask)
+                    branch = findBranchTask.result()
+
+                    # Get City ID where the Branch is Located, and the Warehouse at the Given City
+                    cityId = branch.cityId
+                    getWarehouseTask = asyncio.create_task(
+                        self.getWarehouseId(aconns[0], cityId)
+                    )
+                    await asyncio.gather(getWarehouseTask)
+                    warehouseId = getWarehouseTask.result()
+
+                    # Get Branch Coordinates
+                    coords = {
+                        NOMINATIM_LATITUDE: branch.gpsLatitude,
+                        NOMINATIM_LONGITUDE: branch.gpsLongitude,
+                    }
+
+                    # Modify Branch
+                    modWarehouseTask = asyncio.create_task(
+                        self.__branchesTable.modify(
+                            aconns[0],
+                            branchId,
+                            BRANCHES_FK_WAREHOUSE_CONNECTION,
+                            warehouseId,
+                        )
+                    )
+
+                    # Get Route Distance
+                    getRouteTask = asyncio.create_task(
+                        self.__getRouteDistance(aconns[1], warehouseId, coords)
+                    )
+                    await asyncio.gather(getRouteTask)
+                    routeDistance = getRouteTask.result()
+
+                    modRouteTask = asyncio.create_task(
+                        self.__branchesTable.modify(
+                            aconns[1], branchId, BRANCHES_ROUTE_DISTANCE, routeDistance
+                        )
+                    )
+
+                    tasks = [modWarehouseTask, modRouteTask]
+                    try:
+                        await asyncio.gather(*tasks)
+
+                    except Exception as err:
+                        cancelTasks(tasks)
+                        raise err
+
+            # Commit
+            tasks = []
+            for aconn in aconns:
+                tasks.append(asyncio.create_task(aconn.commit()))
+
+            try:
+                await asyncio.gather(*tasks)
+
+            except Exception as err:
+                cancelTasks(tasks)
+                raise err
+
+            # Put the Connections Back to the Asynchronous Pool
+            await asyncio.gather(apool.putConnections(aconns))
+
+        except Exception as err:
+            # Put the Connections Back to the Asynchronous Pool
+            await asyncio.gather(apool.putConnections(aconns))
+            raise err
 
         # Press ENTER to Continue
         Prompt.ask(PRESS_ENTER)
 
-    async def _addHandler(self, aconn, tableName: str) -> None:
+    async def _addHandler(self, apool: AsyncPool, tableName: str) -> None:
         """
         Asynchronous Handler of ``add`` Location-related Subcommand
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str tableName: Location Table Name at the Remote Database
         :return: Nothing
         :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        while True:
-            if tableName == COUNTRIES_TABLE_NAME:
-                # Get the Country Name to Insert
-                location = self.getCountryName()
-                if location == None:
-                    return
+        # Get Three Connections from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnections(3))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
 
-                countryName = location[DICT_COUNTRY_NAME]
+        try:
+            while True:
+                if tableName == COUNTRIES_TABLE_NAME:
+                    # Get the Country Name to Insert
+                    location = self.getCountryName()
 
-                # Ask for the Other Country Fields and Insert the Country to Its Table
-                await asyncio.gather(self.__countriesTable.add(aconn, countryName))
+                    if location == None:
+                        return
 
-                return
+                    countryName = location[DICT_COUNTRY_NAME]
 
-            elif tableName == REGIONS_TABLE_NAME:
-                # Get the Region Name to Insert and the Country ID where It's Located
-                getTask = asyncio.create_task(self.getRegionName(aconn))
-                await asyncio.gather(getTask)
-                location = getTask.result()
-                if location == None:
-                    return
-
-                provinceId = location[DICT_COUNTRY_ID]
-                regionName = location[DICT_REGION_NAME]
-
-                # Ask for the Other Region Fields and Insert the Region to Its Table
-                await asyncio.gather(
-                    self.__regionsTable.add(aconn, provinceId, regionName)
-                )
-
-            elif tableName == CITIES_TABLE_NAME:
-                # Get the City Name to Insert and the Region ID where It's Located
-                getTask = asyncio.create_task(self.getCityName(aconn))
-                await asyncio.gather(getTask)
-                location = getTask.result()
-                if location == None:
-                    return
-
-                regionId = location[DICT_REGION_ID]
-                cityName = location[DICT_CITY_NAME]
-
-                # Ask for the Other City Fields and Insert the City to Its Table
-                await asyncio.gather(self.__citiesTable.add(aconn, regionId, cityName))
-
-            elif tableName == WAREHOUSES_TABLE_NAME or tableName == BRANCHES_TABLE_NAME:
-                # Get Building Coordinates
-                getTask = asyncio.create_task(self.getPlaceCoordinates(aconn))
-                await asyncio.gather(getTask)
-                location = getTask.result()
-                if location == None:
-                    return
-
-                # Get Building Name
-                buildingName = Prompt.ask("Enter Building Name")
-
-                # Check Building Name
-                isAddressValid(tableName, BUILDINGS_NAME, buildingName)
-
-                if tableName == WAREHOUSES_TABLE_NAME:
-                    # Ask for the Other Warehouse Fields and Insert the Warehouse to Its Table
-                    insertTask = asyncio.create_task(
-                        self.__warehousesTable.add(aconn, location, buildingName)
-                    )
-
-                    # Get Warehouse Dictionary
-                    warehouseDictTask = asyncio.create_task(
-                        self.__getWarehouseDict(aconn, warehouseId)
-                    )
-
-                    # Check if there's a Main Warehouse at the Region ID where It's Located
-                    regionTask = asyncio.create_task(
-                        self.__regionsTable.find(aconn, location[DICT_REGION_ID])
-                    )
-
-                    tasks = [insertTask, warehouseDictTask, regionTask]
-                    try:
-                        await asyncio.gather(*tasks)
-
-                    except Exception as err:
-                        cancelTasks(tasks)
-                        raise err
-
-                    warehouseId = insertTask.result()
-                    warehouseDict = warehouseDictTask.result()
-                    region = regionTask.result()
-
-                    parentWarehouseDict = None
-
-                    async with asyncio.TaskGroup() as tg:
-                        if region.warehouseId == None:
-                            tg.create_task(
-                                self.__warehouseConnsTable.insertRegionMainWarehouse(
-                                    aconn.acursor(),
-                                    self.__ORSGeocoder,
-                                    location[DICT_COUNTRY_ID],
-                                    location[DICT_REGION_ID],
-                                    warehouseDict,
-                                )
-                            )
-                            parentWarehouseDict = warehouseDict
-
-                            # Set as Main Region Warehouse
-                            tg.create_task(
-                                self.__regionsTable.modify(
-                                    aconn,
-                                    location[DICT_REGION_ID],
-                                    REGIONS_FK_WAREHOUSE,
-                                    warehouseId,
-                                )
-                            )
-
-                        else:
-                            getTask = asyncio.create_task(
-                                self.__getWarehouseDict(aconn, region.warehouseId)
-                            )
-                            await asyncio.gather(getTask)
-                            parentWarehouseDict = getTask.result()
-
-                        # Check if there's a Main Warehouse at the City ID where It's Located
-                        findTask = asyncio.create_task(
-                            self.__citiesTable.find(aconn, location[DICT_CITY_ID])
-                        )
-                        await asyncio.gather(findTask)
-                        city = findTask.result()
-
-                        if city.warehouseId == None:
-                            tg.create_task(
-                                self.__warehouseConnsTable.insertCityMainWarehouse(
-                                    aconn.acursor(),
-                                    self.__ORSGeocoder,
-                                    location[DICT_REGION_ID],
-                                    location[DICT_CITY_ID],
-                                    parentWarehouseDict,
-                                    warehouseDict,
-                                )
-                            )
-                            parentWarehouseDict = warehouseDict
-
-                            # Set as Main City Warehouse
-                            tg.create_task(
-                                self.__citiesTable.modify(
-                                    aconn,
-                                    location[DICT_CITY_ID],
-                                    CITIES_FK_WAREHOUSE,
-                                    warehouseId,
-                                )
-                            )
-
-                        else:
-                            getTask = asyncio.create_task(
-                                self.__getWarehouseDict(aconn, city.warehouseId)
-                            )
-                            await asyncio.gather(getTask)
-                            parentWarehouseDict = getTask.result()
-
-                            # Insert City Warehouse Connection
-                            await asyncio.gather(
-                                self.__warehouseConnsTable.insertCityWarehouse(
-                                    aconn.acursor(),
-                                    self.__ORSGeocoder,
-                                    parentWarehouseDict,
-                                    warehouseDict,
-                                )
-                            )
-
-                elif tableName == BRANCHES_TABLE_NAME:
-                    # Get Warehouse at the Given City
-                    getWarehouseTask = asyncio.create_task(
-                        self.getWarehouseId(aconn, location[DICT_CITY_ID])
-                    )
-                    await asyncio.gather(getWarehouseTask)
-                    warehouseId = getWarehouseTask.result()
-
-                    # Get Route Distance
-                    getRouteTask = asyncio.create_task(
-                        self.__getRouteDistance(aconn, warehouseId, location)
-                    )
-                    await asyncio.gather(getRouteTask)
-                    routeDistance = getRouteTask.result()
-
-                    # Ask for the Other Branch Fields and Insert the Branch to Its Table
+                    # Ask for the Other Country Fields and Insert the Country to Its Table
                     await asyncio.gather(
-                        self.__branchesTable.add(
-                            aconn,
-                            location,
-                            buildingName,
-                            warehouseId,
-                            routeDistance,
-                        )
+                        self.__countriesTable.add(aconns[0], countryName)
                     )
 
-            # Ask to Add More
-            if not Confirm.ask(ADD_MORE_MSG):
-                break
+                    return
 
-            # Commit
-            commitTask = asyncio.create_task(aconn)
+                elif tableName == REGIONS_TABLE_NAME:
+                    # Get the Region Name to Insert and the Country ID where It's Located
+                    getTask = asyncio.create_task(self.getRegionName(aconns[0]))
+                    await asyncio.gather(getTask)
+                    location = getTask.result()
 
-            # Clear Terminal
-            clear()
+                    if location == None:
+                        return
 
-            await asyncio.gather(commitTask)
+                    provinceId = location[DICT_COUNTRY_ID]
+                    regionName = location[DICT_REGION_NAME]
 
-    async def _rmHandler(self, aconn, tableName: str) -> None:
+                    # Ask for the Other Region Fields and Insert the Region to Its Table
+                    await asyncio.gather(
+                        self.__regionsTable.add(aconns[0], provinceId, regionName)
+                    )
+
+                elif tableName == CITIES_TABLE_NAME:
+                    # Get the City Name to Insert and the Region ID where It's Located
+                    getTask = asyncio.create_task(self.getCityName(aconns[0]))
+                    await asyncio.gather(getTask)
+                    location = getTask.result()
+
+                    if location == None:
+                        return
+
+                    regionId = location[DICT_REGION_ID]
+                    cityName = location[DICT_CITY_NAME]
+
+                    # Ask for the Other City Fields and Insert the City to Its Table
+                    await asyncio.gather(
+                        self.__citiesTable.add(aconns[0], regionId, cityName)
+                    )
+
+                elif (
+                    tableName == WAREHOUSES_TABLE_NAME
+                    or tableName == BRANCHES_TABLE_NAME
+                ):
+                    # Get Building Coordinates
+                    getTask = asyncio.create_task(self.getPlaceCoordinates(aconns[0]))
+                    await asyncio.gather(getTask)
+                    location = getTask.result()
+
+                    if location == None:
+                        return
+
+                    # Get Building Name
+                    buildingName = Prompt.ask("Enter Building Name")
+
+                    # Check Building Name
+                    isAddressValid(tableName, BUILDINGS_NAME, buildingName)
+
+                    if tableName == WAREHOUSES_TABLE_NAME:
+                        # Ask for the Other Warehouse Fields and Insert the Warehouse to Its Table
+                        insertTask = asyncio.create_task(
+                            self.__warehousesTable.add(
+                                aconns[0], location, buildingName
+                            )
+                        )
+
+                        # Get Warehouse Dictionary
+                        warehouseDictTask = asyncio.create_task(
+                            self.__getWarehouseDict(aconns[1], warehouseId)
+                        )
+
+                        # Check if there's a Main Warehouse at the Region ID where It's Located
+                        regionTask = asyncio.create_task(
+                            self.__regionsTable.find(
+                                aconns[2], location[DICT_REGION_ID]
+                            )
+                        )
+
+                        tasks = [insertTask, warehouseDictTask, regionTask]
+                        try:
+                            await asyncio.gather(*tasks)
+
+                        except Exception as err:
+                            cancelTasks(tasks)
+                            raise err
+
+                        warehouseId = insertTask.result()
+                        warehouseDict = warehouseDictTask.result()
+                        region = regionTask.result()
+
+                        parentWarehouseDict = None
+
+                        async with asyncio.TaskGroup() as tg:
+                            if region.warehouseId == None:
+                                tg.create_task(
+                                    self.__warehouseConnsTable.insertRegionMainWarehouse(
+                                        apool,
+                                        self.__ORSGeocoder,
+                                        location[DICT_COUNTRY_ID],
+                                        location[DICT_REGION_ID],
+                                        warehouseDict,
+                                    )
+                                )
+                                parentWarehouseDict = warehouseDict
+
+                                # Set as Main Region Warehouse
+                                tg.create_task(
+                                    self.__regionsTable.modify(
+                                        aconns[0],
+                                        location[DICT_REGION_ID],
+                                        REGIONS_FK_WAREHOUSE,
+                                        warehouseId,
+                                    )
+                                )
+
+                            else:
+                                getTask = asyncio.create_task(
+                                    self.__getWarehouseDict(
+                                        aconns[0], region.warehouseId
+                                    )
+                                )
+                                await asyncio.gather(getTask)
+                                parentWarehouseDict = getTask.result()
+
+                            # Check if there's a Main Warehouse at the City ID where It's Located
+                            findTask = asyncio.create_task(
+                                self.__citiesTable.find(
+                                    aconns[1], location[DICT_CITY_ID]
+                                )
+                            )
+                            await asyncio.gather(findTask)
+                            city = findTask.result()
+
+                            if city.warehouseId == None:
+                                tg.create_task(
+                                    self.__warehouseConnsTable.insertCityMainWarehouse(
+                                        apool,
+                                        self.__ORSGeocoder,
+                                        location[DICT_REGION_ID],
+                                        location[DICT_CITY_ID],
+                                        parentWarehouseDict,
+                                        warehouseDict,
+                                    )
+                                )
+                                parentWarehouseDict = warehouseDict
+
+                                # Set as Main City Warehouse
+                                tg.create_task(
+                                    self.__citiesTable.modify(
+                                        aconns[1],
+                                        location[DICT_CITY_ID],
+                                        CITIES_FK_WAREHOUSE,
+                                        warehouseId,
+                                    )
+                                )
+
+                            else:
+                                getTask = asyncio.create_task(
+                                    self.__getWarehouseDict(aconns[1], city.warehouseId)
+                                )
+                                await asyncio.gather(getTask)
+                                parentWarehouseDict = getTask.result()
+
+                                # Insert City Warehouse Connection
+                                await asyncio.gather(
+                                    self.__warehouseConnsTable.insertCityWarehouse(
+                                        apool,
+                                        self.__ORSGeocoder,
+                                        parentWarehouseDict,
+                                        warehouseDict,
+                                    )
+                                )
+
+                    elif tableName == BRANCHES_TABLE_NAME:
+                        # Get Warehouse at the Given City
+                        getWarehouseTask = asyncio.create_task(
+                            self.getWarehouseId(aconns[0], location[DICT_CITY_ID])
+                        )
+                        await asyncio.gather(getWarehouseTask)
+                        warehouseId = getWarehouseTask.result()
+
+                        # Get Route Distance
+                        getRouteTask = asyncio.create_task(
+                            self.__getRouteDistance(aconns[0], warehouseId, location)
+                        )
+                        await asyncio.gather(getRouteTask)
+                        routeDistance = getRouteTask.result()
+
+                        # Ask for the Other Branch Fields and Insert the Branch to Its Table
+                        await asyncio.gather(
+                            self.__branchesTable.add(
+                                aconns[0],
+                                location,
+                                buildingName,
+                                warehouseId,
+                                routeDistance,
+                            )
+                        )
+
+                # Ask to Add More
+                if not Confirm.ask(ADD_MORE_MSG):
+                    break
+
+                # Commit
+                tasks = []
+                for aconn in aconns:
+                    tasks.append(asyncio.create_task(aconn.commit()))
+
+                # Clear Terminal
+                clear()
+
+                try:
+                    await asyncio.gather(*tasks)
+
+                except Exception as err:
+                    cancelTasks(tasks)
+                    raise err
+
+            # Put the Connections Back to the Asynchronous Pool
+            await asyncio.gather(apool.putConnections(aconns))
+
+        except Exception as err:
+            # Put the Connections Back to the Asynchronous Pool
+            await asyncio.gather(apool.putConnections(aconns))
+            raise err
+
+    async def _rmHandler(self, apool:AsyncPool, tableName: str) -> None:
         """
         Asynchronous Handler of ``rm`` Location-related Subcommand
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str tableName: Location Table Name at the Remote Database
         :return: Nothing
         :rtype: NoneType
         :raises MainWarehouseError: Raised if the Warehouse that's being Removed is Referenced as the Main One at Any Location Table
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
+
+        # Get the Connection from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnection())
+        await asyncio.gather(getTask)
+        aconn = getTask.result()
 
         if tableName == COUNTRIES_TABLE_NAME:
             # Select Country ID to Remove
@@ -1755,6 +1877,7 @@ class LocationsEventHandler:
             getCityTask = asyncio.create_task(self.getCityId(aconn))
             await asyncio.gather(getCityTask)
             cityId = getCityTask.result()
+
             getWarehouseTask = asyncio.create_task(self.getWarehouseId(aconn, cityId))
             await asyncio.gather(getWarehouseTask)
             warehouseId = getWarehouseTask.result()
@@ -1799,6 +1922,7 @@ class LocationsEventHandler:
             getCityTask = asyncio.create_task(self.getCityId(aconn))
             await asyncio.gather(getCityTask)
             cityId = getCityTask.result()
+
             getBranchTask = asyncio.create_task(self.getBranchId(aconn, cityId))
             await asyncio.gather(getBranchTask)
             branchId = getBranchTask.result()
@@ -1818,14 +1942,17 @@ class LocationsEventHandler:
 
             await asyncio.gather(self.__branchesTable.remove(aconn, branchId))
 
+        # Put the Connection Back to the Asynchronous Pool
+        await asyncio.gather(apool.putConnection(aconn))
+
         # Press ENTER to Continue
         Prompt.ask(PRESS_ENTER)
 
-    async def dbHandler(self, aconn, action: str, tableName: str) -> None:
+    def dbHandler(self, apool: AsyncPool, action: str, tableName: str) -> None:
         """
-        Asynchronous Database Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Location-related Subcommands
+        Database Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Location-related Subcommands
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str action: Location-related Command (``add``, ``all``, ``get``, ``mod`` or ``rm``)
         :param str tableName: Location-related Table Name at Remote Database
         :return: Nothing
@@ -1834,25 +1961,25 @@ class LocationsEventHandler:
         """
 
         if action == DB_ADD:
-            await asyncio.gather(self._addHandler(aconn, tableName))
+            asyncio.run(self._addHandler(apool, tableName))
 
         elif action == DB_GET:
-            await asyncio.gather(self._getHandler(aconn, tableName))
+            asyncio.run(self._getHandler(apool, tableName))
 
         elif action == DB_ALL:
-            await asyncio.gather(self._allHandler(aconn, tableName))
+            asyncio.run(self._allHandler(apool, tableName))
 
         elif action == DB_MOD:
-            await asyncio.gather(self._modHandler(aconn, tableName))
+            asyncio.run(self._modHandler(apool, tableName))
 
         elif action == DB_RM:
-            await asyncio.gather(self._rmHandler(aconn, tableName))
+            asyncio.run(self._rmHandler(apool, tableName))
 
-    async def graphHandler(self, aconn, graphType: str, level: str) -> None:
+    async def graphHandler(self, apool: AsyncPool, graphType: str, level: str) -> None:
         """
         Asynchronous Graph Handler of ``countries``, ``regions`` and ``cities`` Graph Level Subcommands
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str graphType: Graph Type Command
         :param str level: Graph Level Command (``countries``, ``regions`` and ``cities``)
         :return: Nothing
@@ -1865,17 +1992,22 @@ class LocationsEventHandler:
         # Select Graph Layout
         layout = Prompt.ask("Select a Layout", choices=LAYOUT_CMDS)
 
+        # Get Connection from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnection())
+        await asyncio.gather(getTask)
+        aconn = getTask.result()
+
         # Check the Graph Type Command
         if graphType == WAREHOUSES_TABLE_NAME:
             # Check if the Given Graph is Initialized
             if rushWGraph == None:
-                initTask = asyncio.create_task(RushWGraph.create(aconn, True))
+                initTask = asyncio.create_task(RushWGraph.create(apool, True))
                 await asyncio.gather(initTask)
                 rushWGraph = initTask.result()
 
             # Update the Graph
             else:
-                await asyncio.gather(rushWGraph.update(aconn))
+                await asyncio.gather(rushWGraph.update(apool))
 
             warehouseIds = None
             locationId = None
@@ -1943,3 +2075,6 @@ class LocationsEventHandler:
 
             # Draw the Graph with the Given Warehouse IDs and Layout. Store it Locally
             rushWGraph.draw(layout, level, locationId, warehouseIds)
+
+        # Put the Connection Back to the Asynchronous Pool
+        await asyncio.gather(apool.putConnection(aconn))

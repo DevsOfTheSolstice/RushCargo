@@ -6,12 +6,12 @@ from flask import Flask, request, jsonify
 
 from lib.graph.warehouses import RushWGraph, rushWGraph
 
-from lib.model.database import initAsyncPool
+from lib.model.database import initAsyncPool, AsyncPool
 
 app = Flask("RushCargo")
 
 # Time to Wait between Graphs Updates
-UPDATE_TIME = 300
+UPDATE_TIME = 60
 WAIT_BUSY_TIME = 0.05
 
 
@@ -69,34 +69,31 @@ def graph_calc(building_type: str):
         )
 
 
-async def updateGraphs(apool, updateTime: int) -> None:
+async def updateGraphs(apool: AsyncPool, updateTime: int) -> None:
     """
     Function to Update the Graphs
 
-    :param apool: Asynchronous Connection Pool with the Remote Database
+    :param AsyncPool apool: Asynchronous Connection Pool with the Remote Database
     :param int updateTime: Interval of Time in Seconds between the Warehouses Graph Updates
     """
 
-    async with apool.connection() as aconn:
-        while True:
-            t1 = updateTime
+    while True:
+        t1 = updateTime
 
-            # Countdown
-            while t1 > 0:
-                time.sleep(1)
-                t1 -= 1
+        # Countdown
+        while t1 > 0:
+            time.sleep(1)
+            t1 -= 1
 
-            # Update Graphs
-            app.logger.info("Rush Cargo Warehouses Graph is being Updated")
-            await asyncio.gather(rushWGraph.update(aconn))
-            app.logger.info("Rush Cargo Warehouses Graph has been Updated")
+        # Update Graphs
+        await asyncio.gather(rushWGraph.update(apool, app.logger))
 
 
-def graphEventsHandler(apool, updateTime: int) -> None:
+def graphEventsHandler(apool: AsyncPool, updateTime: int) -> None:
     """
     Main Handler of the Warehouses Graph
 
-    :param apool: Asynchronous Connection Pool with the Remote Database
+    :param AsyncPool apool: Asynchronous Connection Pool with the Remote Database
     :param int updateTime: Interval of Time in Seconds between the Warehouses Graph Updates
     """
 
@@ -108,12 +105,11 @@ if __name__ == "__main__":
     # Initialize Database
     apool, _, _ = initAsyncPool()
 
-    print(1)
+    # Open Remote Database Connection Pool
+    asyncio.run(apool.openPool())
 
     # Initialize RushWGraph Class
     rushWGraph = asyncio.run(RushWGraph.createFromApp(apool, False))
-
-    print(2)
 
     # Call the Update Function with Multithreading
     threadUpdate = threading.Thread(

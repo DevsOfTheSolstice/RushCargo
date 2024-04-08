@@ -3,8 +3,7 @@ from psycopg import sql
 
 from .constants import *
 
-from .database import console
-from .database_tables import cancelTasks
+from .database import AsyncPool, console, cancelTasks
 
 from ..controller.constants import RICH_LOGGER_DEBUG_MODE
 
@@ -220,7 +219,7 @@ class WarehouseConnectionsTable:
 
     async def __removeMainWarehouse(
         self,
-        acursor,
+        apool: AsyncPool,
         locationTableName: str,
         locationId: int,
         warehouseId: int,
@@ -228,7 +227,7 @@ class WarehouseConnectionsTable:
         """
         Method to Remove a Main Warehouse of a Given Location as a Sender and as a Receiver from All of its Warehouse Connections at a Given Location Level
 
-        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str locationTableName: Location Table Name where the Warehouse is Located and Set as the Main One
         :param str locationId: Location ID at its Table where the Warehouse is Located
         :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level
@@ -239,6 +238,11 @@ class WarehouseConnectionsTable:
 
         locationType, locationIdField = getLocationInfo(locationTableName)
 
+        # Get Two Connections from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnections(2))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
+
         # Get Query to Remove the Given Warehouse as a Sender
         senderQuery = self.__removeSenderMainWarehouseQuery(locationIdField)
 
@@ -247,10 +251,14 @@ class WarehouseConnectionsTable:
 
         # Remove Given Warehouse as a Sender and as a Receiver
         senderTask = asyncio.create_task(
-            acursor.execute(senderQuery, [locationId, warehouseId, locationType])
+            aconns[0]
+            .cursor()
+            .execute(senderQuery, [locationId, warehouseId, locationType])
         )
         removeTask = asyncio.create_task(
-            acursor.execute(receiverQuery, [locationId, warehouseId, locationType])
+            aconns[1]
+            .cursor()
+            .execute(receiverQuery, [locationId, warehouseId, locationType])
         )
 
         tasks = [senderTask, removeTask]
@@ -261,6 +269,9 @@ class WarehouseConnectionsTable:
             cancelTasks(tasks)
             raise err
 
+        # Put the Connections Back to the Asynchronous Pool
+        await asyncio.gather(apool.putConnections(aconns))
+
         if ROUTES_DEBUG_MODE:
             console.print(
                 f"Removed Warehouse ID {warehouseId} as a Sender and as a Receiver at {locationType}-Level\n",
@@ -268,33 +279,31 @@ class WarehouseConnectionsTable:
             )
 
     async def removeRegionMainWarehouse(
-        self, acursor, regionId: int, warehouseId: int
+        self, apool: AsyncPool, regionId: int, warehouseId: int
     ) -> None:
         """
         Asynchronous  Method to Remove a Given Region Main Warehouse as a Sender and as a Receiver from All of its Warehouse Connections
 
-         :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
-         :param str regionId: Region ID where the Warehouse is Located and Set as the Main One
-         :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (Region)
-         :return: Nothing
-         :rtype: NoneType
-         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
+        :param str regionId: Region ID where the Warehouse is Located and Set as the Main One
+        :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (Region)
+        :return: Nothing
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Remove Region-Type Connections
         await asyncio.gather(
-            self.__removeMainWarehouse(
-                acursor, REGIONS_TABLE_NAME, regionId, warehouseId
-            )
+            self.__removeMainWarehouse(apool, REGIONS_TABLE_NAME, regionId, warehouseId)
         )
 
     async def removeCityMainWarehouse(
-        self, acursor, regionId: int, cityId: int, warehouseId: int
+        self, apool: AsyncPool, regionId: int, cityId: int, warehouseId: int
     ) -> None:
         """
         Asynchronous Method to Remove a Given City Main Warehouse as a Sender and as a Receiver from All of its Warehouse Connections
 
-        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param str regionId: Region ID where the Parent Main Warehouse is Located
         :param str cityId: City ID where the Warehouse is Located and Set as the Main One
         :param int warehouseId: Main Warehouse ID that is going to be Removed from its Warehouse Connections at the Given Location Level (City)
@@ -305,14 +314,12 @@ class WarehouseConnectionsTable:
 
         # Remove Region-Type Connection (with its Parent Main Warehouse)
         regionTask = asyncio.create_task(
-            self.__removeMainWarehouse(
-                acursor, REGIONS_TABLE_NAME, regionId, warehouseId
-            )
+            self.__removeMainWarehouse(apool, REGIONS_TABLE_NAME, regionId, warehouseId)
         )
 
         # Remove City-Type Connections
         cityTask = asyncio.create_task(
-            self.__removeMainWarehouse(acursor, CITIES_TABLE_NAME, cityId, warehouseId)
+            self.__removeMainWarehouse(apool, CITIES_TABLE_NAME, cityId, warehouseId)
         )
 
         tasks = [regionTask, cityTask]
@@ -435,7 +442,7 @@ class WarehouseConnectionsTable:
             REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID
         )
 
-        getTask = asyncio.create(self.__getMainWarehouses(query, countryId))
+        getTask = asyncio.create(self.__getMainWarehouses(acursor, query, countryId))
         await asyncio.gather(getTask)
 
         return getTask.result()
@@ -483,7 +490,9 @@ class WarehouseConnectionsTable:
             CITIES_MAIN_WAREHOUSES_VIEW_NAME, REGIONS_ID
         )
 
-        getTask = asyncio.create_task(self.__getMainWarehouses(query, regionId))
+        getTask = asyncio.create_task(
+            self.__getMainWarehouses(acursor, query, regionId)
+        )
         await asyncio.gather(getTask)
 
         return getTask.result()
@@ -695,7 +704,7 @@ class WarehouseConnectionsTable:
 
     async def __insertMainWarehouseConns(
         self,
-        acursor,
+        apool: AsyncPool,
         ORSGeocoder: ORSGeocoder,
         connType: str,
         warehouseDict: dict,
@@ -704,7 +713,7 @@ class WarehouseConnectionsTable:
         """
         Asynchronous Method to Insert All the Warehouse Connections for a Given Main Warehouse Asynchronously
 
-        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param str connType: Location Connection Level
         :param dict warehouseDict: Main Warehouse Connection Dictionary
@@ -714,21 +723,31 @@ class WarehouseConnectionsTable:
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Get 3 Connections from the Asynchronous Pool
+        nConns = 3
+        getTask = asyncio.create_task(apool.getConnections(nConns))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
+
         # Get Query to Insert Warehouse Connections
         query = self.__insertWarehouseConnQuery()
 
         # Insert Each Warehouse Connection to its Table Asynchronously
-        tasks = []
-        for warehouseConnDict in warehouseConns:
-            # Check the Warehouse Connection ID. Ignore if they're the Same
-            if warehouseConnDict[DICT_WAREHOUSE_ID] == warehouseDict[DICT_WAREHOUSE_ID]:
-                continue
+        async with asyncio.TaskGroup() as tg:
+            i = 0
 
-            # Insert the Main Warehouse Sender Connection
-            tasks.append(
-                asyncio.create_task(
+            for warehouseConnDict in warehouseConns:
+                # Check the Warehouse Connection ID. Ignore if they're the Same
+                if (
+                    warehouseConnDict[DICT_WAREHOUSE_ID]
+                    == warehouseDict[DICT_WAREHOUSE_ID]
+                ):
+                    continue
+
+                # Insert the Main Warehouse Sender Connection
+                tg.create_task(
                     self.__insertWarehouseSenderConn(
-                        acursor,
+                        aconns[i].cursor(),
                         ORSGeocoder,
                         query,
                         connType,
@@ -736,13 +755,11 @@ class WarehouseConnectionsTable:
                         warehouseConnDict,
                     )
                 )
-            )
 
-            # Insert the Main Warehouse Receiver Connection
-            tasks.append(
-                asyncio.create_task(
+                # Insert the Main Warehouse Receiver Connection
+                tg.create_task(
                     self.__insertWarehouseReceiverConn(
-                        acursor,
+                        aconns[i].cursor(),
                         ORSGeocoder,
                         query,
                         connType,
@@ -750,18 +767,13 @@ class WarehouseConnectionsTable:
                         warehouseConnDict,
                     )
                 )
-            )
 
-        try:
-            await asyncio.gather(*tasks)
-
-        except Exception as err:
-            cancelTasks(tasks)
-            raise err
+        # Put the Connections Back to the Asynchronous Pool
+        await asyncio.gather(apool.putConnections(aconns))
 
     async def insertRegionMainWarehouse(
         self,
-        acursor,
+        apool,
         ORSGeocoder: ORSGeocoder,
         countryId: int,
         regionId: int,
@@ -770,7 +782,7 @@ class WarehouseConnectionsTable:
         """
         Asynchronous Method to Insert All the Region Main Warehouse Connections for a Given Region
 
-        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param int countryId: Country ID where the Region is Located
         :param int regionId: Region ID where the Warehouse is Located
@@ -789,7 +801,7 @@ class WarehouseConnectionsTable:
         # Set the Region Main Warehouse Connections
         regionMainTask = asyncio.create_task(
             self.__insertMainWarehouseConns(
-                acursor,
+                apool,
                 ORSGeocoder,
                 CONN_TYPE_REGION,
                 warehouseDict,
@@ -800,7 +812,7 @@ class WarehouseConnectionsTable:
         # Set the City Main Warehouse Connections
         cityMainTask = asyncio.create_task(
             self.__insertMainWarehouseConns(
-                acursor,
+                apool,
                 ORSGeocoder,
                 CONN_TYPE_REGION,
                 warehouseDict,
@@ -821,7 +833,7 @@ class WarehouseConnectionsTable:
 
     async def insertCityMainWarehouse(
         self,
-        acursor,
+        apool: AsyncPool,
         ORSGeocoder: ORSGeocoder,
         regionId: int,
         cityId: int,
@@ -831,7 +843,7 @@ class WarehouseConnectionsTable:
         """
         Asynchronous Method to Insert All the City Main Warehouse Connections for a Given City
 
-        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param int regionId: Region ID where the City is Located
         :param int cityId: City ID where the Warehouse is Located
@@ -851,7 +863,7 @@ class WarehouseConnectionsTable:
         # Set the Region Main Warehouse Connection
         regionMainTask = asyncio.create_task(
             self.__insertMainWarehouseConns(
-                acursor,
+                apool,
                 ORSGeocoder,
                 CONN_TYPE_REGION,
                 parentWarehouseDict,
@@ -862,7 +874,7 @@ class WarehouseConnectionsTable:
         # Set the City Main Warehouse Connections
         cityMainTask = asyncio.create_task(
             self.__insertMainWarehouseConns(
-                acursor,
+                apool,
                 ORSGeocoder,
                 CONN_TYPE_CITY,
                 warehouseDict,
@@ -873,7 +885,7 @@ class WarehouseConnectionsTable:
         # Set the City Warehouse Connections
         cityTask = asyncio.create_task(
             self.__insertMainWarehouseConns(
-                acursor,
+                apool,
                 ORSGeocoder,
                 CONN_TYPE_CITY,
                 warehouseDict,
@@ -894,7 +906,7 @@ class WarehouseConnectionsTable:
 
     async def insertCityWarehouse(
         self,
-        acursor,
+        apool: AsyncPool,
         ORSGeocoder: ORSGeocoder,
         warehouseDict: dict,
         warehouseConnDict: dict,
@@ -902,7 +914,7 @@ class WarehouseConnectionsTable:
         """
         Asynchronous Method to Insert the Warehouse Connection with the Given Main Warehouse at the City ID where the Warehouse is Located Asynchronously
 
-        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param ORSGeocoder ORSGeocoder: ORSGeocoder Object to Calculate the Route Distance between the Two Warehouses
         :param dict warehouseDict: Warehouse Connection Dictionary
         :param list warehouseConnDict: Warehouse Connection Dictionary that will be Connected with the Warehouse
@@ -914,7 +926,7 @@ class WarehouseConnectionsTable:
         # Insert the Warehouse Connection to its Table Asynchronously
         await asyncio.gather(
             self.__insertMainWarehouseConns(
-                acursor,
+                apool,
                 ORSGeocoder,
                 CONN_TYPE_CITY,
                 warehouseDict,

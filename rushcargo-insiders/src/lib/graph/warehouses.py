@@ -7,10 +7,8 @@ from psycopg import sql
 
 from .constants import *
 
-
 from ..model.constants import *
-from ..model.database import initAsyncPool
-from ..model.database_tables import cancelTasks
+from ..model.database import AsyncPool
 
 # Rush Cargo Warehouse Graph
 rushWGraph = None
@@ -57,23 +55,31 @@ class RushWGraph:
         self.__draw = draw
 
     @classmethod
-    async def create(cls, aconn, draw: bool = False):
+    async def create(cls, apool: AsyncPool, draw: bool = False):
         """
         Rush Cargo Warehouse Connection Graph Class Asynchronous Factory Method
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
         :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param bool draw: Specifies whether to Draw or not the NetworkX Graph
         """
 
         self = RushWGraph(draw)
 
-        # Get Nodes and Nodes Edges from the Remote Database
+        # Get the Connections from the Asynchronous Connection Pool
+        getTask = asyncio.create_task(apool.getConnections(4))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
+
+        # Get All the Required Warehouses Nodes and Nodes Edges from the Remote Database
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(self.__getRegionsMainNodes(aconn.cursor()))
-            tg.create_task(self.__getCitiesMainNodes(aconn.cursor()))
-            tg.create_task(self.__getCitiesNodes(aconn.cursor()))
-            tg.create_task(self.__getNodesEdges(aconn.cursor()))
+            tg.create_task(self.__getRegionsMainNodes(aconns[0].cursor()))
+            tg.create_task(self.__getCitiesMainNodes(aconns[1].cursor()))
+            tg.create_task(self.__getCitiesNodes(aconns[2].cursor()))
+            tg.create_task(self.__getNodesEdges(aconns[3].cursor()))
+
+        # Put the Connections Back to the Asynchronous Connection Pool
+        putTask = asyncio.create_task(apool.putConnections(aconns))
 
         # Set Nodes
         self.__setRegionsMainNodes(draw)
@@ -86,11 +92,13 @@ class RushWGraph:
         # Set the Graph as Available
         self.__busy = False
 
+        await asyncio.gather(putTask)
+
         # Return the Instance
         return self
 
     @classmethod
-    async def createFromApp(cls, apool, draw: bool = False):
+    async def createFromApp(cls, apool:AsyncPool, draw: bool = False):
         """
         Rush Cargo Warehouse Connection Graph Class Asynchronous Factory Method. Called from ``app.py``
 
@@ -98,13 +106,10 @@ class RushWGraph:
         :param bool draw: Specifies whether to Draw or not the NetworkX Graph
         """
 
-        # Open Remote Database Connection Pool
-        await asyncio.gather(apool.openPool())
-
-        async with apool.connection() as aconn:
-            createTask = asyncio.create_task(cls.create(aconn, draw))
-            await asyncio.gather(createTask)
-            self = createTask.result()
+        # Call the Constructor
+        createTask = asyncio.create_task(cls.create(apool, draw))
+        await asyncio.gather(createTask)
+        self = createTask.result()
 
         # Return the Instance
         return self
@@ -705,22 +710,32 @@ class RushWGraph:
                         connType=connType,
                     )
 
-    async def update(self, aconn) -> None:
+    async def update(self, apool: AsyncPool, logger=None) -> None:
         """
         Asynchronous Method to Update the Graph Nodes and Edges
 
-        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param AsyncPool apool: Object of the Asynchronous Connection Pool with the Remote Database
+        :param logger: Flask App Logger. Default is ``None``
         :return: Nothing
         :rtype: NoneType
         """
 
+        # Get the Connections from the Asynchronous Connection Pool
+        logger.info("Getting Pool Connections...")
+        getTask = asyncio.create_task(apool.getConnections(5))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
+
         # Get All the Required Warehouses Nodes and Nodes Edges from the Remote Database
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(self.__getAllNodes(aconn.cursor()))
-            tg.create_task(self.__getRegionsMainNodes(aconn.cursor()))
-            tg.create_task(self.__getCitiesMainNodes(aconn.cursor()))
-            tg.create_task(self.__getCitiesNodes(aconn.cursor()))
-            tg.create_task(self.__getNodesEdges(aconn.cursor()))
+            tg.create_task(self.__getAllNodes(aconns[0].cursor()))
+            tg.create_task(self.__getRegionsMainNodes(aconns[1].cursor()))
+            tg.create_task(self.__getCitiesMainNodes(aconns[2].cursor()))
+            tg.create_task(self.__getCitiesNodes(aconns[3].cursor()))
+            tg.create_task(self.__getNodesEdges(aconns[4].cursor()))
+
+        # Put the Connections Back to the Asynchronous Connection Pool
+        putTask = asyncio.create_task(apool.putConnections(aconns))
 
         # Get Current Warehouse Nodes to Check
         self.__nodesToCheck = dict(self.__DiGraph.nodes(data=GRAPH_WAREHOUSE_NODE_TYPE))
@@ -732,6 +747,7 @@ class RushWGraph:
                 self.__DiGraph.remove_node(key)
 
         # Set the Graph as Busy
+        logger.info("Rush Cargo Warehouses Graph is being Updated")
         self.__busy = True
 
         # Set Nodes
@@ -744,6 +760,10 @@ class RushWGraph:
 
         # Set the Graph as Available
         self.__busy = False
+        logger.info("Rush Cargo Warehouses Graph has been Updated")
+
+        await asyncio.gather(putTask)
+        logger.info("Returned Pool Connections")
 
     def draw(
         self, layout: str, level: str, locationId: int, warehouseIds: list[int]

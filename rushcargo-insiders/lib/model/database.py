@@ -12,10 +12,11 @@ from .constants import (
     APOOL_MIN_SIZE,
     THEME,
     ENV_HOST,
-    ENV_PORT,
+    ENV_DBPORT,
     ENV_DBNAME,
     ENV_USER,
     ENV_PASSWORD,
+    ENV_PORT,
     ENV_ORS_API_KEY,
 )
 
@@ -195,16 +196,16 @@ class AsyncPool:
 
 
 # Initialize Asynchronous Connection Pool
-def initAsyncPool() -> tuple[AsyncPool, str, str]:
+def initAsyncPool() -> tuple[AsyncPool, str, int, str]:
     """
     Function that Initialize Remote Database Asynchronous Connection Pool and Returns Some Environment Variables
 
-    :return: Tuple of Database Object, and the ``ENV_USER`` and ``ENV_ORS_API_KEY`` Environment Varibles
+    :return: Tuple of Database Object, and the ``ENV_USER``, the ``ENV_PORT`` and ``ENV_ORS_API_KEY`` Environment Varibles
     :rtype: tuple
     """
 
     # Get Path to 'src' Directory
-    src = Path(__file__).parent.parent.parent
+    src = Path(__file__).parent.parent
 
     # Get Path to 'rushcargo-insiders' Directory
     main = src.parent
@@ -218,16 +219,17 @@ def initAsyncPool() -> tuple[AsyncPool, str, str]:
     # Get Database-related Environment Variables
     try:
         host = os.getenv(ENV_HOST)
-        port = os.getenv(ENV_PORT)
+        dbport = os.getenv(ENV_DBPORT)
         dbname = os.getenv(ENV_DBNAME)
         user = os.getenv(ENV_USER)
         password = os.getenv(ENV_PASSWORD)
+        port = os.getenv(ENV_PORT)
         ORSApiKey = os.getenv(ENV_ORS_API_KEY)
 
     except Exception as err:
         console.print(err, style="warning")
 
     # Initialize Remote Database Asynchronous Connection Pool Object
-    apool = AsyncPool(dbname, user, password, host, port)
+    apool = AsyncPool(dbname, user, password, host, dbport)
 
-    return apool, user, ORSApiKey
+    return apool, user, port, ORSApiKey

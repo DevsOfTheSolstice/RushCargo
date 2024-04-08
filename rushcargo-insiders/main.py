@@ -132,7 +132,7 @@ if __name__ == "__main__":
                 os._exit(0)
 
         # Initialize Remote Database Asynchronous Connection Pool
-        apool, user, ORSApiKey = initAsyncPool()
+        apool, user, _,ORSApiKey = initAsyncPool()
 
         # Open Remote Database Connection Pool
         asyncio.run(apool.openPool())

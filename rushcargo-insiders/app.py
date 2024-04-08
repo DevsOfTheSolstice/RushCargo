@@ -10,6 +10,15 @@ from lib.model.database import initAsyncPool, AsyncPool
 
 app = Flask("RushCargo")
 
+# Initialize Database
+apool, _, port, _ = initAsyncPool()
+
+# Open Remote Database Connection Pool
+asyncio.run(apool.openPool())
+
+# Initialize RushWGraph Class
+rushWGraph = asyncio.run(RushWGraph.createFromApp(apool, False))
+
 # Time to Wait between Graphs Updates
 UPDATE_TIME = 60
 WAIT_BUSY_TIME = 0.05
@@ -101,27 +110,18 @@ def graphEventsHandler(apool: AsyncPool, updateTime: int) -> None:
     asyncio.run(updateGraphs(apool, updateTime))
 
 
+# Call the Update Function with Multithreading
+threadUpdate = threading.Thread(
+    target=graphEventsHandler,
+    args=(apool, UPDATE_TIME),
+    daemon=True,
+    name="update-rushwgraph",
+)
+threadUpdate.start()
+
 if __name__ == "__main__":
-    # Initialize Database
-    apool, _, _ = initAsyncPool()
-
-    # Open Remote Database Connection Pool
-    asyncio.run(apool.openPool())
-
-    # Initialize RushWGraph Class
-    rushWGraph = asyncio.run(RushWGraph.createFromApp(apool, False))
-
-    # Call the Update Function with Multithreading
-    threadUpdate = threading.Thread(
-        target=graphEventsHandler,
-        args=(apool, UPDATE_TIME),
-        daemon=True,
-        name="update-rushwgraph",
-    )
-    threadUpdate.start()
-
     # Initialize Flask Server
-    app.run(debug=True, port=5000, use_reloader=False)
+    app.run(port=port)
 
     # Close Remote Database Connection Pool
-    asyncio.run(apool.closePool())
+    # asyncio.run(apool.closePool())

@@ -19,7 +19,7 @@ WHERE
     EXTRACT(YEAR FROM completed_date) = 2024;
 
 --Stat total orders in a year
-  SELECT
+SELECT
     COUNT(*) AS total_trips
 FROM
     Orders.Automatic_Orders
@@ -40,7 +40,7 @@ WHERE
 SELECT 
     COUNT(*) AS total_trips
 FROM 
-    Automatic_Orders
+    orders.Automatic_Orders
 WHERE 
     EXTRACT(DAY FROM completed_date) = 1
 

@@ -31,27 +31,73 @@ impl App {
         let (warehouse_to, warehouse_from, add_dist_from, add_dist_to) =
         match &mut self.user {
             Some(User::PkgAdmin(pkgadmin_data)) => {
-                let add_package = pkgadmin_data.add_package.as_mut().unwrap();
-                let shipping = add_package.shipping.as_ref().unwrap();
-                match shipping.shipping_type {
-                    ShippingGuideType::InpersonBranch => {
-                        let branch_to = shipping.branch.as_ref().unwrap();
-                        (
-                            branch_to.warehouse.get_id(),
-                            pkgadmin_data.info.branch.warehouse.get_id(),
-                            pkgadmin_data.info.branch.route_distance,
-                            branch_to.route_distance,
-                        )
+                match self.active_screen {
+                    Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
+                        let add_package = pkgadmin_data.add_package.as_mut().unwrap();
+                        let shipping = add_package.shipping.as_ref().unwrap();
+                        match shipping.shipping_type {
+                            ShippingGuideType::InpersonBranch => {
+                                let branch_to = shipping.branch.as_ref().unwrap();
+                                (
+                                    branch_to.warehouse.get_id(),
+                                    pkgadmin_data.info.branch.warehouse.get_id(),
+                                    pkgadmin_data.info.branch.route_distance,
+                                    branch_to.route_distance,
+                                )
+                            }
+                            ShippingGuideType::InpersonLocker => {
+                                let locker_to = shipping.locker.as_ref().unwrap();
+                                (
+                                    locker_to.warehouse.get_id(),
+                                    pkgadmin_data.info.branch.warehouse.get_id(),
+                                    pkgadmin_data.info.branch.route_distance,
+                                    0,
+                                ) 
+                            }
+                            _ => unimplemented!()
+                        }
                     }
-                    ShippingGuideType::InpersonLocker => {
-                        let locker_to = shipping.locker.as_ref().unwrap();
-                        (
-                            locker_to.warehouse.get_id(),
-                            pkgadmin_data.info.branch.warehouse.get_id(),
-                            pkgadmin_data.info.branch.route_distance,
-                            0,
-                        ) 
-                    }
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                        let guide = pkgadmin_data.shipping_guides.as_ref().unwrap().active_guide.as_ref().unwrap();
+
+                        let warehouse_from =
+                            sqlx::query(
+                                "
+                                    SELECT * FROM shippings.lockers WHERE locker_id=$1
+                                "
+                            )
+                            .bind(guide.locker_sender.unwrap())
+                            .fetch_one(pool)
+                            .await?
+                            .try_get::<i32, _>("warehouse")?;
+
+                        let warehouse_to =
+                            match guide.shipping_type {
+                                ShippingGuideType::LockerBranch =>
+                                    sqlx::query(
+                                        "
+                                            SELECT * FROM locations.branches WHERE branch_id=$1
+                                        "
+                                    )
+                                    .bind(guide.branch_receiver.unwrap())
+                                    .fetch_one(pool)
+                                    .await?
+                                    .try_get::<i32, _>("warehouse_id")?,
+                                ShippingGuideType::LockerLocker =>
+                                    sqlx::query(
+                                        "
+                                            SELECT * FROM shippings.lockers WHERE locker_id=$1
+                                        "
+                                    )
+                                    .bind(guide.locker_receiver.unwrap())
+                                    .fetch_one(pool)
+                                    .await?
+                                    .try_get::<i32, _>("warehouse")?,
+                                _ => unimplemented!()
+                            };
+                        
+                        (warehouse_to, warehouse_from, 0, 0)
+                   }
                     _ => unimplemented!()
                 }
             }
@@ -82,14 +128,27 @@ impl App {
             _ => unimplemented!()
         };
 
+        let distance: &mut Option<i64> = &mut None;
+
         let (route, distance) =
         match &mut self.user {
             Some(User::PkgAdmin(pkgadmin_data)) => {
-                let add_package = pkgadmin_data.add_package.as_mut().unwrap();
-                (
-                    &mut add_package.route,
-                    &mut add_package.route_distance,
-                )
+                match self.active_screen {
+                    Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
+                        let add_package = pkgadmin_data.add_package.as_mut().unwrap();
+                        (
+                            &mut add_package.route,
+                            &mut add_package.route_distance,
+                        )
+                    }
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                        (
+                            &mut pkgadmin_data.shipping_guides.as_mut().unwrap().active_guide_route,
+                            distance,
+                        )
+                    }
+                    _ => unimplemented!()
+                }
             }
             Some(User::Client(client_data)) => {
                 (
@@ -113,165 +172,6 @@ impl App {
 
         Ok(())
     }
-    /*pub async fn get_shortest_branch_branch(&mut self, pool: &PgPool) -> Result<()> {
-        let (branch_to, branch_from, route, distance) =
-        if let Some(User::PkgAdmin(pkgadmin_data)) = &mut self.user {
-            match self.active_screen {
-                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
-                    let add_package = pkgadmin_data.add_package.as_mut().unwrap();
-                    (
-                        add_package.branch.value().parse::<i32>().expect("could not parse branch_to in graph_reqs.rs"),
-                        //pkgadmin_data.info.branch_id,
-                        0,
-                        &mut add_package.route,
-                        &mut add_package.route_distance,
-                    )
-                }
-                _ => unimplemented!("get_shortest_branch_branch() for {:?}", self.active_screen)
-            }
-        } else {
-            panic!()
-        };
-
-        let (add_distance_from, warehouse_from) = {
-            let res = sqlx::query("SELECT * FROM locations.branches WHERE branch_id=$1")
-                .bind(branch_from)
-                .fetch_one(pool)
-                .await?;
-            (
-                res.try_get::<i64, _>("route_distance")?, res.try_get::<i32, _>("warehouse_id")?
-            )
-        };
-
-        let (add_distance_to, warehouse_to) = {
-            let res = sqlx::query("SELECT * FROM locations.branches WHERE branch_id=$1")
-                .bind(branch_to)
-                .fetch_one(pool)
-                .await?;
-            (
-                res.try_get::<i64, _>("route_distance")?, res.try_get::<i32, _>("warehouse_id")?
-            )                                                                                           
-        };
-
-        let response = get_server_response(warehouse_from, warehouse_to).await?;
-        if response.status().is_success() {
-            let data = response.json::<GraphResponse>().await?;
-            *route = Some(Vec::new());
-            if let Some(route) = route {
-                route.extend(data.nodes);
-            }
-            *distance = Some(data.distance + add_distance_from + add_distance_to);
-        }
-
-        Ok(())
-    }
-
-    pub async fn get_shortest_branch_locker(&mut self, pool: &PgPool) -> Result<()> {
-        /*let (locker_to, branch_from, route, distance) =
-        if let Some(User::PkgAdmin(pkgadmin_data)) = &mut self.user {
-            match self.active_screen {
-                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
-                    let add_package = pkgadmin_data.add_package.as_mut().unwrap();
-                    (
-                        add_package.locker.value().parse::<i64>().expect("could not parse i64"),
-                        //pkgadmin_data.info.branch.warehouse.get_id(),
-                        &mut add_package.route,
-                        &mut add_package.route_distance,
-                    )
-                }
-                _ => panic!()
-            }
-        } else {
-            panic!()
-        };
-
-        let (add_distance_from, warehouse_from) = {
-            let res = sqlx::query("SELECT * FROM locations.branches WHERE branch_id=$1")
-                .bind(branch_from)
-                .fetch_one(pool)
-                .await?;
-            (
-                res.try_get::<i64, _>("route_distance")?, res.try_get::<i32, _>("warehouse_id")?
-            )
-        };
-
-        let warehouse_to = {
-            let res = sqlx::query("SELECT * FROM shippings.lockers WHERE locker_id=$1")
-                .bind(locker_to)
-                .fetch_one(pool)
-                .await?;
-
-            res.try_get::<i32, _>("warehouse")?
-        };
-
-        let response = get_server_response(warehouse_from, warehouse_to).await?;
-        if response.status().is_success() {
-            let data = response.json::<GraphResponse>().await?;
-            *route = Some(Vec::new());
-            if let Some(route) = route {
-                route.extend(data.nodes);
-            }
-            *distance = Some(data.distance + add_distance_from);
-        }*/
-
-        Ok(())
-    }
-
-    pub async fn get_shortest_locker_locker(&mut self, pool: &PgPool) -> Result<()> {
-        let (warehouse_from, warehouse_to, route, distance) =
-        if let Some(User::Client(client_data)) = &mut self.user {
-            match self.active_screen {
-                Screen::Client(SubScreen::ClientLockerPackages) => {
-                    (
-                        client_data.active_locker.as_ref().unwrap().warehouse.get_id(),
-                        client_data.send_to_locker.as_ref().unwrap().warehouse.get_id(),
-                        &mut client_data.send_route,
-                        &mut client_data.send_route_distance,
-                    )
-                }
-                _ => panic!()
-            }
-        }
-        else {
-            panic!()
-        };
-
-        let response = get_server_response(warehouse_from, warehouse_to).await?;
-        if response.status().is_success() {
-            let data = response.json::<GraphResponse>().await?;
-            *route = Some(Vec::new());
-            if let Some(route) = route {
-                route.extend(data.nodes);
-            }
-            *distance = Some(data.distance);
-        }
-
-        Ok(())
-    }
-
-    pub async fn get_shortest_locker_branch(&mut self, pool: &PgPool) -> Result<()> {
-        let (warehouse_from, branch_to, route, distance) = {
-            if let Some(User::Client(client_data)) = &mut self.user {
-                match self.active_screen {
-                    Screen::Client(SubScreen::ClientLockerPackages) => {
-                        (
-                            client_data.active_locker.as_ref().unwrap().warehouse.get_id(),
-                            client_data.send_to_branch.as_ref().unwrap().get_id(),
-                            &mut client_data.send_route,
-                            &mut client_data.send_route_distance,
-                        )
-                    }
-                    _ => panic!()
-                }
-            } else {
-                panic!();
-            }
-        };
-
-        
-
-        Ok(())
-    }*/
 }
 
 async fn get_server_response(warehouse_from: i32, warehouse_to: i32) -> Result<reqwest::Response> {

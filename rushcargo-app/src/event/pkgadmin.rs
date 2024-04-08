@@ -170,22 +170,33 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
             }
         }
         SubScreen::PkgAdminGuideInfo => {
-            match key_event.code {
-                KeyCode::Esc => {
-                    sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminGuides)))
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    sender.send(Event::NextTableItem(TableType::GuidePackages))
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    sender.send(Event::PrevTableItem(TableType::GuidePackages))
-                }
-                KeyCode::Char('a') => {
-                    sender.send(Event::PlaceOrder)
-                }
-                KeyCode::Char('r') => {
-                    sender.send(Event::RejectOrderReq)
-                }
+            match app_lock.active_popup {
+                None =>
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminGuides)))
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            sender.send(Event::NextTableItem(TableType::GuidePackages))
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            sender.send(Event::PrevTableItem(TableType::GuidePackages))
+                        }
+                        KeyCode::Char('a') => {
+                            sender.send(Event::PlaceOrder)
+                        }
+                        KeyCode::Char('r') => {
+                            sender.send(Event::RejectOrderReq)
+                        }
+                        _ => Ok(())
+                    },
+                Some(Popup::OrderSuccessful) =>
+                    match key_event.code {
+                        _ => {
+                            sender.send(Event::EnterPopup(None)).expect(SENDER_ERR);
+                            sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminGuides)))
+                        }
+                    },
                 _ => Ok(())
             }
         }

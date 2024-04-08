@@ -17,6 +17,8 @@ use crate::{
     }
 };
 
+use super::common::UserType;
+
 pub struct App {
     pub input: InputFields,
     pub input_mode: InputMode,
@@ -113,6 +115,7 @@ impl App {
                             viewing_guides_idx: 0,
                             active_guide: None,
                             active_guide_payment: None,
+                            active_guide_route: None,
                         }
                     );
                     self.get_guides_next(TableType::Guides, pool)
@@ -259,9 +262,19 @@ impl App {
             _ => {}
         }
     }
+
+    pub fn get_usertype(&self) -> UserType {
+        match self.user {
+            Some(User::Client(_)) => UserType::Client,
+            Some(User::PkgAdmin(_)) => UserType::PkgAdmin,
+            _ => panic!()
+        }
+    }
+
     pub fn toggle_displaymsg(&mut self) {
         self.display_msg = !self.display_msg;
     }
+
     /// The timeout tick rate here should be equal or greater to the EventHandler tick rate.
     /// This is important because the minimum update time perceivable is defined by the EventHandler tick rate.
     pub fn add_timeout(&mut self, counter: u8, tick_rate: u16, timeout_type: TimeoutType) {

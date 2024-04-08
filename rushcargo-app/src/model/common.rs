@@ -5,7 +5,10 @@ use std::{
 use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
-    client::{Client, ClientData}, db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType}, pkgadmin::PkgAdminData
+    client::{Client, ClientData},
+    graph_reqs::WarehouseNode,
+    db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType},
+    pkgadmin::PkgAdminData
 };
 
 #[derive(Debug, Clone)]
@@ -131,6 +134,7 @@ pub struct ShippingGuideData {
     pub viewing_guides_idx: i64,
     pub active_guide: Option<ShippingGuide>,
     pub active_guide_payment: Option<Payment>,
+    pub active_guide_route: Option<Vec<WarehouseNode>>,
 }
 
 impl std::default::Default for ShippingGuideData {
@@ -140,6 +144,7 @@ impl std::default::Default for ShippingGuideData {
             viewing_guides_idx: 0,
             active_guide: None,
             active_guide_payment: None,
+            active_guide_route: None,
         }
     }
 }

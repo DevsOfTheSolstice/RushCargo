@@ -80,7 +80,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             SELECT username
                             FROM (
                                 SELECT  t.username,
-                                        SUM(CASE WHEN ao.completed_date IS NULL OR wo.rejected OR bo.rejected THEN 0 ELSE 1 END) AS total_orders
+                                        SUM(CASE WHEN ao.completed_date IS NULL AND (wo.rejected=false OR bo.rejected=false) THEN 1 ELSE 0 END) AS total_orders
                                 FROM vehicles.truckers AS t
                                 LEFT JOIN orders.warehouse_transfer_orders AS wo ON t.username=wo.trucker
                                 LEFT JOIN orders.branch_transfer_order AS bo ON t.username=bo.trucker
@@ -103,22 +103,38 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             async fn insert_route_orders(
                 next_order_number: &mut i64, prev_order_number: &mut Option<i64>, shipping_number: i64, app: &Arc<Mutex<App>>, pool: &PgPool
             ) -> Result<()> {
-                let app_lock = app.lock().unwrap();
+                let mut app_lock = app.lock().unwrap();
+                let active_screen = app_lock.active_screen.clone();
+
+                if let Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) = app_lock.active_screen {
+                    app_lock.get_shortest_warehouse_path(pool).await?
+                }
 
                 let (verification, route) =
                     match &app_lock.user {
                         Some(User::PkgAdmin(pkgadmin_data)) => {
-                            (
-                                &pkgadmin_data.info.username,
-                                pkgadmin_data.add_package.as_ref().unwrap().route.as_ref().unwrap()
-                            )
+                            match active_screen {
+                                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) =>
+                                    (
+                                        &pkgadmin_data.info.username,
+                                        pkgadmin_data.add_package.as_ref().unwrap().route.as_ref().unwrap()
+                                    ),
+                                Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                                    let guide_data = pkgadmin_data.shipping_guides.as_ref().unwrap();
+                                    (
+                                        &pkgadmin_data.info.username,
+                                        guide_data.active_guide_route.as_ref().unwrap()
+                                    )
+                                }
+                                _ => unimplemented!()
+                            }
                         }
                         _ => unimplemented!()
                     };
 
                 let datetime = OffsetDateTime::now_utc();
  
-                for i in 0..route.len() - 1{
+                for i in 0..route.len() - 1 {
                     let warehouse_from = &route[i];
                     let warehouse_to = &route[i + 1];
 
@@ -211,15 +227,27 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                 let app_lock = app.lock().unwrap();
 
-                let (shipping, last_warehouse) =
+                let (branch_id, last_warehouse) =
                     match &app_lock.user {
                         Some(User::PkgAdmin(pkgadmin_data)) => {
-                            let add_package = pkgadmin_data.add_package.as_ref().unwrap();
-                            (
-                                add_package.shipping.as_ref().unwrap(),
-                                add_package.route.as_ref().unwrap().last().unwrap()
-                            )
-                        }
+                            match app_lock.active_screen {
+                                Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
+                                    let add_package = pkgadmin_data.add_package.as_ref().unwrap();
+                                    (
+                                        add_package.shipping.as_ref().unwrap().branch.as_ref().unwrap().get_id(),
+                                        add_package.route.as_ref().unwrap().last().unwrap()
+                                    )
+                                }
+                                Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                                    let guide_data = pkgadmin_data.shipping_guides.as_ref().unwrap();
+                                    (
+                                        *guide_data.active_guide.as_ref().unwrap().branch_receiver.as_ref().unwrap(),
+                                        guide_data.active_guide_route.as_ref().unwrap().last().unwrap(),
+                                    )
+                                }
+                                _ => unimplemented!()
+                            }
+                       }
                         _ => unimplemented!()
                     };
                 
@@ -232,7 +260,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     trucker,
                     shipping_number,
                     warehouse: Warehouse::from_id(last_warehouse.id),
-                    branch: shipping.branch.as_ref().unwrap().get_id(),
+                    branch: branch_id,
                     withdrawal: true,
                     rejected: false
                 };
@@ -299,14 +327,43 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                         next_shipping_num
                     }
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                        let app_lock = app.lock().unwrap();
+                        let guide = app_lock.get_pkgadmin_ref().shipping_guides.as_ref().unwrap().active_guide.as_ref().unwrap();
+
+                        let datetime = OffsetDateTime::now_utc();
+
+                        sqlx::query(
+                            "
+                                UPDATE shippings.shipping_guides SET shipping_date=$1, shipping_hour=$2
+                                WHERE shipping_number=$3
+                            "
+                        )
+                        .bind(datetime.date())
+                        .bind(datetime.time())
+                        .bind(guide.get_id())
+                        .execute(pool)
+                        .await?;
+
+                        guide.get_id()
+                    }
                     _ => unimplemented!()
                 }
             };
 
             let shipping_type = {
                 let app_lock = app.lock().unwrap();
-                let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
-                package.shipping.as_ref().unwrap().shipping_type.clone()
+                match app_lock.active_screen {
+                    Screen::PkgAdmin(SubScreen::PkgAdminAddPackage(_)) => {
+                        let package = app_lock.get_pkgadmin_ref().add_package.as_ref().unwrap();
+                        package.shipping.as_ref().unwrap().shipping_type.clone()
+                    }
+                    Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                        let guide = app_lock.get_pkgadmin_ref().shipping_guides.as_ref().unwrap().active_guide.as_ref().unwrap();
+                        guide.shipping_type.clone()
+                    }
+                    _ => unimplemented!()
+                }
             };
 
             let mut next_order_number = get_next_order_number(pool).await?;
@@ -336,6 +393,28 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                 insert_branch_transfer_last(
                     &datetime, &mut next_order_number, &mut prev_order_number, shipping_number, app, pool
                 ).await?;
+            }
+
+            {
+                let mut app_lock = app.lock().unwrap();
+
+                match &mut app_lock.user {
+                    Some(User::PkgAdmin(_)) => {
+                        match app_lock.active_screen {
+                            Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo) => {
+                                let guide_pos = app_lock.temp_val.unwrap() as usize;
+                                if guide_pos == app_lock.get_pkgadmin_ref().shipping_guides.as_ref().unwrap().viewing_guides.len() {
+                                    app_lock.temp_val =
+                                        if guide_pos > 0 { Some((guide_pos - 1) as i64) }
+                                        else { None }
+                                }
+                                app_lock.get_pkgadmin_mut().shipping_guides.as_mut().unwrap().viewing_guides.remove(guide_pos);
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                };
             }
 
             app.lock().unwrap().enter_popup(Some(Popup::OrderSuccessful), pool).await;

@@ -165,12 +165,13 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                     .fetch_one(pool)
                                     .await?
                                     .try_get::<Decimal, _>("weight_sum")
-                                    .unwrap_or(Decimal::new(0, 0))
-                                    >
+                                    .unwrap_or(Decimal::new(0, 0)) +
                                     package_weight_decimal
+                                    >
+                                    Decimal::from_i64(LOCKER_WEIGHT_MAX).unwrap()
                                 {
                                     app_lock.get_pkgadmin_mut().get_db_err = Some(GetDBErr::LockerWeightTooBig(Decimal::new(LOCKER_WEIGHT_MAX, 0) - package_weight_decimal));
-                                    return Ok(());
+                                    return Ok(())
                                 }
                                 
                                 let locker_row = get_locker_row(pool, locker_id).await?;

@@ -35,9 +35,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
         Event::PlaceOrderReq | Event::PlaceOrder
         => db::insert::update(app, pool, event).await,
-
         Event::RejectOrderReq
         => db::update::update(app, pool, event).await,
+
+        Event::PlaceCompletedRoute
+        => db::insert::update(app, pool, event).await,
+
+        Event::PlaceAcceptOrDenyRoute
+        => db::insert::update(app, pool, event).await,
+
 
         Event::Resize
         => Ok(()),

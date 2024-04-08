@@ -214,7 +214,11 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                             };
 
                             app_lock.enter_popup(Some(Popup::SelectPayment), pool).await;
-                        }
+                        } /* 
+                        Some(User::Trucker(_)) => {
+                            let order = app_lock.get_orders_mut().add_order.as_mut().unwrap();
+                            //let package = app_lock.get_pkgadmin_mut().add_package.as_mut().unwrap();                            
+                        } */
                         _ => {}
                     }
                     return Ok(());
@@ -483,6 +487,20 @@ pub async fn get_full_client_row(username: String, pool: &PgPool) -> Result<PgRo
         .await?
     )
 }
+pub async fn get_full_trucker(username: String, pool: &PgPool) -> Result<PgRow> {
+    Ok(
+        sqlx::query(
+            "
+            SELECT * FROM Vehicles.Truckers AS truckers
+            INNER JOIN Locations.Warehouses AS warehouse ON truckers.affiliated_warehouse=warehouse.warehouse_id
+            WHERE truckers.username=$1            
+            "
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await?
+    )
+}
 
 fn set_getdberr(app: &mut Arc<Mutex<App>>, err: GetDBErr) {
     let mut app_lock = app.lock().unwrap();
@@ -494,6 +512,9 @@ fn set_getdberr(app: &mut Arc<Mutex<App>>, err: GetDBErr) {
             }
             Some(User::PkgAdmin(pkgadmin_data)) => {
                 &mut pkgadmin_data.get_db_err
+            }
+            Some(User::Trucker(trucker_data)) => {
+                &mut trucker_data.get_db_err
             }
             _ => unimplemented!("update::db::tryget::set_getdberr for user {:?}", app_lock.user)
         };

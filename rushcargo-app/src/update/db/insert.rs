@@ -8,7 +8,7 @@ use time::{Date, OffsetDateTime, Time};
 use crate::{
     event::{Event, InputBlacklist},
     model::{
-        app::App, client::Client, common::{UserType, Bank, PaymentType, Popup, Screen, SubScreen, User}, db_obj::{Branch, BranchTransferOrderSmall, Locker, ShippingGuideType, Warehouse}, graph_reqs::WarehouseNode, pkgadmin
+        app::App, client::Client, common::{UserType, Bank, PaymentType, Popup, Screen, SubScreen, User}, db_obj::{Branch, BranchTransferOrderSmall, Locker, ShippingGuideType, Warehouse}, trucker::{Trucker, TruckerData}, graph_reqs::WarehouseNode, pkgadmin
     },
 };
 
@@ -18,6 +18,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             place_order_req(app, pool, &event).await?;
             Ok(())
         }
+        
         Event::PlaceOrder => {
             async fn insert_order(order_number: i64, prev_order_number: Option<i64>, datetime: &OffsetDateTime, pool: &PgPool) -> Result<()> {
                 sqlx::query(
@@ -468,7 +469,6 @@ async fn place_order_req(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event
     }
     Ok(())
 }
-
 async fn insert_shipping_guide(shipping_num: i64, set_date: bool, app: &Arc<Mutex<App>>, pool: &PgPool) -> Result<()> {
     let app_lock = app.lock().unwrap();
 
@@ -658,3 +658,41 @@ async fn get_next_tracking_number(pool: &PgPool) -> Result<i64> {
 async fn get_next_order_number(pool: &PgPool) -> Result<i64> {
     Ok(get_next_id(NEXT_ORDER_NUMBER, pool).await?)
 }
+
+/* 
+async fn place_confirmation(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) -> Result<()> {
+    let mut app_lock = app.lock().unwrap();
+
+    match &app_lock.user {
+        Some(User::Trucker(trucker_data)) => {
+            
+            let datetime = OffsetDateTime::now_utc();
+
+            let trucker_route_data = app_lock.get_orders_mut();
+            let selected_orders = trucker_route_data.active_orders.as_ref().unwrap();
+            //let order_num = viewing_orders.iter().position(|Order| Order == Order);
+
+            if let Some(index) = order_num {
+                // Update the time and date of completion for the order
+                sqlx::query(
+                    "
+                    UPDATE orders.automatic_orders
+                    SET completed_date = $1,
+                    completed_hour = $2
+                    WHERE order_number = $3;
+                    "
+                )
+                .bind(datetime.date())
+                .bind(datetime.time())
+                //bind(selected_orders[index].get_route_num())
+                .execute(pool)
+                .await?;
+            } else {
+                return Err(anyhow!("order not found"));
+            }
+        }
+        // Handle other user types
+        _ => unimplemented!("db::insert::place_confirmation for user {:?}", app_lock.user)
+    }
+    Ok(())
+} */

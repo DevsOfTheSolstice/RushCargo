@@ -3,6 +3,7 @@ mod settings;
 mod login;
 mod client;
 mod pkgadmin;
+mod trucker;
 
 use crossterm::event::{
     self,
@@ -69,6 +70,9 @@ pub enum Event {
     TryGetUserBranch(String, String),
     TryGetUserDelivery(String),
     PlaceOrderReq,
+
+    PlaceOrderInpersonBranch,
+    PlaceOrderInpersonLocker,
 
     UpdatePaymentInfo,
     RejectOrderReq,
@@ -154,6 +158,7 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 Screen::Login => login::event_act(key_event, sender, app),
                 Screen::Client(_) => client::event_act(key_event, sender, app),
                 Screen::PkgAdmin(_) => pkgadmin::event_act(key_event, sender, app),
+                Screen::Trucker(_) => trucker::event_act(key_event, sender, app),
             }
         },
         CrosstermEvent::Resize(_, _) => {

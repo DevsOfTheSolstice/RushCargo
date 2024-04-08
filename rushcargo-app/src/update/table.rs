@@ -11,7 +11,7 @@ use crate::{
     event::{Event, InputBlacklist}, model::{
         app::App,
         app_list::ListType,
-        db_obj::Payment,
+        db_obj::{Payment, Order},
         app_table::TableType,
         common::{Screen, SubScreen, User}, pkgadmin,
     },
@@ -89,6 +89,24 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
 
                         app_lock.enter_screen(Screen::PkgAdmin(SubScreen::PkgAdminGuideInfo), pool).await;
                     }
+                } /*
+                TableType::TruckerRoutes => {
+                    if let Some(selection) = app_lock.table.state.selected().clone() {
+                        let orders = app_lock.get_orders_mut();
+                        orders.active_orders = Some(orders.viewing_orders[selection].clone());
+
+                        let active_orders = orders.active_orders.as_ref().unwrap();
+
+                        let order_number =
+                            sqlx::query("SELECT * FROM orders.automatic_orders WHERE order_number=$1")
+                                .bind(order_number.get_id())
+                                .fetch_one(pool)
+                                .await?;
+                                try_get::<i64, _>("order_number")
+                    }
+                }  */
+                TableType::StatsYear => {
+                    
                 }
                 _ => {}
             }

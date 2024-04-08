@@ -6,6 +6,7 @@ mod pkgadmin;
 mod common_fn;
 mod common_render;
 mod err;
+mod trucker;
 
 use std::sync::{Arc, Mutex};
 use ratatui::prelude::{Frame, Layout};
@@ -37,6 +38,9 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
 
         Screen::PkgAdmin(_)
         => pkgadmin::render(app, f),
+
+        Screen::Trucker(_)
+        => trucker::render(app, f),
     }
     .unwrap_or_else(|_| { err::render(app, f) })
 }

@@ -11,13 +11,15 @@ use crate::{
         app_table::{TableData, TableType},
         client::ClientData,
         pkgadmin::{PkgAdminData, AddPkgData},
-        common::{ShippingGuideData, GetDBErr, User, SubScreen, Div, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
+        common::{ShippingGuideData, AutomaticOrdersData, GetDBErr, User, SubScreen, Div, Popup, PackageData, InputFields, InputMode, Screen, TimeoutType, Timer},
         settings::SettingsData,
         title::TitleData,
+        trucker::TruckerData,
     }
 };
-
 use super::common::UserType;
+
+
 
 pub struct App {
     pub input: InputFields,
@@ -388,4 +390,57 @@ impl App {
             }
         ).unwrap()
     }
+    pub fn get_trucker_ref(&self) -> &TruckerData {
+        self.user.as_ref().map(|u|
+            match u {
+              User::Trucker(trucker) => trucker,
+              _ => panic!(),  
+            }
+        ).unwrap()
+    }
+
+    pub fn get_trucker_mut(&mut self) -> &mut TruckerData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker,
+                _ => panic!()
+            }
+        ).unwrap()
+    }
+    
+    pub fn get_trucker_guides_ref(&self) -> &ShippingGuideData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker.shipping_guides.as_ref().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_trucker_guides_mut(&mut self) -> &mut ShippingGuideData {
+        self.user.as_mut().map(|u|
+        match u {
+            User::Trucker(trucker) => trucker.shipping_guides.as_mut().unwrap(),
+            _ => panic!()
+            }
+        ).unwrap()
+    }
+
+    pub fn get_orders_ref(&self) -> &AutomaticOrdersData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker.active_wh_route.as_ref().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+
+    pub fn get_orders_mut(&mut self) -> &mut AutomaticOrdersData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker.active_wh_route.as_mut().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    
 }

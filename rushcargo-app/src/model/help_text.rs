@@ -3,6 +3,7 @@ pub struct HelpText {
     pub client: ClientHelpText,
     pub pkgadmin: PkgAdminHelpText,
     pub common: CommonHelpText,
+    pub trucker: TruckerHelpText,
 }
 
 impl HelpText {
@@ -41,6 +42,12 @@ impl HelpText {
             common: CommonHelpText {
                 yay: ":D",
                 render_err: "The terminal is too smol :(",
+            },
+            trucker: TruckerHelpText {
+                main: "Press 'TAB' to swicth actions, or 'Esc' to go back",
+                Statistics: "Select a type of Statistic",
+                management_action: "(s) accept route | (b) Reject route",
+                route_action: "(⬆) move up | (⬇) move down | (Esc) back",
             },
         }
     }
@@ -82,4 +89,11 @@ pub struct PkgAdminHelpText {
 pub struct CommonHelpText {
     pub yay: &'static str,
     pub render_err: &'static str,
+}
+
+pub struct TruckerHelpText{
+    pub main: &'static str,
+    pub Statistics: &'static str,
+    pub management_action: &'static str,
+    pub route_action: &'static str,
 }

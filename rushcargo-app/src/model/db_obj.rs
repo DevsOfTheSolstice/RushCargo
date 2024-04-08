@@ -15,6 +15,7 @@ use anyhow::{Result, Error, anyhow};
 use super::{
     client::Client,
     common::PaymentType,
+    trucker::Trucker,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -280,6 +281,12 @@ pub struct Warehouse {
 }
 
 impl Warehouse {
+    pub fn get_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Warehouse {
     pub fn from_id(id: i32) -> Self {
         Warehouse {
             id
@@ -298,6 +305,7 @@ impl<'r> FromRow<'r, PgRow> for Warehouse {
         })
     }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct Country {
@@ -350,3 +358,28 @@ pub struct BranchTransferOrderSmall {
     pub withdrawal: bool,
     pub rejected: bool,
 }
+
+#[derive(Debug, Clone)]
+pub struct Order {
+    order_number: i64,
+    warehouse_from: Warehouse,
+    warehouse_to: Warehouse,
+    branch: Branch,
+    shipping_num: i64,
+}
+
+impl<'r> FromRow<'r, PgRow> for Order {
+    fn from_row(row: &'r PgRow) -> Result<Self, sqlx::Error> {
+        Ok(Order {
+            order_number: row.try_get("order_number")?,
+            warehouse_from: Warehouse::from_row(row)?,
+            warehouse_to: Warehouse::from_row(row)?,
+            branch: Branch::from_row(row)?,
+            shipping_num: row.try_get("shipping_number")?,
+        })
+    }
+}
+
+
+
+

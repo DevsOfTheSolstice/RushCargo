@@ -53,7 +53,7 @@ class EventHandler:
         # Initialize Location Event Handler
         self.__locationsEventHandler = LocationsEventHandler(user, ORSApiKey)
 
-    async def handler(self, argsDict: dict) -> None:
+    def handler(self, argsDict: dict) -> None:
         """
         Main Handler of ``add``, ``all``, ``get``, ``mod`` and ``rm`` Commands
 
@@ -62,32 +62,49 @@ class EventHandler:
         :rtype: NoneType
         """
 
-        # Open Remote Database Connection Pool
-        await self.__apool.openPool()
-
         while True:
-            async with self.__apool.connection() as aconn:
-                try:
-                    # Clear Terminal
-                    clear()
+            try:
+                # Clear Terminal
+                clear()
 
-                    # Check if it's a Database-related Command
-                    if argsDict[CMD_TYPE] == DB:
-                        # Check if it's a Locations Scheme Table
-                        if argsDict[DB_SCHEME] == DB_LOCATIONS_SCHEME_CMD:
-                            # Call Location Database Event Handler
-                            await self.__locationsEventHandler.dbHandler(
-                                aconn, argsDict[DB_ACTION], argsDict[DB_TABLE]
-                            )
-
-                    # Check if it's a Graph-related Command
-                    elif argsDict[CMD_TYPE] == GRAPH:
-                        # Call Location Graph Event Handler
-                        await asyncio.gather(
-                            self.__locationsEventHandler.graphHandler(
-                                aconn, argsDict[GRAPH_TYPE], argsDict[GRAPH_LEVEL]
-                            )
+                # Check if it's a Database-related Command
+                if argsDict[CMD_TYPE] == DB:
+                    # Check if it's a Locations Scheme Table
+                    if argsDict[DB_SCHEME] == DB_LOCATIONS_SCHEME_CMD:
+                        # Call Location Database Event Handler
+                        self.__locationsEventHandler.dbHandler(
+                            self.__apool, argsDict[DB_ACTION], argsDict[DB_TABLE]
                         )
+
+                # Check if it's a Graph-related Command
+                elif argsDict[CMD_TYPE] == GRAPH:
+                    # Call Location Graph Event Handler
+                    asyncio.run(
+                        self.__locationsEventHandler.graphHandler(
+                            self.__apool, argsDict[GRAPH_TYPE], argsDict[GRAPH_LEVEL]
+                        )
+                    )
+
+                # Clear Terminal
+                clear()
+
+                argsDict = getEventHandlerArguments()
+
+                # Check if the User wants to Exit the Program
+                if argsDict == None:
+                    break
+
+            # End Program
+            except KeyboardInterrupt:
+                console.print(END_MSG, style="warning")
+                break
+
+            except Exception as err:
+                try:
+                    console.print(err, style="warning")
+
+                    # Press ENTER to Continue
+                    Prompt.ask(PRESS_ENTER)
 
                     # Clear Terminal
                     clear()
@@ -98,41 +115,9 @@ class EventHandler:
                     if argsDict == None:
                         break
 
+                    continue
+
                 # End Program
                 except KeyboardInterrupt:
-                    # Roll Back
-                    rollbackTask = asyncio.create_task(aconn.rollback())
-
                     console.print(END_MSG, style="warning")
-                    await rollbackTask
                     break
-
-                except Exception as err:
-                    # Roll Back
-                    rollbackTask = asyncio.create_task(aconn.rollback())
-
-                    try:
-                        console.print(err, style="warning")
-
-                        # Press ENTER to Continue
-                        Prompt.ask(PRESS_ENTER)
-                        await rollbackTask
-
-                        # Clear Terminal
-                        clear()
-
-                        argsDict = getEventHandlerArguments()
-
-                        # Check if the User wants to Exit the Program
-                        if argsDict == None:
-                            break
-
-                        continue
-
-                    # End Program
-                    except KeyboardInterrupt:
-                        console.print(END_MSG, style="warning")
-                        break
-
-        # Close Remote Database Asynchronous Connection Pool
-        await self.__apool.closePool()

@@ -3,6 +3,7 @@ import asyncio
 import os
 import sys
 import textwrap
+import logging
 
 from lib.controller.events import EventHandler
 from lib.controller.events import END_MSG
@@ -133,11 +134,20 @@ if __name__ == "__main__":
         # Initialize Remote Database Asynchronous Connection Pool
         apool, user, ORSApiKey = initAsyncPool()
 
+        # Open Remote Database Connection Pool
+        asyncio.run(apool.openPool())
+
         # Initialize Event Handler
         e = EventHandler(apool, user, ORSApiKey)
 
+        # Disable Loggers (there's a Logger inside the 'putconn' Method from the AsyncConnectionPool Class)
+        logging.disable(logging.CRITICAL)
+
         # Call Main Event Handler
-        asyncio.run(e.handler(argsDict))
+        e.handler(argsDict)
+
+        # Close Remote Database Asynchronous Connection Pool
+        # asyncio.run(apool.closePool())
 
     # End Program
     except KeyboardInterrupt:

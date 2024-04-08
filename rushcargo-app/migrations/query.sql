@@ -63,3 +63,10 @@ UPDATE orders.Branch_Transfer_Order
     SET rejected = true
     WHERE order_number = 0
 
+--Query for completing the orders AKA add completion date and hour
+
+UPDATE orders.automatic_orders
+    SET 
+    completed_date = '2024-4-8',
+    completed_hour = '10:54:45'
+    WHERE order_number = 0;

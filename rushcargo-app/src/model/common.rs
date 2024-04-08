@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 use tui_input::Input;
 use rust_decimal::Decimal;
 use super::{
-    client::ClientData, db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType}, pkgadmin::PkgAdminData
+    client::ClientData, trucker::TruckerData ,db_obj::{Branch, Locker, Package, Payment, ShippingGuide, ShippingGuideType, Order}, pkgadmin::PkgAdminData
 };
 
 #[derive(Debug, Clone)]
@@ -12,6 +12,8 @@ pub enum Screen {
     Login,
     Client(SubScreen),
     PkgAdmin(SubScreen),
+    Trucker(SubScreen),
+    
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +27,15 @@ pub enum SubScreen {
     PkgAdminGuides,
     PkgAdminGuideInfo,
     PkgAdminAddPackage(Div),
+
+    TruckerMain,
+    TruckerStatistics,
+    TruckerManagementPackages,
+    TruckerRoutes,
+
+    TruckerStatYear,
+    TruckerStatMonth,
+    TruckerStatDay,
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +53,8 @@ impl std::fmt::Display for Screen {
                 Screen::Login => "Login",
                 Screen::Client(_) => "Client",
                 Screen::PkgAdmin(_) => "Package Admin",
+                Screen::Trucker(_) => "Trucker",
+                
             }
         )
     }
@@ -71,13 +84,15 @@ pub enum Popup {
 #[derive(Debug)]
 pub enum UserType {
     Client,
-    PkgAdmin
+    PkgAdmin,
+    Trucker
 }
 
 #[derive(Debug)]
 pub enum User {
     Client(ClientData),
     PkgAdmin(PkgAdminData),
+    Trucker(TruckerData,)
 }
 
 #[derive(Clone)]
@@ -140,6 +155,27 @@ impl std::default::Default for ShippingGuideData {
         }
     }
 }
+
+#[derive(Debug)]
+
+pub struct AutomaticOrdersData {
+    pub viewing_orders: Vec<Order>,
+    pub viewing_orders_idx: i64,
+    pub selected_orders: Option<Vec<Order>>,
+    pub active_orders: Option<Order>,
+}
+
+impl std::default::Default for AutomaticOrdersData {
+    fn default() -> Self {
+        AutomaticOrdersData {
+            viewing_orders: Vec::new(),
+            viewing_orders_idx: 0,
+            selected_orders: None,
+            active_orders: None,
+        }
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub enum Bank {

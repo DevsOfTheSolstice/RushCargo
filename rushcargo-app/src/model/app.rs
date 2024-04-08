@@ -17,6 +17,8 @@ use crate::{
     }
 };
 
+use super::{common::AutomaticOrdersData, trucker::{self, TruckerData}};
+
 pub struct App {
     pub input: InputFields,
     pub input_mode: InputMode,
@@ -366,4 +368,57 @@ impl App {
             }
         ).unwrap()
     }
+    pub fn get_trucker_ref(&self) -> &TruckerData {
+        self.user.as_ref().map(|u|
+            match u {
+              User::Trucker(trucker) => trucker,
+              _ => panic!(),  
+            }
+        ).unwrap()
+    }
+
+    pub fn get_trucker_mut(&mut self) -> &mut TruckerData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker,
+                _ => panic!()
+            }
+        ).unwrap()
+    }
+    
+    pub fn get_trucker_guides_ref(&self) -> &ShippingGuideData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker.shipping_guides.as_ref().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    pub fn get_trucker_guides_mut(&mut self) -> &mut ShippingGuideData {
+        self.user.as_mut().map(|u|
+        match u {
+            User::Trucker(trucker) => trucker.shipping_guides.as_mut().unwrap(),
+            _ => panic!()
+            }
+        ).unwrap()
+    }
+
+    pub fn get_orders_ref(&self) -> &AutomaticOrdersData {
+        self.user.as_ref().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker.active_wh_route.as_ref().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+
+    pub fn get_orders_mut(&mut self) -> &mut AutomaticOrdersData {
+        self.user.as_mut().map(|u|
+            match u {
+                User::Trucker(trucker) => trucker.active_wh_route.as_mut().unwrap(),
+                _ => panic!(),
+            }
+        ).unwrap()
+    }
+    
 }

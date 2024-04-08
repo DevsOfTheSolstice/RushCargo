@@ -7,11 +7,7 @@ use anyhow::Result;
 use crate::{
     event::{Event, InputBlacklist},
     model::{
-        app::App,
-        client::{self, Client, ClientData},
-        db_obj::Branch,
-        common::{Popup, TimeoutType, User, UserType},
-        pkgadmin::{PkgAdmin, PkgAdminData}
+        app::App, client::{self, Client, ClientData}, common::{Popup, TimeoutType, User, UserType}, db_obj::{Branch, Warehouse}, pkgadmin::{PkgAdmin, PkgAdminData}, trucker::{self, Trucker, TruckerData}
     },
     GRAPH_URL,
     HELP_TEXT
@@ -82,7 +78,26 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                                         ))
                                     }
                                     1 => todo!("legal client login"),
-                                    2 => todo!("trucker login"),
+                                    2 => {
+                                        let username: String = res.try_get("username")?;
+                                        let truck: String = res.try_get("truck")?;
+                                        let trucker_row = super::db::tryget::get_full_trucker(username.clone(), pool).await?;
+                                        Some(User::Trucker(
+                                            TruckerData {
+                                                info:
+                                                    Trucker {
+                                                        username,
+                                                        truck,
+                                                        affiliated_warehouse: Warehouse::from_row(&trucker_row)?,
+                                                    },
+                                                viewing_routes: None,
+                                                viewing_routes_idx: 0,
+                                                active_wh_route: None,
+                                                get_db_err: None,
+                                                shipping_guides: None,
+                                            }
+                                        ))
+                                    }
                                     3 => todo!("motorcyclist login"),
                                     _ => panic!("Unexpected i value in TryLogin event.")
                                 };

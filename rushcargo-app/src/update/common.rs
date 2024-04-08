@@ -10,6 +10,7 @@ use crate::{
     model::{
         app::App,
         client::Client,
+        trucker::Trucker,
         common::{UserType, InputMode, PaymentData, Popup, Screen, SubScreen, Div, User},
     },
 };
@@ -164,6 +165,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         _ => {}
                     }
                 }
+                Screen::Trucker(SubScreen::TruckerMain) => {
+                    match app_lock.action_sel {
+                        Some(val) if val < 3 => app_lock.action_sel = Some(val + 1),
+                        _ => app_lock.action_sel = Some(0),
+                    }
+                }
                 _ => {}
             }
             Ok(())
@@ -175,6 +182,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                     Screen::Login => None,
                     Screen::Client(sub) => Some(sub.clone()),
                     Screen::PkgAdmin(sub) => Some(sub.clone()),
+                    Screen::Trucker(sub) => Some(sub.clone()),
                     _ => None
                 }
             };
@@ -220,6 +228,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         Some(1) => app_lock.enter_popup(Some(Popup::CardPayment), pool).await,
                         Some(2) => app_lock.enter_popup(Some(Popup::CashPayment), pool).await,
                         _ => {}
+                    }
+                }
+                Some(SubScreen::TruckerMain) => {
+                    let mut app_lock = app.lock().unwrap();
+                    match app_lock.action_sel {
+                        Some(0) => app_lock.enter_screen(Screen::Trucker(SubScreen::TruckerStatistics), pool).await,
+                        Some(1) => app_lock.enter_screen(Screen::Trucker(SubScreen::TruckerManagementPackages), pool).await,
+                        Some(2) => app_lock.enter_screen(Screen::Trucker(SubScreen::TruckerRoutes), pool).await, 
+                        _ => {}    
                     }
                 }
                 _ => unimplemented!("select action on screen: {:?}, subscreen: {:?}", app.lock().unwrap().active_screen, subscreen)

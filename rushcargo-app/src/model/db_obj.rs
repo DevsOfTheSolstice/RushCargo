@@ -12,7 +12,7 @@ use std::str::FromStr;
 use time::{PrimitiveDateTime, Time, Date};
 use rust_decimal::Decimal;
 use anyhow::{Result, Error, anyhow};
-use super::client::Client;
+use super::{client::Client, trucker::Trucker};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Package {
@@ -310,17 +310,17 @@ pub struct Warehouse {
     id: i32
 }
 
-impl Warehouse {
-    pub fn get_id(&self) -> i32 {
-        self.id
-    }
-}
-
 impl<'r> FromRow<'r, PgRow> for Warehouse {
     fn from_row(row: &'r PgRow) -> Result<Self, sqlx::Error> {
         Ok(Warehouse {
             id: row.try_get("warehouse_id")?
         })
+    }
+}
+
+impl Warehouse {
+    pub fn get_id(&self) -> i32 {
+        self.id
     }
 }
 
@@ -365,3 +365,26 @@ impl Locker {
         self.id
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Order {
+    order_number: i64,
+    warehouse_from: Warehouse,
+    warehouse_to: Warehouse,
+    branch: Branch,
+    shipping_num: i64,
+}
+
+impl<'r> FromRow<'r, PgRow> for Order {
+    fn from_row(row: &'r PgRow) -> Result<Self, sqlx::Error> {
+        Ok(Order {
+            order_number: row.try_get("order_number")?,
+            warehouse_from: Warehouse::from_row(row)?,
+            warehouse_to: Warehouse::from_row(row)?,
+            branch: Branch::from_row(row)?,
+            shipping_num: row.try_get("shipping_number")?,
+        })
+    }
+}
+
+

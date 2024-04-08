@@ -8,10 +8,7 @@ use time::{Date, OffsetDateTime, Time};
 use crate::{
     event::{Event, InputBlacklist},
     model::{
-        app::App,
-        client::Client,
-        common::{Bank, GetDBErr, InputMode, PaymentData, PaymentType, Popup, Screen, SubScreen, User},
-        db_obj::{Branch, Locker},
+        app::App, client::Client, common::{Bank, GetDBErr, InputMode, PaymentData, PaymentType, Popup, Screen, SubScreen, User}, db_obj::{Branch, Locker, ShippingGuide}, trucker::{Trucker, TruckerData}
     },
 };
 
@@ -21,7 +18,15 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         => {
             place_order(app, pool, &event).await?;
             Ok(())
+        }/* 
+        Event::PlaceCompletedRoute => {
+            place_confirmation(app, pool, &event).await?;
+            Ok(())
         }
+        Event::PlaceAcceptOrDenyRoute => {
+            place_accept_or_deny(app, pool, &event).await?;
+            Ok(()) 
+        } */
         _ => panic!("An event of type {:?} was passed to the db::insert update function", event)
     }
 }
@@ -137,3 +142,54 @@ async fn place_order(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) ->
     }
     Ok(())
 }
+/* 
+async fn place_confirmation(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) -> Result<()> {
+    let mut app_lock = app.lock().unwrap();
+
+    match &app_lock.user {
+        Some(User::Trucker(trucker_data)) => {
+            
+            let datetime = OffsetDateTime::now_utc();
+
+            let trucker_route_data = app_lock.get_orders_mut();
+            let selected_orders = trucker_route_data.active_orders.as_ref().unwrap();
+            //let order_num = viewing_orders.iter().position(|Order| Order == Order);
+
+            if let Some(index) = order_num {
+                // Update the time and date of completion for the order
+                sqlx::query(
+                    "
+                    UPDATE orders.automatic_orders
+                    SET completed_date = $1,
+                    completed_hour = $2
+                    WHERE order_number = $3;
+                    "
+                )
+                .bind(datetime.date())
+                .bind(datetime.time())
+                //bind(selected_orders[index].get_route_num())
+                .execute(pool)
+                .await?;
+            } else {
+                return Err(anyhow!("order not found"));
+            }
+        }
+        // Handle other user types
+        _ => unimplemented!("db::insert::place_confirmation for user {:?}", app_lock.user)
+    }
+    Ok(())
+}
+
+async fn place_accept_or_deny(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: &Event) -> Result<()> {
+    let mut app_lock = app.lock().unwrap();
+
+    match &app_lock.user {
+        Some(User::Trucker(trucker_data)) => {
+
+        }
+    }
+
+    Ok(())
+}
+
+*/

@@ -22,4 +22,3 @@ SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locatio
 CREATE VIEW Connections.City_Main_Warehouses AS
 SELECT warehouses.* FROM Connections.Warehouses AS warehouses INNER JOIN Locations.Cities AS cities ON cities.main_warehouse = warehouses.warehouse_id;
 
-

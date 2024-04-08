@@ -11,8 +11,15 @@ use super::{
 pub enum TableType {
     Lockers,
     LockerPackages,
+    
     Guides,
     GuidePackages,
+
+    ManagementPackages,
+    TruckerRoutes,
+    StatsYear,
+    StatsMonth,
+    StatsDay,
 }
 
 pub struct TableData {
@@ -114,6 +121,49 @@ impl App {
                 };
                 self.table.state.select(Some(i));
             }
+            TableType::TruckerRoutes => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i >= self.get_trucker_guides_ref().viewing_guides.len() - 1 {
+                            if let Ok(()) = self.get_guides_next(table_type, pool).await {
+                                0
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i + 1
+                        }
+                    }
+                    None => 0,
+                };
+                self.table.state.select(Some(i));
+            }
+            TableType::ManagementPackages => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i >= self.get_trucker_guides_ref().viewing_guides.len() - 1 {
+                            if let Ok(()) = self.get_guides_next(table_type, pool).await {
+                                0
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i + 1
+                        }
+                    }
+                    None => 0,
+                };
+                self.table.state.select(Some(i));                
+            }
+            TableType::StatsYear => {
+
+            }
+            TableType::StatsMonth => {
+
+            }
+            TableType::StatsDay => {
+
+            }
         }
     }
     pub async fn prev_table_item(&mut self, table_type: TableType, pool: &PgPool) {
@@ -173,6 +223,43 @@ impl App {
                     None => 0,
                 };
                 self.table.state.select(Some(i));
+            }
+            TableType::TruckerRoutes => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i == 0 {
+                            if let Ok(()) = self.get_guides_prev(table_type, pool).await {
+                                7 - 1
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i - 1
+                        }
+                    }
+                    None => 0,
+                };
+                self.table.state.select(Some(i));                
+            }
+            TableType::ManagementPackages => {
+                let i = match self.table.state.selected() {
+                    Some(i) => {
+                        if i == 0 {
+                            if let Ok(()) = self.get_guides_prev(table_type, pool).await {
+                                7 - 1
+                            } else {
+                                return;
+                            }
+                        } else {
+                            i - 1
+                        }
+                    }
+                    None => 0,
+                };
+                self.table.state.select(Some(i));
+            }
+            TableType::StatsYear | TableType::StatsMonth | TableType::StatsDay => {
+                
             }
         }
     }
@@ -360,6 +447,7 @@ impl App {
 
         let guides = match self.user {
             Some(User::PkgAdmin(_)) => self.get_pkgadmin_guides_mut(),
+            Some(User::Trucker(_)) => self.get_trucker_guides_mut(),
             _ => panic!()
         };
 
@@ -406,6 +494,7 @@ impl App {
 
         let guides = match self.user {
             Some(User::PkgAdmin(_)) => self.get_pkgadmin_guides_mut(),
+            Some(User::Trucker(_)) => self.get_trucker_guides_mut(),
             _ => panic!()
         };
 

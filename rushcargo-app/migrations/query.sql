@@ -97,6 +97,3 @@ UPDATE orders.automatic_orders
     completed_hour = '10:54:45'
     WHERE order_number = 0;
 
---Query for completing the orders AKA add completion date and hour
-
-UPDATE 

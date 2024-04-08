@@ -171,6 +171,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
                         _ => app_lock.action_sel = Some(0),
                     }
                 }
+                Screen::Trucker(SubScreen::TruckerStatistics) => {
+                    match app_lock.action_sel {
+                        Some(val) if val < 1 => app_lock.action_sel = Some(val + 1),
+                        _ => app_lock.action_sel = Some(0),
+                    }
+                }
                 _ => {}
             }
             Ok(())

@@ -52,6 +52,7 @@ async fn main() -> Result<()> {
 
     let pool = {
         let args = AppArgs::parse();
+        //panic!("{}", args.db);
         sqlx::postgres::PgPool::connect(&args.db).await?
     };
 

@@ -76,7 +76,10 @@ pub enum Event {
 
     UpdatePaymentInfo,
     RejectOrderReq,
-    PlaceOrder
+    PlaceOrder,
+
+    PlaceCompletedRoute,
+    PlaceAcceptOrDenyRoute
 }
 
 #[derive(Debug)]

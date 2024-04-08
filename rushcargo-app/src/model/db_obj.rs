@@ -280,11 +280,7 @@ pub struct Warehouse {
     id: i32
 }
 
-impl Warehouse {
-    pub fn get_id(&self) -> i32 {
-        self.id
-    }
-}
+
 
 impl Warehouse {
     pub fn from_id(id: i32) -> Self {

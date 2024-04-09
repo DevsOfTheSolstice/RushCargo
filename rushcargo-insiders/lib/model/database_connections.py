@@ -442,7 +442,9 @@ class WarehouseConnectionsTable:
             REGIONS_MAIN_WAREHOUSES_VIEW_NAME, COUNTRIES_ID
         )
 
-        getTask = asyncio.create(self.__getMainWarehouses(acursor, query, countryId))
+        getTask = asyncio.create_task(
+            self.__getMainWarehouses(acursor, query, countryId)
+        )
         await asyncio.gather(getTask)
 
         return getTask.result()
@@ -723,19 +725,31 @@ class WarehouseConnectionsTable:
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        # Get 3 Connections from the Asynchronous Pool
+        i = 0
         nConns = 3
+
+        def getConnIndex(i: int) -> int:
+            """
+            Function to Get the Connection Index to be Assigned from the ``aconns`` List
+
+            :param int i: Index of the Last Connection Assigned from ``aconns``
+            :return: Index of the Connection to be Assigned
+            :rtype: int
+            """
+
+            return 0 if i == nConns - 1 else i + 1
+
+        # Get 3 Connections from the Asynchronous Pool
         getTask = asyncio.create_task(apool.getConnections(nConns))
         await asyncio.gather(getTask)
         aconns = getTask.result()
+        print(aconns)
 
         # Get Query to Insert Warehouse Connections
         query = self.__insertWarehouseConnQuery()
 
         # Insert Each Warehouse Connection to its Table Asynchronously
         async with asyncio.TaskGroup() as tg:
-            i = 0
-
             for warehouseConnDict in warehouseConns:
                 # Check the Warehouse Connection ID. Ignore if they're the Same
                 if (
@@ -747,7 +761,7 @@ class WarehouseConnectionsTable:
                 # Insert the Main Warehouse Sender Connection
                 tg.create_task(
                     self.__insertWarehouseSenderConn(
-                        aconns[i].cursor(),
+                        aconns[0].cursor(),
                         ORSGeocoder,
                         query,
                         connType,
@@ -759,7 +773,7 @@ class WarehouseConnectionsTable:
                 # Insert the Main Warehouse Receiver Connection
                 tg.create_task(
                     self.__insertWarehouseReceiverConn(
-                        aconns[i].cursor(),
+                        aconns[2].cursor(),
                         ORSGeocoder,
                         query,
                         connType,
@@ -792,11 +806,34 @@ class WarehouseConnectionsTable:
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Get Two Connections from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnections(2))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
+
         # Get All the Region Main Warehouses at the Given Country ID
-        regionMainWarehouses = self.getRegionMainWarehouseDicts(countryId)
+        regionMainWarehousesTask = asyncio.create_task(
+            self.getRegionMainWarehouseDicts(aconns[0].cursor(), countryId)
+        )
 
         # Get All the City Main Warehouses at the Given Region ID
-        cityMainWarehouses = self.getCityMainWarehouseDicts(regionId)
+        cityMainWarehousesTask = asyncio.create_task(
+            self.getCityMainWarehouseDicts(aconns[1].cursor(), regionId)
+        )
+
+        tasks = [regionMainWarehousesTask, cityMainWarehousesTask]
+        try:
+            await asyncio.gather(*tasks)
+
+        except Exception as err:
+            cancelTasks(tasks)
+            raise err
+
+        regionMainWarehouses = regionMainWarehousesTask.result()
+        cityMainWarehouses = cityMainWarehousesTask.result()
+
+        # Put the Connections Back to the Asynchronous Pool
+        await asyncio.gather(apool.putConnections(aconns))
 
         # Set the Region Main Warehouse Connections
         regionMainTask = asyncio.create_task(
@@ -854,11 +891,34 @@ class WarehouseConnectionsTable:
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Get Two Connections from the Asynchronous Pool
+        getTask = asyncio.create_task(apool.getConnections(2))
+        await asyncio.gather(getTask)
+        aconns = getTask.result()
+
         # Get All the City Main Warehouses at the Given Region ID
-        cityMainWarehouses = self.getCityMainWarehouseDicts(regionId)
+        cityMainWarehousesTask = asyncio.create_task(
+            self.getCityMainWarehouseDicts(aconns[0].cursor(), regionId)
+        )
 
         # Get All the City Warehouses at the Given City ID
-        cityWarehouses = self.getCityWarehouseDicts(cityId)
+        cityWarehousesTask = asyncio.create_task(
+            self.getCityWarehouseDicts(aconns[1].cursor(), cityId)
+        )
+
+        tasks = [cityMainWarehousesTask, cityWarehousesTask]
+        try:
+            await asyncio.gather(*tasks)
+
+        except Exception as err:
+            cancelTasks(tasks)
+            raise err
+
+        cityMainWarehouses = cityMainWarehousesTask.result()
+        cityWarehouses = cityWarehousesTask.result()
+
+        # Put the Connections Back to the Asynchronous Pool
+        await asyncio.gather(apool.putConnections(aconns))
 
         # Set the Region Main Warehouse Connection
         regionMainTask = asyncio.create_task(

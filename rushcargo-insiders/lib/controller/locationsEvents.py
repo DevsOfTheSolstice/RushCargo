@@ -94,10 +94,8 @@ class LocationsEventHandler:
         self.__regionsTable = RegionsTable()
         self.__citiesTable = CitiesTable()
         self.__warehouseConnsTable = WarehouseConnectionsTable()
-        """
         self.__warehousesTable = WarehousesTable()
         self.__branchesTable = BranchesTable()
-        """
 
         # Initialize Nominatim GeoPy Local Database and Get Connection and Cursor
         self.__localDatabase = NominatimDatabase()
@@ -886,7 +884,7 @@ class LocationsEventHandler:
                 )
 
                 # Print Table
-                await asyncio.gather(self.__warehousesTable.all(sortBy, desc))
+                await asyncio.gather(self.__warehousesTable.all(aconn, sortBy, desc))
 
             elif tableName == BRANCHES_TABLE_NAME:
                 # Ask the Sort Order
@@ -902,7 +900,7 @@ class LocationsEventHandler:
                 )
 
                 # Print Table
-                await asyncio.gather(self.__branchesTable.all(sortBy, desc))
+                await asyncio.gather(self.__branchesTable.all(aconn, sortBy, desc))
 
             # Put the Connection Back to the Asynchronous Pool
             await asyncio.gather(apool.putConnection(aconn))
@@ -1225,11 +1223,10 @@ class LocationsEventHandler:
                         )
 
                         # Get Warehouse Dictionary from Warehouse ID
-                        getTask = asyncio.create_task(
+                        warehouseDictTask = asyncio.create_task(
                             self.__getWarehouseDict(aconns[1], warehouseId)
                         )
-                        await asyncio.gather(getTask)
-                        warehouseDictTask = getTask.result()
+                        await asyncio.gather(warehouseDictTask)
 
                     # Get Region Country ID
                     countryId = region.countryId
@@ -1347,6 +1344,7 @@ class LocationsEventHandler:
                         except Exception as err:
                             cancelTasks(tasks)
                             raise err
+
 
                     region = regionTask.result()
                     regionWarehouseId = region.warehouseId
@@ -1503,19 +1501,12 @@ class LocationsEventHandler:
                     await asyncio.gather(getRouteTask)
                     routeDistance = getRouteTask.result()
 
-                    modRouteTask = asyncio.create_task(
+                    await asyncio.gather(modWarehouseTask)
+                    await asyncio.gather(
                         self.__branchesTable.modify(
-                            aconns[1], branchId, BRANCHES_ROUTE_DISTANCE, routeDistance
+                            aconns[0], branchId, BRANCHES_ROUTE_DISTANCE, routeDistance
                         )
                     )
-
-                    tasks = [modWarehouseTask, modRouteTask]
-                    try:
-                        await asyncio.gather(*tasks)
-
-                    except Exception as err:
-                        cancelTasks(tasks)
-                        raise err
 
             # Commit
             tasks = []
@@ -1794,7 +1785,7 @@ class LocationsEventHandler:
             await asyncio.gather(apool.putConnections(aconns))
             raise err
 
-    async def _rmHandler(self, apool:AsyncPool, tableName: str) -> None:
+    async def _rmHandler(self, apool: AsyncPool, tableName: str) -> None:
         """
         Asynchronous Handler of ``rm`` Location-related Subcommand
 
@@ -1897,7 +1888,7 @@ class LocationsEventHandler:
 
             # Check if it's the Main Warehouse at Any Location
             isMainTask = asyncio.create_task(
-                self.__warehouseConnsTable.isMainWarehouse(aconn.acursor(), warehouseId)
+                self.__warehouseConnsTable.isMainWarehouse(aconn.cursor(), warehouseId)
             )
             await asyncio.gather(isMainTask)
             location = isMainTask.result()
@@ -1910,7 +1901,7 @@ class LocationsEventHandler:
                 # Remove City Warehouse Connections
                 await asyncio.gather(
                     self.__warehouseConnsTable.removeCityWarehouse(
-                        aconn.acursor(), warehouseId
+                        aconn.cursor(), warehouseId
                     )
                 )
 
@@ -2021,7 +2012,7 @@ class LocationsEventHandler:
                 # Get the Region Main Warehouse IDs at the Given Country
                 warehouseTask = asyncio.create_task(
                     self.__warehouseConnsTable.getRegionMainWarehouseIds(
-                        aconn.acursor(), countryId
+                        aconn.cursor(), countryId
                     )
                 )
                 await asyncio.gather(warehouseTask)
@@ -2036,7 +2027,7 @@ class LocationsEventHandler:
                 # Get the City Main Warehouse IDs at the Given Region
                 warehouseTask = asyncio.create_task(
                     self.__warehouseConnsTable.getCityMainWarehouseIds(
-                        aconn.acursor(), regionId
+                        aconn.cursor(), regionId
                     )
                 )
                 # Get the Region Main Warehouse ID

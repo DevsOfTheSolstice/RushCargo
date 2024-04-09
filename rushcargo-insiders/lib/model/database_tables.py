@@ -221,7 +221,7 @@ class BaseTable:
         Method to Get the Query to Sort the Table Rows in Asceding/Descending Order for a Given Field
 
         :param str orderBy: Table Field to Sort
-        :param bool desc: Specifies wheter to Sort the Rows in Ascending or Descending Order
+        :param bool desc: Specifies whether to Sort the Rows in Ascending or Descending Order
         :return: SQL Query
         :rtype: Composed
         """
@@ -305,7 +305,7 @@ class BaseTable:
 
     async def _get(self, acursor, field: str, value, orderBy: str = None) -> None:
         """
-        Asynchronous Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair
+        Asynchronous Method to Check whether the Table Contains at least One Row with a Given Field-Value Pair
 
         :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str field: Field to be Compared
@@ -328,7 +328,7 @@ class BaseTable:
         self, acursor, fields: list[str], values: list, orderBy: str = None
     ) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs
+        Method to Check whether the Table Contains at least One Row with Some Given Field-Value Pairs
 
         :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param list fields: Fields to be Compared
@@ -372,7 +372,7 @@ class BaseTable:
 
         :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Table Field to Sort
-        :param bool desc: Specifies wheter to Sort the Rows in Ascending or Descending Order
+        :param bool desc: Specifies whether to Sort the Rows in Ascending or Descending Order
         :return: Nothing
         :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -414,18 +414,15 @@ class SpecializationTable:
     """
 
     # Database Connection
-    _c = None
     _items = None
 
-    # Specialization and Specialization's Parent Scheme, Table, Table PK and Scheme + Table Name
+    # Specialization and Specialization's Parent Scheme, Table and Table PK Name
     _tableName = None
     _parentTableName = None
     _tablePKFKName = None
     _parentTablePKName = None
     _schemeName = None
     _parentSchemeName = None
-    _fullTableName = None  # (schemeName.tableName)
-    _fullParentTableName = None  # (parentSchemeName.parentTableName)
 
     # Constructor
     def __init__(
@@ -434,7 +431,6 @@ class SpecializationTable:
         parentTableName: str,
         tablePKFKName: str,
         parentTablePKName: str,
-        remoteCursor,
         schemeName: str = None,
         parentSchemeName: str = None,
     ):
@@ -458,30 +454,6 @@ class SpecializationTable:
         self._schemeName = schemeName
         self._parentSchemeName = parentSchemeName
 
-        # Set Full Table Name
-        if schemeName == None:
-            self._fullTableName = sql.Identifier(self._tableName)
-
-        else:
-            self._fullTableName = sql.SQL(".").join(
-                [sql.Identifier(self._schemeName), sql.Identifier(self._tableName)]
-            )
-
-        # Set Full Parent Table Name
-        if parentSchemeName == None:
-            self._fullParentTableName = sql.Identifier(self._parentTableName)
-
-        else:
-            self._fullParentTableName = sql.SQL(".").join(
-                [
-                    sql.Identifier(self._parentSchemeName),
-                    sql.Identifier(self._parentTableName),
-                ]
-            )
-
-        # Store Database Connection Cursor
-        self._c = remoteCursor
-
     def __getTableQuery(self, field: str, orderBy: str = None):
         """
         Method to Get the Query to Select Some Table Rows based on a Given Field-Value Pair to Compare at the Main Table
@@ -495,20 +467,22 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s)"
+                "SELECT * FROM {schemeName}.{tableName} AS child INNER JOIN {schemeName}.{parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s)"
             ).format(
-                fullTableName=self._fullTableName,
-                fullParentTableName=self._fullParentTableName,
+                schemeName=sql.Identifier(self._schemeName),
+                tableName=sql.Identifier(self._tableName),
+                parentTableName=sql.Identifier(self._parentTableName),
                 tablePKFKName=sql.Identifier(self._tablePKFKName),
                 parentTablePKName=sql.Identifier(self._parentTablePKName),
                 field=sql.Identifier(field),
             )
 
         return sql.SQL(
-            "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {schemeName}.{tableName} AS child INNER JOIN {schemeName}.{parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
-            fullTableName=self._fullTableName,
-            fullParentTableName=self._fullParentTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
+            parentTableName=sql.Identifier(self._parentTableName),
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             field=sql.Identifier(field),
@@ -528,16 +502,18 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {fullParentTableName} WHERE {field} = (%s)"
+                "SELECT * FROM {schemeName}.{parentTableName} WHERE {field} = (%s)"
             ).format(
-                fullParentTableName=self._parentTableName,
+                schemeName=sql.Identifier(self._schemeName),
+                parentTableName=sql.Identifier(self._parentTableName),
                 field=sql.Identifier(field),
             )
 
         return sql.SQL(
-            "SELECT * FROM {fullParentTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {schemeName}.{parentTableName} WHERE {field} = (%s) ORDER BY {orderBy}"
         ).format(
-            fullParentTableName=self._parentTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            parentTableName=sql.Identifier(self._parentTableName),
             field=sql.Identifier(field),
             orderBy=sql.Identifier(orderBy),
         )
@@ -556,10 +532,11 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s)"
+                "SELECT * FROM {schemeName}.{tableName} AS child INNER JOIN {schemeName}.{parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s)"
             ).format(
-                fullTableName=self._fullTableName,
-                fullParentTableName=self._fullParentTableName,
+                schemeName=sql.Identifier(self._schemeName),
+                tableName=sql.Identifier(self._tableName),
+                parentTableName=sql.Identifier(self._parentTableName),
                 tablePKFKName=sql.Identifier(self._tablePKFKName),
                 parentTablePKName=sql.Identifier(self._parentTablePKName),
                 field1=sql.Identifier(field1),
@@ -567,10 +544,11 @@ class SpecializationTable:
             )
 
         return sql.SQL(
-            "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {schemeName}.{tableName} AS child INNER JOIN {schemeName}.{parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
-            fullTableName=self._fullTableName,
-            fullParentTableName=self._fullParentTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
+            parentTableName=sql.Identifier(self._parentTableName),
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             field1=sql.Identifier(field1),
@@ -592,17 +570,19 @@ class SpecializationTable:
         # Check if there's Some Sorting to be Applied
         if orderBy == None:
             return sql.SQL(
-                "SELECT * FROM {fullParentTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
+                "SELECT * FROM {schemeName}.{parentTableName} WHERE {field1} = (%s) AND {field2} = (%s)"
             ).format(
-                fullParentTableName=self._fullParentTableName,
+                schemeName=sql.Identifier(self._schemeName),
+                parentTableName=sql.Identifier(self._parentTableName),
                 field1=sql.Identifier(field1),
                 field2=sql.Identifier(field2),
             )
 
         return sql.SQL(
-            "SELECT * FROM {fullParentTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
+            "SELECT * FROM {schemeName}.{parentTableName} WHERE {field1} = (%s) AND {field2} = (%s) ORDER BY {orderBy}"
         ).format(
-            fullParentTableName=self._fullParentTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            parentTableName=sql.Identifier(self._parentTableName),
             field1=sql.Identifier(field1),
             field2=sql.Identifier(field2),
             orderBy=sql.Identifier(orderBy),
@@ -613,7 +593,7 @@ class SpecializationTable:
         Method to Get the Query to Sort the Table Rows in Asceding/Descending Order for a Given Field
 
         :param str orderBy: Table Field to Sort
-        :param bool desc: Specifies wheter to Sort the Rows in Ascending or Descending Order
+        :param bool desc: Specifies whether to Sort the Rows in Ascending or Descending Order
         :return: SQL Query
         :rtype: Composed
         """
@@ -621,10 +601,11 @@ class SpecializationTable:
         # Get Query to Sort the Rows in Ascending Order
         if not desc:
             return sql.SQL(
-                "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} ORDER BY {order}"
+                "SELECT * FROM {schemeName}.{tableName} AS child INNER JOIN {schemeName}.{parentTableName} AS parent ON child.{tablePKFKName} = parent.{parentTablePKName} ORDER BY {order}"
             ).format(
-                fullTableName=self._fullTableName,
-                fullParentTableName=self._fullParentTableName,
+                schemeName=sql.Identifier(self._schemeName),
+                tableName=sql.Identifier(self._tableName),
+                parentTableName=sql.Identifier(self._parentTableName),
                 tablePKFKName=sql.Identifier(self._tablePKFKName),
                 parentTablePKName=sql.Identifier(self._parentTablePKName),
                 order=sql.Identifier(orderBy),
@@ -632,20 +613,21 @@ class SpecializationTable:
 
         # Get Query to Sort the Rows in Descending Order
         return sql.SQL(
-            "SELECT * FROM {fullTableName} AS child INNER JOIN {fullParentTableName} AS parent ON child.{tablePKFKName} =parent.{parentTablePKName} ORDER BY {order} DESC"
+            "SELECT * FROM {schemeName}.{tableName} AS child INNER JOIN {schemeName}.{parentTableName} AS parent ON child.{tablePKFKName} =parent.{parentTablePKName} ORDER BY {order} DESC"
         ).format(
-            fullTableName=self._fullTableName,
-            fullParentTableName=self._fullParentTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
+            parentTableName=sql.Identifier(self._parentTableName),
             tablePKFKName=sql.Identifier(self._tablePKFKName),
             parentTablePKName=sql.Identifier(self._parentTablePKName),
             order=sql.Identifier(orderBy),
         )
 
-    def __modifyQuery(self, fullTableName, compareField: str, modField: str):
+    def __modifyQuery(self, tableName: str, compareField: str, modField: str):
         """
         Method to Modify a Row Field Value with a Given Unique Identifier at a Given Table
 
-        :param fullTableName: SQL Identifier or Composed Table Name to Modify
+        :param str tableName: Table Name to Modify
         :param str compareField: Field to be Compared
         :param str modField: Field to Modify
         :return: SQL Query
@@ -653,31 +635,35 @@ class SpecializationTable:
         """
 
         return sql.SQL(
-            "UPDATE {fullTableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
+            "UPDATE {schemeName}.{tableName} SET {modField} = (%s) WHERE {compareField} = (%s)"
         ).format(
-            fullTableName=fullTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(tableName),
             modField=sql.Identifier(modField),
             compareField=sql.Identifier(compareField),
         )
 
-    def __removeQuery(self, fullTableName, field: str):
+    def __removeQuery(self, tableName: str, field: str):
         """
         Method to Get the Query to Remove a Row with a Given Value at a Given Field and Table
 
-        :param fullTableName: SQL Identifier or Composed Table that Contains the Row/s to be Removed
+        :param str tableName: Table that Contains the Row/s to be Removed
         :param str field: Field to be Compared
         :return: SQL Query
         :rtype: Composed
         """
 
-        return sql.SQL("DELETE FROM {fullTableName} WHERE {field} = (%s)").format(
-            fullTableName=fullTableName, field=sql.Identifier(field)
-        )
+        return sql.SQL(
+            "DELETE FROM {schemeName}.{tableName} WHERE {field} = (%s)"
+        ).format(tableName=tableName, field=sql.Identifier(field))
 
-    def __modify(self, parentTable: bool, idValue: int, field: str, value) -> None:
+    async def __modify(
+        self, acursor, parentTable: bool, idValue: int, field: str, value
+    ) -> None:
         """
-        Method to Modify a Row Field Value with a Given Unique Identifier at a Given Table
+        Asynchronous Method to Modify a Row Field Value with a Given Unique Identifier at a Given Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param bool parentTable: ``False`` if the User wants to Modify the Specialization Table. Otherwise, ``True``
         :param int idValue: Row Unique Identifier
         :param str field: Field to be Modified
@@ -689,125 +675,133 @@ class SpecializationTable:
 
         idField = None
         tableName = None
-        fullTableName = None
 
         # Check if the User wants to Modify the Row from the Parent Table
         if parentTable:
             idField = self._parentTablePKName
             tableName = self._parentTableName
-            fullTableName = self._fullParentTableName
 
         else:
             idField = self._tablePKFKName
             tableName = self._tableName
-            fullTableName = self._fullTableName
 
         # Get Query to Modify the Given Row
-        query = self.__modifyQuery(fullTableName, idField, field)
+        query = self.__modifyQuery(tableName, idField, field)
 
         # Execute the Query and Print a Success Message
-        try:
-            self._c.execute(query, [value, idValue])
-            modifiedRow(field, value, idField, idValue, tableName)
+        await asyncio.gather(acursor.execute(query, [value, idValue]))
+        modifiedRow(field, value, idField, idValue, tableName)
 
-        except Exception as err:
-            raise err
-
-    def _modifyTable(self, idValue: int, field: str, value) -> None:
+    async def _modifyTable(self, acursor, idValue: int, field: str, value) -> None:
         """
-        Method to Modify a Row Field Value with a Given Unique Identifier from the Specialization Table
+        Asynchrnous Method to Modify a Row Field Value with a Given Unique Identifier from the Specialization Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :param str field: Field to be Modified
         :param value: Value to be Assigned
         :return:Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        return self.__modify(False, idValue, field, value)
+        await asyncio.gather(self.__modify(acursor, False, idValue, field, value))
 
-    def _modifyParentTable(self, idValue: int, field: str, value) -> None:
+    async def _modifyParentTable(
+        self, acursor, idValue: int, field: str, value
+    ) -> None:
         """
-        Method to Modify a Row Field Value with a Given Unique Identifier from the Specialization's Parent Table
+        Asynchronous Method to Modify a Row Field Value with a Given Unique Identifier from the Specialization's Parent Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :param str field: Field to be Modified
         :param value: Value to be Assigned
         :return:Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        return self.__modify(True, idValue, field, value)
+        await asyncio.gather(self.__modify(acursor, True, idValue, field, value))
 
-    def __get(self, parentTable: bool, field: str, value, orderBy: str = None) -> bool:
+    async def __get(
+        self, acursor, parentTable: bool, field: str, value, orderBy: str = None
+    ) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair at a Given Table
+        Asynchronous Method to Check whether the Table Contains at least One Row with a Given Field-Value Pair at a Given Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param bool parentTable: ``False`` if the User wants to Compare the Specialization Table. Otherwise,``True``
         :param str field: Field to be Compared
         :param value: Value to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        try:
-            # Check if the User wants to Get the Row from the Parent Table and Execute the Query
-            if parentTable:
-                getParentQuery = self.__getParentTableQuery(field, orderBy)
-                self._items = self._c.execute(getParentQuery, [value])
+        # Check if the User wants to Get the Row from the Parent Table and Execute the Query
+        if parentTable:
+            getParentQuery = self.__getParentTableQuery(field, orderBy)
+            await asyncio.gather(acursor.execute(getParentQuery, [value]))
 
-            else:
-                getSpecQuery = self.__getTableQuery(field, orderBy)
-                self._items = self._c.execute(getSpecQuery, [value])
+        else:
+            getSpecQuery = self.__getTableQuery(field, orderBy)
+            await asyncio.gather(acursor.execute(getSpecQuery, [value]))
 
-            # Fetch the Items
-            self._items = self._items.fetchall()
+        # Fetch the Items
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self._items = fetchTask.result()
 
-        except Exception as err:
-            raise err
-
-        return len(self._items) > 0
-
-    def _getTable(self, field: str, value, orderBy: str = None) -> bool:
+    async def _getTable(self, acursor, field: str, value, orderBy: str = None) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair at the Specialization Table
+        Asynchronous Method to Check whether the Table Contains at least One Row with a Given Field-Value Pair at the Specialization Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str field: Field to be Compared
         :param value: Value to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        return self.__get(False, field, value, orderBy)
+        await asyncio.gather(self.__get(acursor, False, field, value, orderBy))
 
-    def _getParentTable(self, field: str, value, orderBy=None) -> bool:
+    async def _getParentTable(self, acursor, field: str, value, orderBy=None) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with a Given Field-Value Pair at the Specialization's Parent Table
+        Asynchronous Method to Check whether the Table Contains at least One Row with a Given Field-Value Pair at the Specialization's Parent Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str field: Field to be Compared
         :param value: Value to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        return self.__get(True, field, value)
+        await asyncio.gather(self.__get(True, field, value))
 
-    def __getMult(
-        self, parentTable: bool, fields: list[str], values: list, orderBy: str = None
-    ) -> bool:
+    async def __getMult(
+        self,
+        acursor,
+        parentTable: bool,
+        fields: list[str],
+        values: list,
+        orderBy: str = None,
+    ) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs
+        Asynchronous Method to Check whether the Table Contains at least One Row with Some Given Field-Value Pairs
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param bool parentTable: ``False`` if the User wants to Compare the Specialization Table. Otherwise,``True``
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
         :raises LenError: Raised if ``fields`` and ``values`` have Different Lists Length
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
@@ -818,81 +812,92 @@ class SpecializationTable:
         if length != len(values):
             raise LenError()
 
-        try:
-            # Check the Number of WHERE Conditions
-            if length > 2:
-                console.print("Query hasn't been Implemented", style="warning")
-                return
+        # Check the Number of WHERE Conditions
+        if length > 2:
+            console.print("Query hasn't been Implemented", style="warning")
+            return
 
-            # Check if the User wants to Compare the Specialization's Parent Table
-            if parentTable:
-                # Get Query for Specialization's Parent Table with Two Conditions and Execute it
-                if length == 2:
-                    twoCondQuery = self.__getParentTableAndQuery(
-                        fields[0], fields[1], orderBy
-                    )
-                    self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
+        # Check if the User wants to Compare the Specialization's Parent Table
+        if parentTable:
+            # Get Query for Specialization's Parent Table with Two Conditions and Execute it
+            if length == 2:
+                twoCondQuery = self.__getParentTableAndQuery(
+                    fields[0], fields[1], orderBy
+                )
+                await asyncio.gather(
+                    acursor.execute(twoCondQuery, [values[0], values[1]])
+                )
 
-                # Query for One Condition. Method Implemented
-                elif length == 1:
-                    return self._getParentTable(fields[0], values[0], orderBy)
+            # Query for One Condition. Method Implemented
+            elif length == 1:
+                getTask = asyncio.create_task(
+                    self._getParentTable(acursor, fields[0], values[0], orderBy)
+                )
+                await asyncio.gather(getTask)
+                return getTask.result()
 
-            else:
-                # Get Query for Specialization Table with Two Conditions and Execute it
-                if length == 2:
-                    twoCondQuery = self.__getTableAndQuery(
-                        fields[0], fields[1], orderBy
-                    )
-                    self._items = self._c.execute(twoCondQuery, [values[0], values[1]])
+        else:
+            # Get Query for Specialization Table with Two Conditions and Execute it
+            if length == 2:
+                twoCondQuery = self.__getTableAndQuery(fields[0], fields[1], orderBy)
+                await asyncio.gather(
+                    acursor.execute(twoCondQuery, [values[0], values[1]])
+                )
 
-                # Query for One Condition. Method Implemented
-                elif length == 1:
-                    return self._getTable(fields[0], values[0], orderBy)
+            # Query for One Condition. Method Implemented
+            elif length == 1:
+                getTask = asyncio.create_task(
+                    self._getTable(acursor, fields[0], values[0], orderBy)
+                )
+                await asyncio.gather(getTask)
+                return getTask.result
 
-            # Fetch the Items
-            self._items = self._items.fetchall()
+        # Fetch the Items
+        fetchTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(fetchTask)
+        self._items = fetchTask.result()
 
-        except Exception as err:
-            raise err
-
-        return len(self._items) > 0
-
-    def _getMultTable(
-        self, fields: list[str], values: list, orderBy: str = None
-    ) -> bool:
+    async def _getMultTable(
+        self, acursor, fields: list[str], values: list, orderBy: str = None
+    ) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs at the Specialization Table
+        Asynchronous Method to Check whether the Table Contains at least One Row with Some Given Field-Value Pairs at the Specialization Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        return self.__getMult(False, fields, values, orderBy)
+        await asyncio.gather(self.__getMult(acursor, False, fields, values, orderBy))
 
-    def _getMultParentTable(
-        self, fields: list[str], values: list, orderBy: str = None
-    ) -> bool:
+    async def _getMultParentTable(
+        self, acursor, fields: list[str], values: list, orderBy: str = None
+    ) -> None:
         """
-        Method to Check wheter the Table Contains at least One Row with Some Given Field-Value Pairs at the Specialization's Parent Table
+        Asynchronous Method to Check whether the Table Contains at least One Row with Some Given Field-Value Pairs at the Specialization's Parent Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param list fields: Fields to be Compared
         :param list values: Values to be Compared
         :param str orderBy: Table Field that will be Used to Sort it. Default is ``None``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :return: Nothing
+        :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        return self.__getMult(True, fields, values, orderBy)
+        await asyncio.gather(self.__getMult(acursor, True, fields, values, orderBy))
 
-    def _all(self, orderBy: str, desc: bool) -> None:
+    async def _all(self, acursor, orderBy: str, desc: bool) -> None:
         """
-        Method to Print the Table Rows Sorted in Asceding/Descending Order for a Given Field at the Specialization Table
+        Asynchronous Method to Print the Table Rows Sorted in Asceding/Descending Order for a Given Field at the Specialization Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Table Field to Sort
-        :param bool desc: Specifies wheter to Sort the Rows in Ascending or Descending Order
+        :param bool desc: Specifies whether to Sort the Rows in Ascending or Descending Order
         :return: Nothing
         :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -902,16 +907,16 @@ class SpecializationTable:
         query = self.__orderByQuery(orderBy, desc)
 
         # Execute the Query and Fecth Items
-        try:
-            self._items = self._c.execute(query).fetchall()
+        await asyncio.gather(acursor.execute(query))
+        getTask = asyncio.create_task(acursor.fetchall())
+        await asyncio.gather(getTask)
+        self._items = getTask.result()
 
-        except Exception as err:
-            raise (err)
-
-    def _remove(self, idValue: int) -> None:
+    async def _remove(self, acursor, idValue: int) -> None:
         """
-        Method to Remove a Row with a Given Unique Identifier from the Specialization and its Parent Table
+        Asynchronous Method to Remove a Row with a Given Unique Identifier from the Specialization and its Parent Table
 
+        :param acursor: Cursor from the Asynchronous Pool Connection with the Remote Database
         :param int idValue: Row Unique Identifier
         :return:Nothing
         :rtype: NoneType
@@ -925,19 +930,15 @@ class SpecializationTable:
         tableName = self._tableName
 
         # Get Query to Remove Row from the Specialization Table
-        tableQuery = self.__removeQuery(self._fullTableName, idField)
+        tableQuery = self.__removeQuery(self._tableName, idField)
 
         # Get Query to Remove Row from the Specialization's Parent Table
-        parentTableQuery = self.__removeQuery(self._fullParentTableName, parentIdField)
+        parentTableQuery = self.__removeQuery(self._parentTableName, parentIdField)
 
-        try:
-            # Remove Row from Specialization Table
-            self._c.execute(tableQuery, [idValue])
-            removeRow(tableName, idField, idValue)
+        # Remove Row from Specialization Table
+        await asyncio.gather(acursor.execute(tableQuery, [idValue]))
+        removeRow(tableName, idField, idValue)
 
-            # Remove Row from Specialization's Parent Table
-            self._c.execute(parentTableQuery, [idValue])
-            removeRow(parentTableName, parentIdField, idValue)
-
-        except Exception as err:
-            raise err
+        # Remove Row from Specialization's Parent Table
+        await asyncio.gather(acursor.execute(parentTableQuery, [idValue]))
+        removeRow(parentTableName, parentIdField, idValue)

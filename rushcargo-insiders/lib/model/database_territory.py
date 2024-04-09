@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 from psycopg import sql
 
@@ -83,8 +82,11 @@ class CountriesTable(BaseTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s)").format(
-            fullTableName=self._fullTableName,
+        return sql.SQL(
+            "INSERT INTO {schemeName}.{tableName} ({fields}) VALUES (%s, %s)"
+        ).format(
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [sql.Identifier(COUNTRIES_NAME), sql.Identifier(COUNTRIES_PHONE_PREFIX)]
             ),
@@ -102,7 +104,9 @@ class CountriesTable(BaseTable):
         """
 
         # Check if the Country has already been Inserted
-        getTask = asyncio.create_task(self.get(aconn, COUNTRIES_NAME, countryName, False))
+        getTask = asyncio.create_task(
+            self.get(aconn, COUNTRIES_NAME, countryName, False)
+        )
         await asyncio.gather(getTask)
         country = getTask.result()
 
@@ -118,7 +122,9 @@ class CountriesTable(BaseTable):
         insertQuery = self.__insertQuery()
 
         # Execute the Query and Print a Success Message
-        await asyncio.gather( aconn.cursor().execute(insertQuery, [countryName, phonePrefix]))
+        await asyncio.gather(
+            aconn.cursor().execute(insertQuery, [countryName, phonePrefix])
+        )
         insertedRow(countryName, self._tableName)
 
     async def get(
@@ -134,7 +140,7 @@ class CountriesTable(BaseTable):
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str field: Country Field that will be Used to Compare in the Country Table
         :param value: Value to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
         :return: List of Fetched Countries Objects if the Table isn't Empty. Otherwise, ``None``
         :rtype: list if the Table isn't Empty. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -189,16 +195,14 @@ class CountriesTable(BaseTable):
 
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Country Field that will be Used to Sort the Country Table
-        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :param bool desc: Specificies whether to Sort in Ascending Order (``False``) or in Descending Order (``True``)
         :return: List of Fetched Countries Objects if the Table isn't Empty. Otherwise, ``None``
         :rtype: list if the Table isn't Empty. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Fetch All Countries
-        queryTask = asyncio.gather(
-            BaseTable._all(self, aconn.cursor(), orderBy, desc)
-        )
+        queryTask = asyncio.gather(BaseTable._all(self, aconn.cursor(), orderBy, desc))
 
         # Clear Terminal
         clear()
@@ -226,7 +230,9 @@ class CountriesTable(BaseTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        await asyncio.gather( BaseTable._modify(self, aconn.cursor(), countryId, field, value))
+        await asyncio.gather(
+            BaseTable._modify(self, aconn.cursor(), countryId, field, value)
+        )
 
     async def remove(self, aconn, countryId: int) -> None:
         """
@@ -239,7 +245,7 @@ class CountriesTable(BaseTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        await asyncio.gather( BaseTable._remove(self, aconn.cursor(), countryId))
+        await asyncio.gather(BaseTable._remove(self, aconn.cursor(), countryId))
 
 
 class RegionsTable(BaseTable):
@@ -318,8 +324,11 @@ class RegionsTable(BaseTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s)").format(
-            fullTableName=self._fullTableName,
+        return sql.SQL(
+            "INSERT INTO {schemeName}.{tableName} ({fields}) VALUES (%s, %s)"
+        ).format(
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [sql.Identifier(REGIONS_FK_COUNTRY), sql.Identifier(REGIONS_NAME)]
             ),
@@ -341,7 +350,9 @@ class RegionsTable(BaseTable):
         regionValues = [countryId, regionName]
 
         # Check if the Region Name has already been Inserted for the Given Country
-        getMultTask = asyncio.create_task(self.getMult(aconn, regionFields, regionValues, False))
+        getMultTask = asyncio.create_task(
+            self.getMult(aconn, regionFields, regionValues, False)
+        )
         await asyncio.gather(getMultTask)
         region = getMultTask.result()
 
@@ -356,7 +367,7 @@ class RegionsTable(BaseTable):
         query = self.__insertQuery()
 
         # Execute the Query and Print a Success Message
-        await asyncio.gather( aconn.cursor().execute(query, [countryId, regionName]))
+        await asyncio.gather(aconn.cursor().execute(query, [countryId, regionName]))
         insertedRow(regionName, self._tableName)
 
     async def get(
@@ -368,7 +379,7 @@ class RegionsTable(BaseTable):
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str field: Region Field that will be Used to Compare in the Region Table
         :param value: Value to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
         :return: List of Fetched Regions Objects if there's at Least One Coincidence. Otherwise, ``None``
         :rtype: list if there's at Least One Coincidence. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -403,7 +414,7 @@ class RegionsTable(BaseTable):
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param list fields: Region Fields that will be Used to Compare in the Region Table
         :param list values: Values to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
         :return: List of Fetched Regions Objects if there's at Least One Coincidence. Otherwise, ``None``
         :rtype: list if there's at Least One Coincidence. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -442,11 +453,16 @@ class RegionsTable(BaseTable):
         """
 
         # Get Region from its Remote Table
-        getMultTask = asyncio.create_task( self.getMult(
-            aconn, [REGIONS_FK_COUNTRY, REGIONS_NAME], [countryId, regionName], False
-        ))
+        getMultTask = asyncio.create_task(
+            self.getMult(
+                aconn,
+                [REGIONS_FK_COUNTRY, REGIONS_NAME],
+                [countryId, regionName],
+                False,
+            )
+        )
         await asyncio.gather(getMultTask)
-        region =getMultTask.result()
+        region = getMultTask.result()
 
         # Get Region Object from the Fetched Item
         if region == None:
@@ -466,10 +482,11 @@ class RegionsTable(BaseTable):
         """
 
         # Get Region from its Remote Table
-        getTask = asyncio.create_task(self.get(aconn, self._tablePKName, regionId, False))
-        await asyncio.gather( getTask)
+        getTask = asyncio.create_task(
+            self.get(aconn, self._tablePKName, regionId, False)
+        )
+        await asyncio.gather(getTask)
         region = getTask.result()
-        
 
         # Get Region Object from the Fetched Item
         if region == None:
@@ -483,16 +500,14 @@ class RegionsTable(BaseTable):
 
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Region Field that will be Used to Sort the Region Table
-        :param bool desc: Specifies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :param bool desc: Specifies whether to Sort in Ascending Order (``False``) or in Descending Order (``True``)
         :return: List of Fetched Regions Objects if the Table isn't Empty. Otherwise, ``None``
         :rtype: list if the Table isn't Empty. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Fetch All Regions
-        queryTask = asyncio.gather(
-            BaseTable._all(self, aconn.cursor(), orderBy, desc)
-        )
+        queryTask = asyncio.gather(BaseTable._all(self, aconn.cursor(), orderBy, desc))
 
         # Clear Terminal
         clear()
@@ -520,7 +535,9 @@ class RegionsTable(BaseTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        await asyncio.gather( BaseTable._modify(self, aconn.cursor(), regionId, field, value))
+        await asyncio.gather(
+            BaseTable._modify(self, aconn.cursor(), regionId, field, value)
+        )
 
     async def remove(self, aconn, regionId: int) -> None:
         """
@@ -533,7 +550,7 @@ class RegionsTable(BaseTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        await asyncio.gather( BaseTable._remove(self, aconn.cursor(), regionId))
+        await asyncio.gather(BaseTable._remove(self, aconn.cursor(), regionId))
 
 
 class CitiesTable(BaseTable):
@@ -601,8 +618,11 @@ class CitiesTable(BaseTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s)").format(
-            fullTableName=self._fullTableName,
+        return sql.SQL(
+            "INSERT INTO {schemeName}.{tableName} ({fields}) VALUES (%s, %s)"
+        ).format(
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [sql.Identifier(CITIES_FK_REGION), sql.Identifier(CITIES_NAME)]
             ),
@@ -624,8 +644,10 @@ class CitiesTable(BaseTable):
         cityValues = [regionId, cityName]
 
         # Check if the City Name has already been Inserted for the Given Region
-        getMultTask = asyncio.create_task(self.getMult(aconn, cityFields, cityValues, False))
-        await asyncio.gather( getMultTask)
+        getMultTask = asyncio.create_task(
+            self.getMult(aconn, cityFields, cityValues, False)
+        )
+        await asyncio.gather(getMultTask)
         city = getMultTask.result()
 
         if city != None:
@@ -639,7 +661,7 @@ class CitiesTable(BaseTable):
         query = self.__insertQuery()
 
         # Execute the Query and Print a Success Message
-        await asyncio.gather( aconn.cursor().execute(query, [regionId, cityName]))
+        await asyncio.gather(aconn.cursor().execute(query, [regionId, cityName]))
         insertedRow(cityName, self._tableName)
 
     async def get(
@@ -651,7 +673,7 @@ class CitiesTable(BaseTable):
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str field: City Field that will be Used to Compare in the City Table
         :param value: Value to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
         :return: List of Fetched Cities Objects if there's at Least One Coincidence, ``None``
         :rtype: list if there's at Least One Coincidence. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -686,7 +708,7 @@ class CitiesTable(BaseTable):
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param list fields: City Fields that will be Used to Compare in the City Table
         :param list values: Values to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
         :return: List of Fetched Cities Objects if there's at Least One Coincidence, ``None``
         :rtype: list if there's at Least One Coincidence. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
@@ -724,9 +746,13 @@ class CitiesTable(BaseTable):
         """
 
         # Get City from its Remote Table
-        city = self.getMult(
-            aconn, [CITIES_FK_REGION, CITIES_NAME], [regionId, cityName], False
+        getTask = asyncio.create_task(
+            self.getMult(
+                aconn, [CITIES_FK_REGION, CITIES_NAME], [regionId, cityName], False
+            )
         )
+        await asyncio.gather(getTask)
+        city = getTask.result()
 
         # Get City Object from the Fetched Item
         if city == None:
@@ -745,7 +771,9 @@ class CitiesTable(BaseTable):
         """
 
         # Get City from its Remote Table
-        city = self.get(aconn, self._tablePKName, cityId, False)
+        getTask = asyncio.create_task(self.get(aconn, self._tablePKName, cityId, False))
+        await asyncio.gather(getTask)
+        city = getTask.result()
 
         # Get City Object from the Fetched Item
         if city == None:
@@ -759,16 +787,14 @@ class CitiesTable(BaseTable):
 
         :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str orderBy: City Field that will be Used to Sort the City Table
-        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :param bool desc: Specificies whether to Sort in Ascending Order (``False``) or in Descending Order (``True``)
         :return: List of Fetched Cities Objects if the Table isn't Empty. Otherwise, ``None``
         :rtype: list if the Table isn't Empty. Otherwise, NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Fetch All Cities
-        queryTask = asyncio.gather(
-            BaseTable._all(self, aconn.cursor(), orderBy, desc)
-        )
+        queryTask = asyncio.gather(BaseTable._all(self, aconn.cursor(), orderBy, desc))
 
         # Clear Terminal
         clear()
@@ -796,7 +822,9 @@ class CitiesTable(BaseTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        await asyncio.gather( BaseTable._modify(self, aconn.cursor(), cityId, field, value))
+        await asyncio.gather(
+            BaseTable._modify(self, aconn.cursor(), cityId, field, value)
+        )
 
     async def remove(self, aconn, cityId: int) -> None:
         """
@@ -809,4 +837,4 @@ class CitiesTable(BaseTable):
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        await asyncio.gather( BaseTable._remove(self, aconn.cursor(), cityId))
+        await asyncio.gather(BaseTable._remove(self, aconn.cursor(), cityId))

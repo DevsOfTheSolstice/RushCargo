@@ -1,3 +1,5 @@
+import asyncio
+
 from psycopg import sql
 
 from rich.prompt import IntPrompt, Prompt
@@ -96,9 +98,7 @@ class BuildingsTable(SpecializationTable):
     Class that Handles the SQL Operations related to the Remote SQL Buildings Table
     """
 
-    def __init__(
-        self, tableName: str, tablePKFKName: str, remoteCursor, schemeName: str = None
-    ):
+    def __init__(self, tableName: str, tablePKFKName: str, schemeName: str = None):
         """
         Buildings Remote Table Class Constructor
 
@@ -114,7 +114,6 @@ class BuildingsTable(SpecializationTable):
             BUILDINGS_TABLE_NAME,
             tablePKFKName,
             BUILDINGS_ID,
-            remoteCursor,
             schemeName,
             LOCATIONS_SCHEME_NAME,
         )
@@ -128,9 +127,9 @@ class BuildingsTable(SpecializationTable):
         """
 
         return sql.SQL(
-            "INSERT INTO {fullParentTableName} ({fields}) VALUES (%s,%s, %s, %s, %s, %s, %s)"
+            "INSERT INTO {schemeName}.{parentTableName} VALUES (%s,%s, %s, %s, %s, %s, %s)"
         ).format(
-            fullParentTableName=self._fullParentTableName,
+            schemeName=sql.Identifier(self._schemeName),
             parentTableName=sql.Identifier(self._parentTableName),
             fields=sql.SQL(",").join(
                 [
@@ -145,61 +144,124 @@ class BuildingsTable(SpecializationTable):
             ),
         )
 
-    def __buildingExists(self, cityId: int, buildingName: str) -> bool:
+    async def __buildingExists(self, aconn, cityId: int, buildingName: str) -> bool:
         """
-        Method to Check if a Building Name has already been Assigned to Another One at the Given City ID
+        Asynchronous Method to Check if a Building Name has already been Assigned to Another One at the Given City ID
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param int cityId: City ID where the Building is Located
         :param str buildingName: Building Name to Search for at the Given City ID
         :return: ``True`` if the Building Name has already been Assigned. Otherwise, ``False``
         :rtype: bool
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         buildingFields = [BUILDINGS_FK_CITY, BUILDINGS_NAME]
         buildingValues = [cityId, buildingName]
 
         # Check if Building Name has already been Inserted at the Given City ID
-        if SpecializationTable._getMultParentTable(
-            self, buildingFields, buildingValues
-        ):
-            uniqueInsertedMult(buildingValues, buildingFields, buildingValues)
-            return True
+        await asyncio.gather(
+            SpecializationTable._getMultParentTable(
+                self, aconn.cursor(), buildingFields, buildingValues
+            )
+        )
 
-        return False
+        if self._items == None:
+            return False
 
-    def _find(self, cityId: int, buildingName: str) -> Building | None:
+        uniqueInsertedMult(buildingValues, buildingFields, buildingValues)
+        return True
+
+    def __getFetchedObjects(self) -> list[Building]:
         """
-        Method to Find a Building at its Remote Table based on its Name and the City ID where It's Located
+        Method to Get a List of Fetched Buildings Objects from ``self_items``
 
+        :return: List of Fetched Buildings Objects
+        :rtype: list
+        """
+
+        buildingsList = []
+
+        for item in self._items:
+            # Intialize Building from the SQL Fetched Row
+            b = Building.fromFetchedItem(item)
+            buildingsList.append(b)
+
+        return buildingsList
+
+    async def _getMult(
+        self, aconn, fields: list[str], values: list
+    ) -> list[Building] | None:
+        """
+        Asynchronous Method to Filter Buildings from its Remote Table based on Some Given Field-Value Pair
+
+        :param aconn: Asynchronous Pool Connection with the Remote Database
+        :param list fields: Region Fields that will be Used to Compare in the Region Table
+        :param list values: Values to Compare
+        :return: List of Fetched Buildings Objects if there's at Least One Coincidence. Otherwise, ``None``
+        :rtype: list if there's at Least One Coincidence. Otherwise, NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
+        """
+
+        # Exceute the Query
+        await asyncio.gather(
+            SpecializationTable._getMultParentTable(
+                self, aconn.cursor(), fields, values
+            )
+        )
+
+        # Get the Regions Objects from the Fetched Regions
+        regionsList = self.__getFetchedObjects()
+
+        return None if len(regionsList) == 0 else regionsList
+
+    async def _findMult(self, aconn, cityId: int, buildingName: str) -> Building | None:
+        """
+        Asynchronous Method to Find a Building at its Remote Table based on its Name and the City ID where It's Located
+
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param int cityId: City ID where the Building is Located
         :param str buildingName: Building Name to Search for at the Given City ID
         :return: Building Object if Found. Otherwise, ``None``
         :rtype: Building if Found. Otherwise, NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Get Building from its Remote Table
-        if not SpecializationTable._getMultParentTable(
-            self, [BUILDINGS_FK_CITY, BUILDINGS_NAME], [cityId, buildingName]
-        ):
-            return None
+        getTask = asyncio.create_task(
+            self._getMult(
+                aconn, [BUILDINGS_FK_CITY, BUILDINGS_NAME], [cityId, buildingName]
+            )
+        )
+        await asyncio.gather(getTask)
+        building = getTask.result()
 
         # Get Building Object from the Fetched Item
-        return Building.fromFetchedItem(self._items[0])
+        if building == None:
+            return None
 
-    def _add(self, location: dict, buildingName: str) -> None:
+        return building[0]
+
+    async def _add(self, aconn, location: dict, buildingName: str) -> None:
         """
-        Method to Insert a New Building to the Building Table
+        Asynchronous Method to Insert a New Building to the Building Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param dict location: Location Dictionary that Contains All the Information Related to the Building Location
         :param str buildingName: Building Name to Insert
         :returns: None
         :rtype: NoneType
-        :raises BuildingNameAssigned: Raised if the Building Name of the that's being Inserted is Already Inserted to ANother Building at the Same City ID
+        :raises BuildingNameAssigned: Raised if the Building Name of the that's being Inserted is Already Inserted to Another Building at the Same City ID
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Check if the Building Name for the Given City ID Already Exists
-        if self.__buildingExists(location[DICT_CITY_ID], buildingName):
+        existsTask = asyncio.create_task(
+            self.__buildingExists(aconn, location[DICT_CITY_ID], buildingName)
+        )
+        await asyncio.gather(existsTask)
+
+        if existsTask.result():
             raise BuildingNameAssigned(buildingName, location[DICT_CITY_ID])
 
         # Ask for New Building Fields
@@ -218,8 +280,8 @@ class BuildingsTable(SpecializationTable):
         query = self.__insertQuery()
 
         # Execute the Query
-        try:
-            self._c.execute(
+        await asyncio.gather(
+            aconn.cursor().execute(
                 query,
                 [
                     addressDescription,
@@ -231,10 +293,8 @@ class BuildingsTable(SpecializationTable):
                     location[NOMINATIM_LONGITUDE],
                 ],
             )
-            insertedRow(buildingName, self._parentTableName)
-
-        except Exception as err:
-            raise err
+        )
+        insertedRow(buildingName, self._parentTableName)
 
 
 class WarehousesTable(BuildingsTable):
@@ -242,28 +302,42 @@ class WarehousesTable(BuildingsTable):
     Class that Handles the SQL Operations related to the Remote SQL Warehouses Table
     """
 
-    def __init__(self, remoteCursor):
+    def __init__(self):
         """
         Warehouses Remote Table Class Constructor
-
-        :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
         # Initialize Building Table Class
-        super().__init__(
-            WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, remoteCursor, LOCATIONS_SCHEME_NAME
-        )
+        super().__init__(WAREHOUSES_TABLE_NAME, WAREHOUSES_ID, LOCATIONS_SCHEME_NAME)
 
-    def __print(self) -> None:
+    def __getFetchedObjects(self) -> list[Warehouse]:
+        """
+        Method to Get a List of Fetched Warehouses Objects from ``self_items``
+
+        :return: List of Fetched Warehouses Objects
+        :rtype: list
+        """
+
+        warehousesList = []
+
+        for item in self._items:
+            # Intialize Warehouse from the SQL Fetched Row
+            w = Warehouse.fromFetchedItem(item)
+            warehousesList.append(w)
+
+        return warehousesList
+
+    def __print(self, warehousesList: list[Warehouse]) -> None:
         """
         Method that Prints the Warehouses Fetched from its Remote Table
 
+        :param list warehousesList: Fetched Warehouses Objects to Print
         :return: Nothing
         :rtype: NoneType
         """
 
         # Number of Warehouses to Print
-        nRows = len(self._items)
+        nRows = len(warehousesList)
 
         # Initialize Rich Table
         table = getTable("Warehouses", nRows)
@@ -276,10 +350,7 @@ class WarehousesTable(BuildingsTable):
         table.add_column("Email", justify="left", max_width=CONTACT_NCHAR)
         table.add_column("City ID", justify="left", max_width=ID_NCHAR)
 
-        for item in self._items:
-            # Intialize Warehouse from Fetched Item
-            w = Warehouse.fromFetchedItem(item)
-
+        for w in warehousesList:
             # Add Row to Rich Table
             table.add_row(
                 str(w.buildingId),
@@ -300,19 +371,22 @@ class WarehousesTable(BuildingsTable):
         :rtype: Composed
         """
 
-        return sql.SQL("INSERT INTO {fullTableName} ({field}) VALUES (%s)").format(
-            fullTableName=self._fullTableName,
+        return sql.SQL(
+            "INSERT INTO {schemeName}.{tableName} ({field}) VALUES (%s)"
+        ).format(
+            schemeName=sql.Identifier(self._schemeName),
             tableName=sql.Identifier(self._tableName),
             field=sql.Identifier(self._tablePKFKName),
         )
 
-    def add(self, location: dict, buildingName: str) -> int:
+    async def add(self, aconn, location: dict, buildingName: str) -> int:
         """
-        Method to Insert a New Warehouse to the Warehouse Table
+        Asynchronous Method to Insert a New Warehouse to the Warehouse Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param dict location: Location Dictionary that Contains All the Information Related to the Warehouse Location
         :param str buildingName: Warehouse Name to Insert
-        :returns: Warehouse Building ID
+        :return: Warehouse Building ID
         :rtype: int
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
@@ -321,10 +395,14 @@ class WarehousesTable(BuildingsTable):
         buildingName = fullBuildingName(self._tableName, buildingName)
 
         # Insert Building to Building Table
-        BuildingsTable._add(self, location, buildingName)
+        await asyncio.gather(BuildingsTable._add(self, location, buildingName))
 
         # Get Building Object of the Recently Inserted Warehouse Building
-        b = BuildingsTable._find(self, location[DICT_CITY_ID], buildingName)
+        findTask = asyncio.create_task(
+            BuildingsTable._findMult(self, aconn, location[DICT_CITY_ID], buildingName)
+        )
+        await asyncio.gather(findTask)
+        b = findTask.result()
 
         # Ask for the Warehouse Fields
         console.print("Adding New Warehouse...", style="caption")
@@ -333,103 +411,141 @@ class WarehousesTable(BuildingsTable):
         warehouseQuery = self.__insertQuery()
 
         # Execute the Query to Insert the Warehouse
-        try:
-            self._c.execute(
+        await asyncio.gather(
+            aconn.cursor().execute(
                 warehouseQuery,
                 [b.buildingId],
             )
-            insertedRow(b.buildingName, self._tableName)
+        )
+        insertedRow(b.buildingName, self._tableName)
 
-            return b.buildingId
+        return b.buildingId
 
-        except Exception as err:
-            raise err
-
-    def get(self, field: str, value, printItems: bool = True) -> bool:
+    async def get(
+        self, aconn, field: str, value, printItems: bool = True
+    ) -> list[Warehouse] | None:
         """
-        Method to Filter Warehouses from its Remote Table based on a Given Field-Value Pair
+        Asynchronous Method to Filter Warehouses from its Remote Table based on a Given Field-Value Pair
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str field: Warehouse Field that will be Used to Compare in the Warehouse Table
         :param value: Value to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
+        :return: List of Fetched Warehouses Objects if the Table isn't Empty. Otherwise, ``None``
+        :rtype: list if the Table isn't Empty. Otherwise, NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Fetch Filtered Warehouses
+        queryTask = asyncio.gather(
+            SpecializationTable._getTable(
+                self, aconn.cursor(), field, value, BUILDINGS_NAME
+            )
+        )
+
+        # Clear Terminal
         if printItems:
-            # Clear Terminal
             clear()
 
-        if not SpecializationTable._getTable(self, field, value, BUILDINGS_NAME):
-            if printItems:
-                noCoincidence()
-            return False
+        await queryTask
 
+        # Get the Warehouses Objects from the Fetched Warehouses
+        warehousesList = self.__getFetchedObjects()
+
+        # Print Filtered Warehouses
         if printItems:
-            self.__print()
-        return True
+            self.__print(warehousesList)
 
-    def find(self, warehouseId: int) -> Warehouse | None:
+        return None if len(warehousesList) == 0 else warehousesList
+
+    async def find(self, aconn, warehouseId: int) -> Warehouse | None:
         """
-        Method to Find a Warehouse at its Remote Table based on its ID
+        Asynchronous Method to Find a Warehouse at its Remote Table based on its ID
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str warehouseId: Warehouse ID to Search for
         :return: Warehouse Object if Found. Otherwise, ``None``
         :rtype: Warehouse if Found. Otherwise, NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        # Get Warehouse from its Remote Table
-        if not SpecializationTable._getTable(self, WAREHOUSES_ID, warehouseId):
+        # Get Warehouses from its Remote Table
+        getTask = asyncio.create_task(
+            self.get(aconn, WAREHOUSES_ID, warehouseId, False)
+        )
+        await asyncio.gather(getTask)
+        warehouse = getTask.result()
+
+        # Get Warehouses Object from the Fetched Item
+        if warehouse == None:
             return None
 
-        # Get Warehouse Object from the Fetched Item
-        return Warehouse.fromFetchedItem(self._items[0])
+        return warehouse[0]
 
-    def all(self, orderBy: str, desc: bool) -> None:
+    async def all(self, aconn, orderBy: str, desc: bool) -> None:
         """
-        Method that Prints the All the Warehouses Stored at its Remote Table
+        Asynchronous Method that Prints the All the Warehouses Stored at its Remote Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Warehouse Field that will be Used to Sort the Warehouse Table
-        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :param bool desc: Specificies whether to Sort in Ascending Order (``False``) or in Descending Order (``True``)
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Fetch All Warehouses
-        SpecializationTable._all(self, orderBy, desc)
+        queryTask = asyncio.gather(
+            SpecializationTable._all(self, aconn.cursor(), orderBy, desc)
+        )
 
         # Clear Terminal
         clear()
 
+        await queryTask
+
+        # Get the Warehouses Objects from the Fetched Warehouses
+        warehousesList = self.__getFetchedObjects()
+
         # Print All Warehouses
-        self.__print()
+        self.__print(warehousesList)
 
-    def modify(self, warehouseId: int, field: str, value) -> None:
+    async def modify(self, aconn, warehouseId: int, field: str, value) -> None:
         """
-        Method to Modify a Warehouse Field to its Remote Table
+        Asynchronous Method to Modify a Warehouse Field to its Remote Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param int warehouseId: Warehouse ID from its Remote Table
         :param str field: Warehouse Field to Modify
         :param value: Warehouse Field Value to be Assigned
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
 
         NOTE: There's No Own Warehouse Field that can be Modified, Only the Ones Inherited from its Parent Table
         """
 
         # Modify Building Table Row Column
-        SpecializationTable._modifyParentTable(self, warehouseId, field, value)
+        await asyncio.gather(
+            SpecializationTable._modifyParentTable(
+                self, aconn.cursor(), warehouseId, field, value
+            )
+        )
 
-    def remove(self, warehouseId: int) -> None:
+    async def remove(self, aconn, warehouseId: int) -> None:
         """
-        Method to Remove a Warehouse Row from its Remote Table
+        Asynchronous Method to Remove a Warehouse Row from its Remote Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param int warehouseId: Warehouse ID from its Remote Table
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        SpecializationTable._remove(self, warehouseId)
+        await asyncio.gather(
+            SpecializationTable._remove(self, aconn.cursor(), warehouseId)
+        )
 
 
 class BranchesTable(BuildingsTable):
@@ -437,28 +553,42 @@ class BranchesTable(BuildingsTable):
     Class that Handles the SQL Operations related to the Remote SQL Branches Table
     """
 
-    def __init__(self, remoteCursor):
+    def __init__(self):
         """
         Branches Remote Table Class Constructor
-
-        :param Cursor remoteCursor: Remote Database Connection Cursor
         """
 
         # Initialize Building Table Class
-        super().__init__(
-            BRANCHES_TABLE_NAME, BRANCHES_ID, remoteCursor, LOCATIONS_SCHEME_NAME
-        )
+        super().__init__(BRANCHES_TABLE_NAME, BRANCHES_ID, LOCATIONS_SCHEME_NAME)
 
-    def __print(self) -> None:
+    def __getFetchedObjects(self) -> list[Branch]:
+        """
+        Method to Get a List of Fetched Branches Objects from ``self_items``
+
+        :return: List of Fetched Branches Objects
+        :rtype: list
+        """
+
+        branchesList = []
+
+        for item in self._items:
+            # Intialize Branch from the SQL Fetched Row
+            b = Branch.fromFetchedItem(item)
+            branchesList.append(b)
+
+        return branchesList
+
+    def __print(self, branchesList: list[Branch]) -> None:
         """
         Method that Prints the Branches Fetched from its Remote Table
 
+        :param list branchesList: Fetched Branches Objects to Print
         :return: Nothing
         :rtype: NoneType
 
         """
         # Number of Branches to Print
-        nRows = len(self._items)
+        nRows = len(branchesList)
 
         # Initialize Rich Table
         table = getTable("Branches", nRows)
@@ -473,10 +603,7 @@ class BranchesTable(BuildingsTable):
         table.add_column("Distance", justify="left", max_width=DISTANCE_NCHAR)
         table.add_column("City ID", justify="left", max_width=ID_NCHAR)
 
-        for item in self._items:
-            # Intialize Branch from Fetched Item
-            b = Branch.fromFetchedItem(item)
-
+        for b in branchesList:
             # Add Row to Rich Table
             table.add_row(
                 str(b.buildingId),
@@ -500,9 +627,10 @@ class BranchesTable(BuildingsTable):
         """
 
         return sql.SQL(
-            "INSERT INTO {fullTableName} ({fields}) VALUES (%s, %s, %s)"
+            "INSERT INTO {schemeName}.{tableName} ({fields}) VALUES (%s, %s, %s)"
         ).format(
-            fullTableName=self._fullTableName,
+            schemeName=sql.Identifier(self._schemeName),
+            tableName=sql.Identifier(self._tableName),
             fields=sql.SQL(",").join(
                 [
                     sql.Identifier(self._tablePKFKName),
@@ -512,21 +640,23 @@ class BranchesTable(BuildingsTable):
             ),
         )
 
-    def add(
+    async def add(
         self,
+        aconn,
         location: dict,
         buildingName: str,
         warehouseConnId: int,
         routeDistance: int,
     ) -> None:
         """
-        Method to Insert a New Branch to the Branch Table
+        Asynchronous Method to Insert a New Branch to the Branch Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param dict location: Location Dictionary that Contains All the Information Related to the Branch Location
         :param str buildingName: Branch Name to Insert
         :param int warehouseConnId: Warehouse ID that will be Connected with the New Branch Inserted
         :param int routeDistance: Route Distance between the Branch and the Warehouse which is Connected with
-        :returns: None
+        :return: Nothing
         :rtype: NoneType
         :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
@@ -535,10 +665,14 @@ class BranchesTable(BuildingsTable):
         buildingName = fullBuildingName(self._tableName, buildingName)
 
         # Insert Building to its Remote Table
-        BuildingsTable._add(self, location, buildingName)
+        await asyncio.gather(BuildingsTable._add(self, aconn, location, buildingName))
 
         # Get Building Object of the Recently Inserted Branch Building
-        b = BuildingsTable._find(self, location[DICT_CITY_ID], buildingName)
+        findTask = asyncio.create_task(
+            BuildingsTable._findMult(self, aconn, location[DICT_CITY_ID], buildingName)
+        )
+        await asyncio.gather(findTask)
+        b = findTask.result()
 
         # Ask for the Branch Fields
         console.print("Adding New Branch...", style="caption")
@@ -547,84 +681,112 @@ class BranchesTable(BuildingsTable):
         branchQuery = self.__insertQuery()
 
         # Execute the Query to Insert the Branch
-        try:
-            self._c.execute(
+        await asyncio.gather(
+            aconn[0].execute(
                 branchQuery,
                 [b.buildingId, warehouseConnId, routeDistance],
             )
-            insertedRow(b.buildingName, self._tableName)
+        )
+        insertedRow(b.buildingName, self._tableName)
 
-        except Exception as err:
-            raise err
-
-    def get(self, field: str, value, printItems: bool = True) -> bool:
+    async def get(
+        self, aconn, field: str, value, printItems: bool = True
+    ) -> list[Branch] | None:
         """
-        Method to Filter Branches from its Remote Table based on a Given Field-Value Pair
+        Asynchronous Method to Filter Branches from its Remote Table based on a Given Field-Value Pair
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str field: Branch Field that will be Used to Compare in the Branch Table
         :param value: Value to Compare
-        :param bool printItems: Specifies wheter to Print or not the Fetched Items. Default is ``True``
-        :return: Returns ``True`` if One or More Items were Fetched. Otherwise, ``False``
-        :rtype: bool
+        :param bool printItems: Specifies whether to Print or not the Fetched Items. Default is ``True``
+        :return: List of Fetched Branches Objects if the Table isn't Empty. Otherwise, ``None``
+        :rtype: list if the Table isn't Empty. Otherwise, NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
+        # Fetch Filtered Branches
+        queryTask = asyncio.gather(
+            SpecializationTable._getTable(
+                self, aconn.cursor(), field, value, BUILDINGS_NAME
+            )
+        )
+
+        # Clear Terminal
         if printItems:
-            # Clear Terminal
             clear()
 
-        if not SpecializationTable._getTable(self, field, value, BUILDINGS_NAME):
-            if printItems:
-                noCoincidence()
-            return False
+        await queryTask
 
+        # Get the Branches Objects from the Fetched Branches
+        branchesList = self.__getFetchedObjects()
+
+        # Print Filtered Branches
         if printItems:
-            self.__print()
-        return True
+            self.__print(branchesList)
 
-    def find(self, branchId: int) -> Branch | None:
+        return None if len(branchesList) == 0 else branchesList
+
+    async def find(self, aconn, branchId: int) -> Branch | None:
         """
-        Method to Find a Branch at its Remote Table based on its ID
+        Asynchronous Method to Find a Branch at its Remote Table based on its ID
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str provinceId: Branch ID to Search for
         :return: Branch Object if Found. Otherwise, ``None``
         :rtype: Branch if Found. Otherwise, NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Get Branch from its Remote Table
-        if not SpecializationTable._getTable(self, BRANCHES_ID, branchId):
-            return None
+        getTask = asyncio.create_task(self.get(aconn, BRANCHES_ID, branchId, False))
+        await asyncio.gather(getTask)
+        branch = getTask.result()
 
         # Get Branch Object from the Fetched Item
-        return Branch.fromFetchedItem(self._items[0])
+        if branch == None:
+            return None
 
-    def all(self, orderBy: str, desc: bool) -> None:
+        return branch[0]
+
+    async def all(self, aconn, orderBy: str, desc: bool) -> None:
         """
-        Method that Prints the All the Branches Stored at its Remote Table
+        Asynchronous Method that Prints the All the Branches Stored at its Remote Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param str orderBy: Branches Field that will be Used to Sort the Branches Table
-        :param bool desc: Specificies wheter to Sort in Ascending Order (``False``) or in Descending Order (``True``)
+        :param bool desc: Specificies whether to Sort in Ascending Order (``False``) or in Descending Order (``True``)
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Fetch All Branches
-        SpecializationTable._all(self, orderBy, desc)
+        queryTask = asyncio.gather(
+            SpecializationTable._all(self, aconn.cursor(), orderBy, desc)
+        )
 
         # Clear Terminal
         clear()
 
+        await queryTask
+
+        # Get the Branches Objects from the Fetched Branches
+        branchesList = self.__getFetchedObjects()
+
         # Print All Branches
-        self.__print()
+        self.__print(branchesList)
 
-    def modify(self, branchId: int, field: str, value) -> None:
+    async def modify(self, aconn, branchId: int, field: str, value) -> None:
         """
-        Method to Modify a Branch Field to its Remote Table
+        Asynchronous Method to Modify a Branch Field to its Remote Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param int branchId: Branch ID from its Remote Table
         :param str field: Branch Field to Modify
         :param value: Branch Field Value to be Assigned
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
         # Modify Branch Table Row Columns
@@ -632,19 +794,31 @@ class BranchesTable(BuildingsTable):
             field == BRANCHES_FK_WAREHOUSE_CONNECTION
             or field == BRANCHES_ROUTE_DISTANCE
         ):
-            SpecializationTable._modifyTable(self, branchId, field, value)
+            await asyncio.gather(
+                SpecializationTable._modifyTable(
+                    self, aconn.cursor(), branchId, field, value
+                )
+            )
 
         # Modify Building Table Row Column
         else:
-            SpecializationTable._modifyParentTable(self, branchId, field, value)
+            await asyncio.gather(
+                SpecializationTable._modifyParentTable(
+                    self, aconn.cursor(), branchId, field, value
+                )
+            )
 
-    def remove(self, branchId: int) -> None:
+    async def remove(self, aconn, branchId: int) -> None:
         """
-        Method to Remove a Branch Row from its Remote Table
+        Asynchronous Method to Remove a Branch Row from its Remote Table
 
+        :param aconn: Asynchronous Pool Connection with the Remote Database
         :param int branchId: Branch ID from its Remote Table
         :return: Nothing
         :rtype: NoneType
+        :raises Exception: Raised when Something Occurs at Query Execution or Items Fetching
         """
 
-        SpecializationTable._remove(self, branchId)
+        await asyncio.gather(
+            SpecializationTable._remove(self, aconn.cursor(), branchId)
+        )

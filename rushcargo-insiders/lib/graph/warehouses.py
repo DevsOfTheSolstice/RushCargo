@@ -98,7 +98,7 @@ class RushWGraph:
         return self
 
     @classmethod
-    async def createFromApp(cls, apool:AsyncPool, draw: bool = False):
+    async def createFromApp(cls, apool: AsyncPool, draw: bool = False):
         """
         Rush Cargo Warehouse Connection Graph Class Asynchronous Factory Method. Called from ``app.py``
 
@@ -443,7 +443,7 @@ class RushWGraph:
         Method that Add All the Regions Main Warehouse Nodes to the NetworkX Graph
 
         :param bool draw: Specifies whether to Draw or not the Nodes
-        :param bool update: Specificies wheter to Update or not the Nodes
+        :param bool update: Specificies whether to Update or not the Nodes
         :return: Nothing
         :rtype: None
         """
@@ -513,7 +513,7 @@ class RushWGraph:
         Method that Add All the Cities Main Warehouse Nodes to the NetworkX Graph
 
         :param bool draw: Specifies whether to Draw or not the Nodes
-        :param bool update: Specificies wheter to Update or not the Nodes
+        :param bool update: Specificies whether to Update or not the Nodes
         :return: Nothing
         :rtype: None
         """
@@ -626,7 +626,7 @@ class RushWGraph:
         Method that Add All the Region Main, Cities Main and Cities Warehouse Nodes Edges to the NetworkX Graph
 
         :param bool draw: Specifies whether to Draw or not the Nodes Edges
-        :param bool update: Specificies wheter to Update or not the Nodes Edges
+        :param bool update: Specificies whether to Update or not the Nodes Edges
         :return: Nothing
         :rtype: None
         """

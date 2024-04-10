@@ -1,31 +1,47 @@
 mod common;
 mod list;
+mod table;
 mod login;
-//mod cleanup;
+mod db;
 
 use std::sync::{Arc, Mutex};
-use sqlx::{Pool, Postgres};
+use sqlx::PgPool;
 use anyhow::Result;
 use crate::{
     event::Event,
     model::app::App,
 };
 
-pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
+pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
-        Event::Quit | Event::TimeoutStep(_) | Event::KeyInput(..) |
-        Event::SwitchInput | Event::EnterScreen(_)
+        Event::Quit | Event::TimeoutTick(_) | Event::KeyInput(..) |
+        Event::SwitchInput | Event::NextInput | Event::PrevInput | 
+        Event::SwitchAction | Event::SelectAction | Event::EnterScreen(_) |
+        Event::EnterPopup(_) | Event::SwitchDiv | Event::ToggleDisplayMsg |
+        Event::UpdatePaymentInfo
         => common::update(app, pool, event).await,
 
-        Event::PrevListItem(_) | Event::NextListItem(_) | Event::SelectAction(_)
+        Event::NextListItem(_) | Event::PrevListItem(_) | Event::SelectListItem(_)
         => list::update(app, pool, event).await,
+
+        Event::NextTableItem(_) | Event::PrevTableItem(_) | Event::SelectTableItem(_)
+        => table::update(app, pool, event).await,
 
         Event::TryLogin
         => login::update(app, pool, event).await,
 
+        Event::TryGetUserLocker(_, _) | Event::TryGetUserBranch(_, _) | Event::TryGetUserDelivery(_)
+        => db::tryget::update(app, pool, event).await,
+
+        Event::PlaceOrderReq | Event::PlaceOrder
+        => db::insert::update(app, pool, event).await,
+
+        Event::RejectOrderReq
+        => db::update::update(app, pool, event).await,
+
         Event::Resize
         => Ok(()),
 
-        _ => panic!("received event {:?} without assigned function", event)
+        _ => panic!("received event {:?} without assigned update function", event)
     }
 }

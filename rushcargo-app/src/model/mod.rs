@@ -1,5 +1,11 @@
 pub mod app;
 pub mod app_list;
+pub mod app_table;
 pub mod common;
+pub mod db_obj;
 pub mod help_text;
 pub mod settings;
+pub mod title;
+pub mod client;
+pub mod pkgadmin;
+pub mod graph_reqs;

@@ -1,7 +1,11 @@
 mod title;
 mod settings;
 mod login;
+mod client;
+mod pkgadmin;
 mod common_fn;
+mod common_render;
+mod err;
 
 use std::sync::{Arc, Mutex};
 use ratatui::prelude::{Frame, Layout};
@@ -10,7 +14,7 @@ use crate::model::{common::Screen, app::App};
 pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let curr_screen = app.lock().unwrap().active_screen.clone();
 
-    { 
+    {
         let mut app_lock = app.lock().unwrap();
         if app_lock.should_clear_screen {
             common_fn::clear_chunks(f, &Layout::default().split(f.size()));
@@ -28,6 +32,11 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
         Screen::Login
         => login::render(app, f),
 
-        _ => panic!("Screen {:?} was not found on the main render function.", curr_screen)
+        Screen::Client(_)
+        => client::render(app, f),
+
+        Screen::PkgAdmin(_)
+        => pkgadmin::render(app, f),
     }
+    .unwrap_or_else(|_| { err::render(app, f) })
 }

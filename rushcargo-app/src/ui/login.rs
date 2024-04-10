@@ -1,10 +1,11 @@
 use ratatui::{
-    layout::{Layout, Direction, Constraint},
-    prelude::{Alignment, Frame},
+    layout::{Layout, Direction, Constraint, Offset},
+    prelude::{Alignment, Frame, Margin, Modifier},
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Paragraph, Clear}
 };
+use anyhow::{Result, anyhow};
 use std::sync::{Arc, Mutex};
 use crate::{
     HELP_TEXT,
@@ -12,15 +13,10 @@ use crate::{
         common::{Popup, InputMode, TimeoutType},
         app::App,
     },
-    ui::common_fn::{
-        centered_rect,
-        percent_x,
-        percent_y,
-        clear_chunks,
-    }
+    ui::common_fn::centered_rect,
 };
 
-pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
+pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     let mut app_lock = app.lock().unwrap();
 
     let chunks = Layout::default()
@@ -31,10 +27,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
             Constraint::Length(3),
             Constraint::Length(1),
         ])
-        .split(centered_rect(
-            percent_x(f, 1.0),
-            percent_y(f, 1.0),
-            f.size()));
+        .split(centered_rect(&f.size(), 45, 8)?);
 
     let title_block = Block::default();
 
@@ -59,10 +52,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                             + ((app_lock.input.0.visual_cursor()).max(name_scroll) - name_scroll) as u16
                             + "* Username: ".len() as u16
                             + 1,
-                        chunks[1].y + 1,
+                            chunks[1].y + 1,
                         );
         } else {
-            name_style = password_style.fg(Color::DarkGray);
+            name_style = name_style.fg(Color::DarkGray);
             f.set_cursor(chunks[2].x
                             + ((app_lock.input.1.visual_cursor()).max(password_scroll) - password_scroll) as u16
                             + "* Password: ".len() as u16
@@ -99,15 +92,15 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     .scroll((0, password_scroll as u16));
 
     f.render_widget(input, chunks[2]);
-    
+
     let help_text = {
         if app_lock.failed_logins == 3 {
-            Text::from(format!("{}{}", HELP_TEXT.login.login_failed_lock, app_lock.timeout.get(&TimeoutType::Login).unwrap().counter))
+            Line::styled(format!("{}{}", HELP_TEXT.login.login_failed_lock, app_lock.timeout.get(&TimeoutType::Login).unwrap().counter), Style::default().fg(Color::Red))
         }
         else if app_lock.failed_logins > 0 {
-            Text::from(HELP_TEXT.login.login_failed)
+            Line::styled(HELP_TEXT.login.login_failed, Style::default().fg(Color::Red))
         } else {
-            Text::from(HELP_TEXT.login.main)
+            Line::raw(HELP_TEXT.login.main)
         }
     };
     let help_block = Block::default();
@@ -117,9 +110,7 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     if let Some(popup) = &app_lock.active_popup {
         match popup {
             Popup::LoginSuccessful => {
-                let popup_rect = centered_rect(15, (3.0 / f.size().height as f32 * 100.0 + 1.0) as u16, f.size());
-
-                f.render_widget(Clear, popup_rect);
+                let popup_rect = centered_rect(&f.size(), 28, 3)?;
 
                 let login_successful_block = Block::default()
                     .borders(Borders::ALL)
@@ -131,11 +122,76 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
                 .alignment(Alignment::Center)
                 .block(login_successful_block);
 
+                f.render_widget(Clear, popup_rect);
                 f.render_widget(login_successful_popup, popup_rect);
+            }
+            Popup::ServerUnavailable => {
+                let popup_rect = centered_rect(&f.size(), 55, 7)?;
 
-                f.set_cursor(f.size().width, f.size().height);
+                let popup_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Min(2),
+                        Constraint::Percentage(100)
+                    ])
+                    .split(popup_rect.inner(&Margin::new(1, 1)));
+
+                let popup_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Thick)
+                    .style(Style::default().fg(Color::Red));
+                
+                let server_unavailable = Paragraph::new(Text::from(vec![
+                    Line::raw("The server could not be reached."),
+                    Line::raw("Would you like to login with limited functionality?")
+                ]))
+                .centered();
+
+                let (yes_style, yes_borders, no_style, no_borders) =
+                    match app_lock.action_sel {
+                        None => (Style::default().fg(Color::DarkGray), BorderType::Rounded, Style::default().fg(Color::DarkGray), BorderType::Rounded),
+                        Some(0) => (Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), BorderType::Thick, Style::default().fg(Color::DarkGray), BorderType::Rounded),
+                        Some(1) => (Style::default().fg(Color::DarkGray), BorderType::Rounded, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), BorderType::Thick),
+                        _ => panic!()
+                    };
+
+                let action_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
+                    ])
+                    .split(popup_chunks[1]);
+                
+                let yes_action_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(yes_borders);
+
+                let yes_action = Paragraph::new("Yes")
+                    .centered()
+                    .block(yes_action_block)
+                    .style(yes_style);
+                
+                let no_action_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(no_borders);
+                    
+                let no_action = Paragraph::new("No")
+                    .centered()
+                    .block(no_action_block)
+                    .style(no_style);
+                
+                f.render_widget(Clear, popup_rect);
+                f.render_widget(popup_block, popup_rect);
+                f.render_widget(server_unavailable, popup_chunks[0]);
+                f.render_widget(yes_action, action_chunks[1]);
+                f.render_widget(no_action, action_chunks[3]);
             }
             _ => { unimplemented!() }
         }
     }
+    Ok(())
 }

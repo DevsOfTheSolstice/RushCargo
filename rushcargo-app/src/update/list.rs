@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Pool, Postgres};
+use sqlx::PgPool;
 use ratatui::widgets::ListItem;
 use ratatui::prelude::Style;
 use std::io::Write;
@@ -18,7 +18,7 @@ use crate::{
     }
 };
 
-pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
+pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
     match event {
         Event::PrevListItem(list_type) => {
             app.lock().unwrap().prev_list_item(list_type);
@@ -28,11 +28,12 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
             app.lock().unwrap().next_list_item(list_type);
             Ok(())
         }
-        Event::SelectAction(list_type) => {
+        Event::SelectListItem(list_type) => {
             let mut app_lock = app.lock().unwrap();
             let (list_state, actions) = match list_type {
                 ListType::Title => (&app_lock.list.state.0, &app_lock.list.actions.title),
                 ListType::Settings => (&app_lock.list.state.0, &app_lock.list.actions.settings),
+                _ => unimplemented!("Event::SelectListItem for {:?}", list_type)
             };
 
             if let Some(selected) = list_state.selected() {
@@ -41,8 +42,8 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                 match list_type {
                     ListType::Title => {
                         match *action {
-                            "Login" => app_lock.enter_screen(&Screen::Login),
-                            "Settings" => app_lock.enter_screen(&Screen::Settings),
+                            "Login" => app_lock.enter_screen(Screen::Login, pool).await,
+                            "Settings" => app_lock.enter_screen(Screen::Settings, pool).await,
                             "Quit" => app_lock.should_quit = true,
                             _ => {}
                         }
@@ -55,6 +56,7 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Eve
                         let mut settings_file = File::create(BIN_PATH.lock().unwrap().clone() + "settings.bin").expect("Could not open `settings.bin`");
                         settings_file.write_all(&bincode::serialize(&app_lock.settings).unwrap()).expect("Could not write to `settings.bin`");
                     }
+                    _ => {}
                 }
             }
             Ok(())

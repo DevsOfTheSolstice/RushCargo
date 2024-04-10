@@ -1,49 +1,57 @@
 use ratatui::{
     layout::{Layout, Direction, Rect, Constraint},
-    prelude::Frame,
+    prelude::{Line, Frame},
     widgets::Clear,
 };
+use rust_decimal::Decimal;
+use anyhow::{Result, anyhow, Error};
 
-pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(layout[1])[1]
+pub fn centered_rect(r: &Rect, width: u16, height: u16) -> Result<Rect> {
+    let rect_padding_x = ((r.width.checked_sub(width).ok_or_else(|| anyhow!("")))? / 2) as u16;
+    let rect_padding_y = ((r.height.checked_sub(height).ok_or_else(|| anyhow!("")))? / 2) as u16;
+    let full_padding_x = r.x + rect_padding_x;
+    let full_padding_y = r.y + rect_padding_y;
+    Ok(Rect {
+        x: full_padding_x,
+        y: full_padding_y,
+        width,
+        height,
+    })
 }
 
-/// Calculates the width percentage for centering a rect with a constant width in a given frame.
-/// Uses an exponential function with parameters a > 0 and c > 0. 
-/// The multiplier param adjusts the rect size. Should be used with `centered_rect` function.
-pub fn percent_x(f: &mut Frame, multiplier: f32) -> u16 {
-    let result = ((((multiplier * 125.00) * 0.99_f32.powi(f.size().width as i32))) + 1.0) as u16;
-    if result >= 100 { 100 }
-    else { result }
-}
+pub fn wrap_text(width: usize, text: String) -> Vec<Line<'static>> {
+    let mut ret: Vec<Line> = Vec::new();
+    let remaining_text = text.split_whitespace();
 
-/// Calculates the height percentage for centering a rect with a constant height in a given frame.
-/// Uses an exponential function with parameters a > 0 and c > 0. 
-/// The multiplier param adjusts the rect size. Should be used with `centered_rect` function.
-pub fn percent_y(f: &mut Frame, multiplier: f32) -> u16 {
-    let result = ((multiplier * (130.00 * 0.95_f32.powi(f.size().height as i32))) + 3.0) as u16;
-    if result >= 100 { 100 }
-    else { result }
+    let mut line_text = String::new();
+    for word in remaining_text {
+        if word.len() + line_text.len() <= width {
+            line_text.push_str(&(word.to_string() + " "));
+        } else {
+            if !line_text.is_empty() {
+                line_text.pop();
+                ret.push(Line::raw(line_text.clone()));
+                line_text.clear();
+                line_text.push_str(&(word.to_string() + " "));
+            }
+            else { return Vec::new(); }
+        }
+    }
+    ret.push(Line::raw(line_text.clone()));
+
+    ret
 }
 
 pub fn clear_chunks(f: &mut Frame, chunks: &std::rc::Rc<[Rect]>) {
     for chunk in chunks.iter() {
         f.render_widget(Clear, *chunk);
+    }
+}
+
+pub fn dimensions_string(val: Decimal) -> String {
+    if val < Decimal::new(100, 0) {
+        String::from(format!("{}cm", val))
+    } else {
+        String::from(format!("{}m", val / Decimal::new(100, 2)))
     }
 }

@@ -12,8 +12,7 @@ use std::{
 use crate::{
     event::{Event, InputBlacklist, SENDER_ERR},
     model::{
-    common::{Popup, Screen, InputMode},
-    app::App,
+    app::App, common::{InputMode, SubScreen, Popup, Screen, User}
     },
 };
 
@@ -22,11 +21,22 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
 
     match app_lock.active_popup {
         Some(Popup::LoginSuccessful) => {
-            if let Some(user_type) = &app_lock.active_user {
-                sender.send(Event::EnterScreen(Screen::Trucker))
-            } else {
-                Ok(())
-            }.expect(SENDER_ERR);
+            if let Some(user_type) = &app_lock.user {
+                match user_type {
+                    User::Client(_) => sender.send(Event::EnterScreen(Screen::Client(SubScreen::ClientMain))).expect(SENDER_ERR),
+                    User::PkgAdmin(_) => sender.send(Event::EnterScreen(Screen::PkgAdmin(SubScreen::PkgAdminMain))).expect(SENDER_ERR),
+                    _ => todo!("enter screen of user type: {:?}", user_type),
+                };
+                sender.send(Event::EnterPopup(None))
+            } else { panic!() }
+        }
+        Some(Popup::ServerUnavailable) => {
+            match key_event.code {
+                KeyCode::Esc => sender.send(Event::EnterPopup(None)),
+                KeyCode::Tab => sender.send(Event::SwitchAction),
+                KeyCode::Enter => sender.send(Event::SelectAction),
+                _ => Ok(())
+            }
         }
         None => {
             match key_event.code {
@@ -34,7 +44,8 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
                 KeyCode::Enter => sender.send(Event::TryLogin),
                 KeyCode::Tab => sender.send(Event::SwitchInput),
                 _ => sender.send(Event::KeyInput(key_event, InputBlacklist::NoSpace))
-            }.expect(SENDER_ERR);
+            }
         }
-    }
+        _ => Ok(())
+    }.expect(SENDER_ERR)
 }

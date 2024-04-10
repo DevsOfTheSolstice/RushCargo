@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 mod check_files;
+mod args;
 mod model;
 mod update;
 mod event;
@@ -16,13 +17,7 @@ use event::EventHandler;
 use tui::Tui;
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(short, long)]
-    url: String,
-}
+use crate::args::AppArgs;
 
 const HELP_TEXT: HelpText = HelpText::default();
 
@@ -37,15 +32,28 @@ lazy_static! {
             }
             path
         });
+    static ref GRAPH_URL: Mutex<String> = Mutex::new({
+        let args = AppArgs::parse();
+        args.graphserver
+    });
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    /*x{let mut title_file = std::fs::File::create(BIN_PATH.lock().unwrap().clone() + "title.bin")?;
+    title_file.write_all(&bincode::serialize("    ____             __    ______                     
+   / __ \\__  _______/ /_  / ____/___ __________ _____ 
+  / /_/ / / / / ___/ __ \\/ /   / __ `/ ___/ __ `/ __ \\
+ / _, _/ /_/ (__  ) / / / /___/ /_/ / /  / /_/ / /_/ /
+/_/ |_|\\__,_/____/_/ /_/\\____/\\__,_/_/   \\__, /\\____/ 
+                                        /____/        ").unwrap())?;
+    }*/
     crate::check_files::check_files();
 
-    let args = Args::parse();
-    println!("{}", args.url);
-    let pool = sqlx::postgres::PgPool::connect(&args.url).await?;
+    let pool = {
+        let args = AppArgs::parse();
+        sqlx::postgres::PgPool::connect(&args.db).await?
+    };
 
     let app = App::default();
     let mut app_arc = Arc::new(Mutex::new(app));
@@ -56,7 +64,7 @@ async fn main() -> Result<()> {
     let mut tui = Tui::new(terminal, events);
     tui.enter()?;
 
-    app_arc.lock().unwrap().enter_screen(&Screen::Title);
+    app_arc.lock().unwrap().enter_screen(Screen::Login, &pool).await;
 
     tui.draw(&mut app_arc)?;
 

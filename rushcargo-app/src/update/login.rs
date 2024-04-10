@@ -1,30 +1,26 @@
 use std::sync::{Arc, Mutex};
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tui_input::backend::crossterm::EventHandler;
-use sqlx::{Row, FromRow, PgPool};
+use sqlx::{Row, Pool, Postgres};
 use bcrypt::verify;
 use anyhow::Result;
 use crate::{
+    HELP_TEXT,
     event::{Event, InputBlacklist},
     model::{
+        common::{Popup, UserType, TimeoutType},
         app::App,
-        client::{self, Client, ClientData},
-        db_obj::Branch,
-        common::{Popup, TimeoutType, User, UserType},
-        pkgadmin::{PkgAdmin, PkgAdminData}
-    },
-    GRAPH_URL,
-    HELP_TEXT
+    }
 };
 
-static USER_SEARCH_QUERIES: [&str; 4] = [
-    "SELECT * FROM users.natural_clients WHERE username = $1",
-    "SELECT * FROM users.legal_clients WHERE username = $1",
-    "SELECT * FROM vehicles.truckers WHERE username = $1",
-    "SELECT * FROM vehicles.motorcyclists WHERE username = $1",
+static USER_SEARCH_QUERIES: [&str;4] = [
+    "SELECT * FROM camionero WHERE username = $1",
+    "SELECT * FROM motorizado WHERE username = $1",
+    "SELECT * FROM cliente_natural WHERE username = $1",
+    "SELECT * FROM cliente_juridico WHERE username = $1"
 ];
 
-pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> Result<()> {
+pub async fn update(app: &mut Arc<Mutex<App>>, pool: &Pool<Postgres>, event: Event) -> Result<()> {
     match event {
         Event::TryLogin => {
             if app.lock().unwrap().failed_logins == 3 {
@@ -32,107 +28,32 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
             }
 
             let username: String = app.lock().unwrap().input.0.value().to_string();
-            let password: String = app.lock().unwrap().input.1.value().to_string();
+            let password: String = app.lock().unwrap().input.0.value().to_string();
 
-            if let Some(res) = sqlx::query("SELECT * FROM users.users WHERE username = $1")
-                .bind(&username)
-                .fetch_optional(pool)
-                .await?
-            {
-                let password_hash: String = res.try_get("user_password")?;
+            for(i, query) in USER_SEARCH_QUERIES.iter().enumerate() {
+                if let Some(res) = sqlx::query(query)
+                    .bind(&username)
+                    .fetch_optional(pool)
+                    .await? {
+                        let password_hash: String = res.try_get("contrasena")?;
 
-                if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
-                    let mut app_lock = app.lock().unwrap();
-                    for (i, query) in USER_SEARCH_QUERIES.iter().enumerate() {
-                        if let Some(res) = sqlx::query(query)
-                            .bind(&username)
-                            .fetch_optional(pool)
-                            .await?
-                        {
-                            app_lock.user =
+                        if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
+                            let mut app_lock = app.lock().unwrap();
+
+                            app_lock.active_user = Some(
                                 match i {
-                                    0 => {
-                                        let first_name = res.try_get("first_name")?;
-                                        let last_name = res.try_get("last_name")?;
-                                        let client_row = super::db::tryget::get_full_client_row(username.clone(), pool).await?;
-
-                                        Some(User::Client(
-                                            ClientData {
-                                                info:
-                                                    Client {
-                                                        username,
-                                                        affiliated_branch: Branch::from_row(&client_row)?,
-                                                        first_name,
-                                                        last_name
-                                                    },
-                                                viewing_lockers: None,
-                                                viewing_lockers_idx: 0,
-                                                active_locker: None,
-                                                packages: None,
-                                                get_db_err: None,
-                                                send_route: None,
-                                                send_route_distance: None,
-                                                shipping: None,
-                                                getuser_fail_count: 0,
-                                                send_payment: None,
-                                            }
-                                        ))
-                                    }
-                                    1 => todo!("legal client login"),
-                                    2 => todo!("trucker login"),
-                                    3 => todo!("motorcyclist login"),
+                                    0 => UserType::Trucker,
+                                    1 => UserType::MotorcycleCourier,
+                                    2 => UserType::NaturalClient,
+                                    3 => UserType::LegalClient,
                                     _ => panic!("Unexpected i value in TryLogin event.")
-                                };
-                            
-                            app_lock.enter_popup(Some(Popup::LoginSuccessful), pool).await;
+                                }
+                            );
+
+                            app_lock.active_popup = Some(Popup::LoginSuccessful);
                             return Ok(());
                         }
                     }
-                }
-            }
-
-            if let Some(res) = sqlx::query("SELECT * FROM users.root_users WHERE username=$1")
-                .bind(&username)
-                .fetch_optional(pool)
-                .await?
-            {
-                let password_hash: String = res.try_get("user_password")?;
-
-                if verify(&password, &password_hash).unwrap_or_else(|error| panic!("{}", error)) {
-                    let admin_type: &str = res.try_get("user_type")?;
-                    match admin_type {
-                        "PkgAdmin" => {
-                            let pkgadmin_row =
-                                sqlx::query(
-                                    "
-                                        SELECT * FROM users.root_users AS roots
-                                        INNER JOIN locations.branches AS branches ON roots.branch_id=branches.branch_id
-                                        INNER JOIN locations.buildings AS buildings ON branches.branch_id=buildings.building_id
-                                        WHERE roots.username=$1
-                                    "
-                                )
-                                .bind(username)
-                                .fetch_one(pool)
-                                .await?;
-
-                            let client = reqwest::Client::new();
-                            if !client.get(
-                                GRAPH_URL.lock().unwrap().clone()
-                            )
-                            .send()
-                            .await.is_ok()
-                            {
-                                app.lock().unwrap().temp_row = Some(pkgadmin_row);
-                                app.lock().unwrap().enter_popup(Some(Popup::ServerUnavailable), pool).await;
-                                return Ok(());
-                            }
-                            app.lock().unwrap().temp_row = Some(pkgadmin_row);
-                            login_as(UserType::PkgAdmin, app, pool).await?;
-                        }
-                        _ => panic!("unknown admin type: {}", admin_type),
-                    }
-                    return Ok(())
-                }
             }
 
             let mut app_lock = app.lock().unwrap();
@@ -145,31 +66,4 @@ pub async fn update(app: &mut Arc<Mutex<App>>, pool: &PgPool, event: Event) -> R
         },
         _ => panic!("An event of type {:?} was passed to the login update function", event)
     }
-}
-
-pub async fn login_as(user: UserType, app: &mut Arc<Mutex<App>>, pool: &PgPool) -> Result<()> {
-    let mut app_lock = app.lock().unwrap();
-    let row = app_lock.temp_row.as_ref().unwrap();
-    match user {
-        UserType::PkgAdmin => {
-            app_lock.user = Some(User::PkgAdmin(
-                PkgAdminData {
-                    info: PkgAdmin {
-                        username: row.try_get("username")?,
-                        branch: Branch::from_row(row)?,
-                        first_name: row.try_get("first_name")?,
-                        last_name: row.try_get("last_name")?,
-                    },
-                    shipping_guides: None,
-                    packages: None,
-                    add_package: None,
-                    get_db_err: None,
-                }
-            ));
-        }
-        _ => unimplemented!("fn login_as() for user {:?}", user)
-    }
-    app_lock.temp_row = None;
-    app_lock.enter_popup(Some(Popup::LoginSuccessful), pool).await;
-    Ok(())
 }

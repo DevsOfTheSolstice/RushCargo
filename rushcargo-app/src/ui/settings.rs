@@ -5,7 +5,6 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Paragraph, Clear, List, ListItem}
 };
-use anyhow::{Result, anyhow};
 use std::sync::{Arc, Mutex};
 use crate::{
     HELP_TEXT,
@@ -13,10 +12,15 @@ use crate::{
         common::{Popup, InputMode, TimeoutType},
         app::App,
     },
-    ui::common_fn::centered_rect,
+    ui::common_fn::{
+        centered_rect,
+        percent_x,
+        percent_y,
+        clear_chunks,
+    }
 };
 
-pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
+pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) {
     let mut app_lock = app.lock().unwrap();
 
     let chunks = Layout::default()
@@ -25,7 +29,10 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
             Constraint::Length(3),
             Constraint::Length(3),
         ])
-        .split(centered_rect(&f.size(), 30, 20)?);
+        .split(centered_rect(
+            percent_x(f, 1.0),
+            percent_y(f, 1.0),
+            f.size()));
     
     let list_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -59,6 +66,4 @@ pub fn render(app: &mut Arc<Mutex<App>>, f: &mut Frame) -> Result<()> {
     );
 
     f.render_stateful_widget(settings_val, list_chunks[1], &mut app_lock.list.state.0);
-
-    Ok(())
 }

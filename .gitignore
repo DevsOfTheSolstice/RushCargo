@@ -1,3 +1,2 @@
 rushcargo-app/target/*
-rushcargo-app/bin/*
-!rushcargo-app/bin/title.bin
+rushcargo-app/bin

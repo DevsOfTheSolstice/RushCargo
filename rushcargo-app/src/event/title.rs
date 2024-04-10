@@ -30,7 +30,7 @@ pub fn event_act(key_event: KeyEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mu
         => sender.send(Event::NextListItem(ListType::Title)),
 
         KeyCode::Enter
-        => sender.send(Event::SelectListItem(ListType::Title)),
+        => sender.send(Event::SelectAction(ListType::Title)),
 
         _ => Ok(())
     }.expect(SENDER_ERR);

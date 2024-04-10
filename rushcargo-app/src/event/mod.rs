@@ -1,8 +1,7 @@
 mod title;
 mod settings;
 mod login;
-mod client;
-mod pkgadmin;
+mod trucker;
 
 use crossterm::event::{
     self,
@@ -21,8 +20,7 @@ use anyhow::Result;
 use crate::model::{
     app::App,
     app_list::ListType,
-    app_table::TableType,
-    common::{Popup, Screen, TimeoutType},
+    common::{Screen, TimeoutType}
 };
 
 const SENDER_ERR: &'static str = "could not send terminal event";
@@ -32,8 +30,6 @@ pub enum InputBlacklist {
     None,
     Money,
     Alphabetic,
-    AlphanumericNoSpace,
-    Alphanumeric,
     NoSpace,
     Numeric,
 }
@@ -43,36 +39,17 @@ pub enum InputBlacklist {
 pub enum Event {
     Quit,
     EnterScreen(Screen),
-    EnterPopup(Option<Popup>),
-    SwitchDiv,
-    ToggleDisplayMsg,
     Resize,
-    TimeoutTick(TimeoutType),
+    Cleanup,
+    TimeoutStep(TimeoutType),
     KeyInput(KeyEvent, InputBlacklist),
     SwitchInput,
-    NextInput,
-    PrevInput,
-    SwitchAction,
-    SelectAction,
 
     NextListItem(ListType),
     PrevListItem(ListType),
-    SelectListItem(ListType),
-
-    NextTableItem(TableType),
-    PrevTableItem(TableType),
-    SelectTableItem(TableType),
+    SelectAction(ListType),
 
     TryLogin,
-
-    TryGetUserLocker(String, String),
-    TryGetUserBranch(String, String),
-    TryGetUserDelivery(String),
-    PlaceOrderReq,
-
-    UpdatePaymentInfo,
-    RejectOrderReq,
-    PlaceOrder
 }
 
 #[derive(Debug)]
@@ -106,7 +83,7 @@ impl EventHandler {
                         last_tick = Instant::now();
                         for (timeout_type, timer) in &app_arc.lock().unwrap().timeout {
                             if timer.last_update.elapsed() > timer.tick_rate {
-                                sender.send(Event::TimeoutTick(*timeout_type)).expect(SENDER_ERR);
+                                sender.send(Event::TimeoutStep(*timeout_type)).expect(SENDER_ERR);
                             }
                         }
                     }
@@ -140,7 +117,10 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 // Events common to all screens.
                 match key_event.code {
                     KeyCode::Char('c') if key_event.modifiers == KeyModifiers::CONTROL => sender.send(Event::Quit),
-                    _ if app_lock.display_msg => { sender.send(Event::ToggleDisplayMsg).expect(SENDER_ERR); return; },
+                    _ if app_lock.hold_popup => {
+                        sender.send(Event::Cleanup).expect(SENDER_ERR);
+                        Ok(())
+                    },
                     _ => Ok(())
                 }.expect(SENDER_ERR);
             }
@@ -152,8 +132,7 @@ fn event_act(event: CrosstermEvent, sender: &mpsc::Sender<Event>, app: &Arc<Mute
                 Screen::Title => title::event_act(key_event, sender, app),
                 Screen::Settings => settings::event_act(key_event, sender, app),
                 Screen::Login => login::event_act(key_event, sender, app),
-                Screen::Client(_) => client::event_act(key_event, sender, app),
-                Screen::PkgAdmin(_) => pkgadmin::event_act(key_event, sender, app),
+                Screen::Trucker => trucker::event_act(key_event, sender, app)
             }
         },
         CrosstermEvent::Resize(_, _) => {
